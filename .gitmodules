@@ -1,0 +1,6 @@
+[submodule "backend/nimble-web"]
+	path = backend/nimble-web
+	url = https://github.com/AndrewLang/matrix-nimble-web
+[submodule "backend/crates/nimble-web"]
+	path = backend/crates/nimble-web
+	url = https://github.com/AndrewLang/matrix-nimble-web
