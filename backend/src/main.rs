@@ -1,3 +1,10 @@
+#![allow(dead_code)]
+
+mod dtos;
+mod entities;
+
+use entities::register_entities;
+
 use nimble_web::*;
 use std::error::Error;
 
@@ -8,8 +15,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::info!("Start building application...");
     let mut builder = AppBuilder::new();
 
+    register_entities(&mut builder);
+
+    builder.router_mut().log_routes();
+
     log::info!("Starting application...");
     let app = builder.build();
+
     app.start().await?;
 
     Ok(())
