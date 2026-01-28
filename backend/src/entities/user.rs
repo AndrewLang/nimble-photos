@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use nimble_web::Entity;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
     pub email: String,

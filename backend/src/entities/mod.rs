@@ -7,9 +7,8 @@ pub mod user;
 pub mod user_settings;
 
 pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
-    builder.add_entity::<User>();
-
-    builder.add_entity::<UserSettings>();
+    builder.use_entity::<User>();
+    builder.use_entity::<UserSettings>();
 
     builder
 }
