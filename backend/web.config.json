@@ -1,0 +1,5 @@
+{
+    "ConnectionStrings": {
+        "DefaultConnection": "Host=localhost;Port=5432;Database=mrp;Username=mrp_user;Password=mrp_dev_password"
+    }
+}

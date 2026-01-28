@@ -1,6 +1,7 @@
 {
     "chat.tools.terminal.autoApprove": {
         "cargo test": true,
-        "Push-Location": true
+        "Push-Location": true,
+        "cargo build": true
     }
 }
