@@ -15,6 +15,7 @@ use {
 pub struct User {
     pub id: String,
     pub email: String,
+    pub display_name: String,
     pub password_hash: String,
     pub created_at: DateTime<Utc>,
 }
@@ -42,25 +43,27 @@ impl PostgresEntity for User {
     }
 
     fn insert_columns() -> &'static [&'static str] {
-        &["id", "email", "password_hash", "created_at"]
+        &["id", "email", "display_name", "password_hash", "created_at"]
     }
 
     fn insert_values(&self) -> Vec<Value> {
         vec![
             Value::String(self.id.clone()),
             Value::String(self.email.clone()),
+            Value::String(self.display_name.clone()),
             Value::String(self.password_hash.clone()),
-            Value::String(self.created_at.to_rfc3339()),
+            Value::DateTime(self.created_at),
         ]
     }
 
     fn update_columns() -> &'static [&'static str] {
-        &["email", "password_hash"]
+        &["email", "display_name", "password_hash"]
     }
 
     fn update_values(&self) -> Vec<Value> {
         vec![
             Value::String(self.email.clone()),
+            Value::String(self.display_name.clone()),
             Value::String(self.password_hash.clone()),
         ]
     }
@@ -69,6 +72,7 @@ impl PostgresEntity for User {
         vec![
             ColumnDef::new("id", ColumnType::Text).primary_key(),
             ColumnDef::new("email", ColumnType::Text).not_null(),
+            ColumnDef::new("display_name", ColumnType::Text).not_null(),
             ColumnDef::new("password_hash", ColumnType::Text).not_null(),
             ColumnDef::new("created_at", ColumnType::Timestamp)
                 .not_null()

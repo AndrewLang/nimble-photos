@@ -8,6 +8,7 @@ fn user_settings_and_profile_dto_conversion() {
     let user = User {
         id: "u1".to_string(),
         email: "me@example.com".to_string(),
+        display_name: "Me".to_string(),
         password_hash: "x".to_string(),
         created_at: Utc::now(),
     };

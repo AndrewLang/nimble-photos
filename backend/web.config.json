@@ -6,5 +6,8 @@
     "Jwt": {
         "Secret": "your_jwt_secret_key_here",
         "ExpirationMinutes": 60
+    },
+    "Encryption": {
+        "Key": "FMxHF3veLLoH25I7Hr9IOenHDKZwj6hcEYeQzTFww9s="
     }
 }

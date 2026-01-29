@@ -6,6 +6,8 @@ use nimble_photos::controllers::auth_controller::AuthController;
 use nimble_photos::dtos::user_profile_dto::UserProfileDto;
 use nimble_photos::entities::{user::User, user_settings::UserSettings};
 
+use nimble_photos::services::EncryptService;
+
 #[test]
 fn login_returns_token() {
     let mut registry = EndpointRegistry::new();
@@ -17,10 +19,41 @@ fn login_returns_token() {
     }
 
     let mut request = HttpRequest::new("POST", "/api/auth/login");
-    request.set_body(RequestBody::Text("{\"id\":\"u1\"}".to_string()));
+    request.set_body(RequestBody::Text(
+        "{\"id\":\"u1\",\"password\":\"x\"}".to_string(),
+    ));
 
-    let services = ServiceContainer::new().build();
-    let config = ConfigBuilder::new().build();
+    let mut values = std::collections::HashMap::new();
+    values.insert(
+        "Encryption.Key".to_string(),
+        "FMxHF3veLLoH25I7Hr9IOenHDKZwj6hcEYeQzTFww9s=".to_string(),
+    );
+    let config = Configuration::from_values(values);
+
+    let encrypt_service = EncryptService::new(&config).unwrap();
+    let encrypted_password = encrypt_service.encrypt("x").unwrap();
+
+    let user_repo = MemoryRepository::<User>::new();
+    user_repo.seed(vec![User {
+        id: "u1".to_string(),
+        email: "me@example.com".to_string(),
+        display_name: "Me".to_string(),
+        password_hash: encrypted_password,
+        created_at: chrono::Utc::now(),
+    }]);
+
+    let mut container = ServiceContainer::new();
+    let config_clone = config.clone();
+    container.register_singleton::<Configuration, _>(move |_| config_clone.clone());
+    container.register_singleton::<Repository<User>, _>(move |_| {
+        Repository::new(Box::new(user_repo.clone()))
+    });
+    container.register_singleton::<EncryptService, _>(move |provider| {
+        let config = provider.resolve::<Configuration>().unwrap();
+        EncryptService::new(&config).unwrap()
+    });
+
+    let services = container.build();
     let mut context = HttpContext::new(request, services, config);
 
     let mut pipeline = Pipeline::new();
@@ -29,6 +62,9 @@ fn login_returns_token() {
     pipeline.add(EndpointExecutionMiddleware::new());
 
     let result = pipeline.run(&mut context);
+    if context.response().status() != 200 {
+        println!("Body: {:?}", context.response().body());
+    }
     assert!(result.is_ok());
     assert_eq!(context.response().status(), 200);
     assert_eq!(
@@ -51,6 +87,7 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
     user_repo.seed(vec![User {
         id: "u1".to_string(),
         email: "me@example.com".to_string(),
+        display_name: "Me".to_string(),
         password_hash: "x".to_string(),
         created_at: chrono::Utc::now(),
     }]);

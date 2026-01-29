@@ -3,11 +3,13 @@
 mod controllers;
 mod dtos;
 mod entities;
+mod services;
 
 use controllers::register_controllers;
 use entities::{migrate_entities, register_entities};
 use nimble_web::AppBuilder;
 use nimble_web::app::application::AppError;
+use services::register_services;
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), AppError> {
@@ -20,10 +22,8 @@ async fn main() -> std::result::Result<(), AppError> {
         .use_postgres()
         .use_authentication();
 
-    log::info!("Registering controllers...");
+    register_services(&mut builder);
     register_controllers(&mut builder);
-
-    log::info!("Registering entities...");
     register_entities(&mut builder);
 
     log::info!("Starting application...");

@@ -2,6 +2,7 @@ use crate::entities::{user::User, user_settings::UserSettings};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UserProfileDto {
     pub id: String,
     pub email: String,

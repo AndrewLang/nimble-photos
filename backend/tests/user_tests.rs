@@ -7,6 +7,7 @@ fn user_basic_properties() {
     let user = User {
         id: "u1".to_string(),
         email: "test@example.com".to_string(),
+        display_name: "test user".to_string(),
         password_hash: "hashed".to_string(),
         created_at: Utc::now(),
     };

@@ -67,7 +67,7 @@ impl PostgresEntity for UserSettings {
             Value::String(self.theme.clone()),
             Value::String(self.language.clone()),
             Value::String(self.timezone.clone()),
-            Value::String(self.created_at.to_rfc3339()),
+            Value::DateTime(self.created_at),
         ]
     }
 
