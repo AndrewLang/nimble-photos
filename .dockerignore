@@ -1,0 +1,9 @@
+.git
+target
+**/target
+**/*.rs.bk
+node_modules
+dist
+.vscode
+.env
+*.log

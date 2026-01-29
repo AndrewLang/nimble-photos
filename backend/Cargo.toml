@@ -12,7 +12,14 @@ log = "0.4"
 env_logger = "0.11"
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "postgres",
+    "macros",
+    "chrono",
+], optional = true }
 
 
 [features]
-postgres = ["nimble-web/postgres"]
+default = ["postgres"]
+postgres = ["nimble-web/postgres", "dep:sqlx"]

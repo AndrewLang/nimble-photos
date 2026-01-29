@@ -1,5 +1,10 @@
 {
-    "ConnectionStrings": {
-        "DefaultConnection": "Host=localhost;Port=5432;Database=mrp;Username=mrp_user;Password=mrp_dev_password"
+    "Postgres": {
+        "Url": "postgres://nimble_photos_admin:nimble_photos_password@localhost:5438/nimble_photos",
+        "PoolSize": 10
+    },
+    "Jwt": {
+        "Secret": "your_jwt_secret_key_here",
+        "ExpirationMinutes": 60
     }
 }

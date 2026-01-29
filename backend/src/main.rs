@@ -12,6 +12,7 @@ use nimble_web::app::application::AppError;
 #[tokio::main]
 async fn main() -> std::result::Result<(), AppError> {
     init_logging();
+
     log::info!("Start building application...");
     let mut builder = AppBuilder::new();
     builder
@@ -19,12 +20,20 @@ async fn main() -> std::result::Result<(), AppError> {
         .use_postgres()
         .use_authentication()
         .use_controller::<AuthController>();
+
+    log::info!("Registering entities...");
     register_entities(&mut builder);
+
     log::info!("Starting application...");
     let app = builder.build();
+
     app.log_routes();
-    migrate_entities(&app);
+
+    log::info!("Migrating database...");
+    migrate_entities(&app).await;
+
     app.start().await?;
+
     Ok(())
 }
 
