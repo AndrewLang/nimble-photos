@@ -4,7 +4,7 @@ mod controllers;
 mod dtos;
 mod entities;
 
-use controllers::auth_controller::AuthController;
+use controllers::register_controllers;
 use entities::{migrate_entities, register_entities};
 use nimble_web::AppBuilder;
 use nimble_web::app::application::AppError;
@@ -18,8 +18,10 @@ async fn main() -> std::result::Result<(), AppError> {
     builder
         .use_config("web.config.json")
         .use_postgres()
-        .use_authentication()
-        .use_controller::<AuthController>();
+        .use_authentication();
+
+    log::info!("Registering controllers...");
+    register_controllers(&mut builder);
 
     log::info!("Registering entities...");
     register_entities(&mut builder);
@@ -39,6 +41,8 @@ async fn main() -> std::result::Result<(), AppError> {
 
 fn init_logging() {
     let mut builder = env_logger::Builder::from_default_env();
-    builder.filter_level(log::LevelFilter::Debug);
+    builder
+        .filter_level(log::LevelFilter::Debug)
+        .filter_module("sqlx", log::LevelFilter::Warn);
     let _ = builder.try_init();
 }

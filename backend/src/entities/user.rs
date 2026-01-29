@@ -3,13 +3,12 @@ use nimble_web::Entity;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "postgres")]
-use nimble_web::data::postgres::PostgresEntity;
-#[cfg(feature = "postgres")]
-use nimble_web::data::query::Value;
-#[cfg(feature = "postgres")]
-use nimble_web::data::schema::{ColumnDef, ColumnType};
-#[cfg(feature = "postgres")]
-use sqlx::FromRow;
+use {
+    nimble_web::data::postgres::PostgresEntity,
+    nimble_web::data::query::Value,
+    nimble_web::data::schema::{ColumnDef, ColumnType},
+    sqlx::FromRow,
+};
 
 #[cfg_attr(feature = "postgres", derive(FromRow))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
