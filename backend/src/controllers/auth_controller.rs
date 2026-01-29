@@ -11,6 +11,7 @@ use crate::services::{EncryptService, IdGenerationService};
 
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
+use nimble_web::data::query::Value;
 use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
@@ -33,14 +34,14 @@ struct RegisterRequest {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LoginRequest {
-    pub id: String,
+    pub email: String,
     pub password: String,
 }
 
 impl Default for LoginRequest {
     fn default() -> Self {
         Self {
-            id: "".to_string(),
+            email: "".to_string(),
             password: "".to_string(),
         }
     }
@@ -86,12 +87,12 @@ impl HttpHandler for LoginHandler {
             .ok_or_else(|| PipelineError::message("encrypt service not registered"))?;
 
         let user = repo
-            .get(&payload.id)
+            .get_by("email", Value::String(payload.email.clone()))
             .await
             .map_err(|_| PipelineError::message("data error"))?
             .ok_or_else(|| PipelineError::message("invalid credentials"))?;
 
-        log::debug!("User {} to log in", user.id);
+        log::debug!("User {} logging in", user.id);
 
         let decrypted_password = encrypt_service
             .decrypt(&user.password_hash)
@@ -101,9 +102,7 @@ impl HttpHandler for LoginHandler {
             return Err(PipelineError::message("invalid credentials"));
         }
 
-        Ok(ResponseValue::new(Json(LoginResponse {
-            token: payload.id,
-        })))
+        Ok(ResponseValue::new(Json(LoginResponse { token: user.id })))
     }
 }
 
