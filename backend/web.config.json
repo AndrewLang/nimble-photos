@@ -5,6 +5,7 @@
     },
     "Jwt": {
         "Secret": "your_jwt_secret_key_here",
+        "Issuer": "nimble_photos",
         "ExpirationMinutes": 60
     },
     "Encryption": {

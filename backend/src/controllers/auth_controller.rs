@@ -1,7 +1,7 @@
-use std::default::Default;
-
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use std::default::Default;
+use std::sync::Arc;
 
 use chrono::Utc;
 
@@ -16,11 +16,14 @@ use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
+use nimble_web::identity::claims::Claims;
 use nimble_web::identity::context::IdentityContext;
+use nimble_web::identity::user::UserIdentity;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
+use nimble_web::security::token::TokenService;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -50,7 +53,8 @@ impl Default for LoginRequest {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LoginResponse {
-    pub token: String,
+    pub access_token: String,
+    pub refresh_token: String,
 }
 
 pub struct AuthController;
@@ -102,7 +106,23 @@ impl HttpHandler for LoginHandler {
             return Err(PipelineError::message("invalid credentials"));
         }
 
-        Ok(ResponseValue::new(Json(LoginResponse { token: user.id })))
+        let token_service = context
+            .services()
+            .resolve::<Arc<dyn TokenService>>()
+            .ok_or_else(|| PipelineError::message("token service not registered"))?;
+
+        let access_token = token_service
+            .create_access_token(&UserIdentity::new(user.id.clone(), Claims::new()))
+            .map_err(|e| PipelineError::message(&e.to_string()))?;
+
+        let refresh_token = token_service
+            .create_refresh_token(&user.id)
+            .map_err(|e| PipelineError::message(&e.to_string()))?;
+
+        Ok(ResponseValue::new(Json(LoginResponse {
+            access_token,
+            refresh_token,
+        })))
     }
 }
 
@@ -148,7 +168,23 @@ impl HttpHandler for RegisterHandler {
             .await
             .map_err(|_| PipelineError::message("data error"))?;
 
-        Ok(ResponseValue::new(Json(LoginResponse { token: user_id })))
+        let token_service = context
+            .services()
+            .resolve::<Arc<dyn TokenService>>()
+            .ok_or_else(|| PipelineError::message("token service not registered"))?;
+
+        let access_token = token_service
+            .create_access_token(&UserIdentity::new(user_id.clone(), Claims::new()))
+            .map_err(|e| PipelineError::message(&e.to_string()))?;
+
+        let refresh_token = token_service
+            .create_refresh_token(&user_id)
+            .map_err(|e| PipelineError::message(&e.to_string()))?;
+
+        Ok(ResponseValue::new(Json(LoginResponse {
+            access_token,
+            refresh_token,
+        })))
     }
 }
 struct MeHandler;
