@@ -10,7 +10,7 @@ use nimble_photos::services::EncryptService;
 fn encrypt_decrypt_roundtrip() {
     let key = vec![0u8; 32];
     let mut values = HashMap::new();
-    values.insert("Encryption.Key".to_string(), STANDARD.encode(&key));
+    values.insert("encryption.key".to_string(), STANDARD.encode(&key));
     let config = Configuration::from_values(values);
 
     let svc = EncryptService::new(&config).unwrap();

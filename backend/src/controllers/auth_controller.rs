@@ -1,29 +1,24 @@
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::default::Default;
-use std::sync::Arc;
 
 use chrono::Utc;
 
 use crate::dtos::user_profile_dto::UserProfileDto;
 use crate::entities::{user::User, user_settings::UserSettings};
-use crate::services::{EncryptService, IdGenerationService};
+use crate::services::AuthService;
 
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
-use nimble_web::data::query::Value;
 use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
-use nimble_web::identity::claims::Claims;
 use nimble_web::identity::context::IdentityContext;
-use nimble_web::identity::user::UserIdentity;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
-use nimble_web::security::token::TokenService;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -50,13 +45,6 @@ impl Default for LoginRequest {
     }
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct LoginResponse {
-    pub access_token: String,
-    pub refresh_token: String,
-}
-
 pub struct AuthController;
 
 impl Controller for AuthController {
@@ -76,53 +64,14 @@ struct LoginHandler;
 #[async_trait]
 impl HttpHandler for LoginHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload: LoginRequest = context
-            .read_json()
-            .map_err(|err| PipelineError::message(&err.message()))?;
+        let payload: LoginRequest = context.json()?;
 
-        let repo = context
-            .services()
-            .resolve::<Repository<User>>()
-            .ok_or_else(|| PipelineError::message("user repository not registered"))?;
+        let auth_service = context.service::<AuthService>()?;
+        let response = auth_service
+            .login(&payload.email, &payload.password)
+            .await?;
 
-        let encrypt_service = context
-            .services()
-            .resolve::<EncryptService>()
-            .ok_or_else(|| PipelineError::message("encrypt service not registered"))?;
-
-        let user = repo
-            .get_by("email", Value::String(payload.email.clone()))
-            .await
-            .map_err(|_| PipelineError::message("data error"))?
-            .ok_or_else(|| PipelineError::message("invalid credentials"))?;
-
-        log::debug!("User {} logging in", user.id);
-
-        let decrypted_password = encrypt_service
-            .decrypt(&user.password_hash)
-            .map_err(|_| PipelineError::message("invalid credentials"))?;
-
-        if payload.password != decrypted_password {
-            return Err(PipelineError::message("invalid credentials"));
-        }
-
-        let token_service = context
-            .services()
-            .resolve::<Arc<dyn TokenService>>()
-            .ok_or_else(|| PipelineError::message("token service not registered"))?;
-
-        let access_token = token_service
-            .create_access_token(&UserIdentity::new(user.id.clone(), Claims::new()))
-            .map_err(|e| PipelineError::message(&e.to_string()))?;
-
-        let refresh_token = token_service
-            .create_refresh_token(&user.id)
-            .map_err(|e| PipelineError::message(&e.to_string()))?;
-
-        Ok(ResponseValue::new(Json(LoginResponse {
-            access_token,
-            refresh_token,
-        })))
+        Ok(ResponseValue::json(response))
     }
 }
 
@@ -131,62 +80,21 @@ struct RegisterHandler;
 #[async_trait]
 impl HttpHandler for RegisterHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload: RegisterRequest = context
-            .read_json()
-            .map_err(|err| PipelineError::message(&err.message()))?;
+        let payload: RegisterRequest = context.json()?;
 
-        let encrypt_service = context
-            .services()
-            .resolve::<EncryptService>()
-            .ok_or_else(|| PipelineError::message("encrypt service not registered"))?;
+        if payload.password != payload.confirm_password {
+            return Err(PipelineError::message("Passwords do not match"));
+        }
 
-        let id_gen_service = context
-            .services()
-            .resolve::<IdGenerationService>()
-            .ok_or_else(|| PipelineError::message("id generation service not registered"))?;
+        let auth_service = context.service::<AuthService>()?;
+        let response = auth_service
+            .register(&payload.email, &payload.password)
+            .await?;
 
-        let encrypted_password = encrypt_service
-            .encrypt(&payload.password)
-            .map_err(|e| PipelineError::message(&e.to_string()))?;
-
-        let user_id = id_gen_service.generate();
-
-        let user = User {
-            id: user_id.clone(),
-            password_hash: encrypted_password,
-            email: payload.email,
-            display_name: payload.display_name,
-            created_at: Utc::now(),
-        };
-
-        let repo = context
-            .services()
-            .resolve::<Repository<User>>()
-            .ok_or_else(|| PipelineError::message("user repository not registered"))?;
-
-        repo.create(user)
-            .await
-            .map_err(|_| PipelineError::message("data error"))?;
-
-        let token_service = context
-            .services()
-            .resolve::<Arc<dyn TokenService>>()
-            .ok_or_else(|| PipelineError::message("token service not registered"))?;
-
-        let access_token = token_service
-            .create_access_token(&UserIdentity::new(user_id.clone(), Claims::new()))
-            .map_err(|e| PipelineError::message(&e.to_string()))?;
-
-        let refresh_token = token_service
-            .create_refresh_token(&user_id)
-            .map_err(|e| PipelineError::message(&e.to_string()))?;
-
-        Ok(ResponseValue::new(Json(LoginResponse {
-            access_token,
-            refresh_token,
-        })))
+        Ok(ResponseValue::json(response))
     }
 }
+
 struct MeHandler;
 
 #[async_trait]
@@ -198,15 +106,8 @@ impl HttpHandler for MeHandler {
 
         let user_id = identity.identity().subject().to_string();
 
-        let user_repo = context
-            .services()
-            .resolve::<Repository<User>>()
-            .ok_or_else(|| PipelineError::message("user repository not registered"))?;
-
-        let settings_repo = context
-            .services()
-            .resolve::<Repository<UserSettings>>()
-            .ok_or_else(|| PipelineError::message("user settings repository not registered"))?;
+        let user_repo = context.service::<Repository<User>>()?;
+        let settings_repo = context.service::<Repository<UserSettings>>()?;
 
         let user = user_repo
             .get(&user_id)

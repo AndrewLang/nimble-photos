@@ -5,14 +5,17 @@ use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce, aead::Aead};
 use nimble_web::config::Configuration;
 use rand::RngCore;
 
+#[derive(Clone)]
 pub struct EncryptService {
     cipher: XChaCha20Poly1305,
 }
 
 impl EncryptService {
     pub fn new(config: &Configuration) -> Result<Self> {
+        log::debug!("Config in EncryptService: {:?}", config);
+
         let key_b64 = config
-            .get("Encryption.Key")
+            .get("encryption.key")
             .ok_or_else(|| anyhow!("encryption key not configured"))?;
         let key_bytes = STANDARD.decode(key_b64)?;
         if key_bytes.len() != 32 {
@@ -51,5 +54,14 @@ impl EncryptService {
             .map_err(|e| anyhow!("decryption failed: {}", e))?;
 
         String::from_utf8(plaintext).map_err(|e| anyhow!("invalid utf8: {}", e))
+    }
+
+    pub fn hash(&self, password: &str) -> Result<String> {
+        self.encrypt(password)
+    }
+
+    pub fn verify(&self, password: &str, hash: &str) -> Result<bool> {
+        let decrypted = self.decrypt(hash)?;
+        Ok(decrypted == password)
     }
 }
