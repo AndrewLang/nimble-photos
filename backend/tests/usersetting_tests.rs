@@ -11,6 +11,10 @@ fn user_settings_and_profile_dto_conversion() {
         display_name: "Me".to_string(),
         password_hash: "x".to_string(),
         created_at: Utc::now(),
+        reset_token: None,
+        reset_token_expires_at: None,
+        verification_token: None,
+        email_verified: false,
     };
 
     let settings = UserSettings {

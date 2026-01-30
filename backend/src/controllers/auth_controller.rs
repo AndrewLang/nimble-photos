@@ -1,9 +1,11 @@
 use async_trait::async_trait;
-use serde::Deserialize;
-use std::default::Default;
 
 use chrono::Utc;
 
+use crate::dtos::auth_dtos::{
+    ChangePasswordRequest, LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterRequest,
+    ResetPasswordRequest, VerifyEmailRequest,
+};
 use crate::dtos::user_profile_dto::UserProfileDto;
 use crate::entities::{user::User, user_settings::UserSettings};
 use crate::services::AuthService;
@@ -16,34 +18,8 @@ use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
 use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
-use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RegisterRequest {
-    pub email: String,
-    pub password: String,
-    pub confirm_password: String,
-    pub display_name: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct LoginRequest {
-    pub email: String,
-    pub password: String,
-}
-
-impl Default for LoginRequest {
-    fn default() -> Self {
-        Self {
-            email: "".to_string(),
-            password: "".to_string(),
-        }
-    }
-}
 
 pub struct AuthController;
 
@@ -52,6 +28,13 @@ impl Controller for AuthController {
         vec![
             EndpointRoute::post("/api/auth/register", RegisterHandler).build(),
             EndpointRoute::post("/api/auth/login", LoginHandler).build(),
+            EndpointRoute::post("/api/auth/refresh", RefreshHandler).build(),
+            EndpointRoute::post("/api/auth/logout", LogoutHandler).build(),
+            EndpointRoute::post("/api/auth/change-password", ChangePasswordHandler)
+                .with_policy(Policy::Authenticated)
+                .build(),
+            EndpointRoute::post("/api/auth/reset-password", ResetPasswordHandler).build(),
+            EndpointRoute::post("/api/auth/verify-email", VerifyEmailHandler).build(),
             EndpointRoute::get("/api/auth/me", MeHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
@@ -132,5 +115,85 @@ impl HttpHandler for MeHandler {
         let dto: UserProfileDto = (user, settings).into();
 
         Ok(ResponseValue::json(dto))
+    }
+}
+
+struct RefreshHandler;
+
+#[async_trait]
+impl HttpHandler for RefreshHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload: RefreshTokenRequest = context.json()?;
+        let auth_service = context.service::<AuthService>()?;
+        let response = auth_service.refresh(&payload.refresh_token)?;
+
+        Ok(ResponseValue::json(response))
+    }
+}
+
+struct LogoutHandler;
+
+#[async_trait]
+impl HttpHandler for LogoutHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload: LogoutRequest = context.json()?;
+        let auth_service = context.service::<AuthService>()?;
+        auth_service.logout(&payload.refresh_token)?;
+
+        Ok(ResponseValue::empty())
+    }
+}
+
+struct ChangePasswordHandler;
+
+#[async_trait]
+impl HttpHandler for ChangePasswordHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload: ChangePasswordRequest = context.json()?;
+        let identity = context
+            .get::<IdentityContext>()
+            .ok_or_else(|| PipelineError::message("identity not found"))?;
+        let user_id = identity.identity().subject().to_string();
+
+        let auth_service = context.service::<AuthService>()?;
+        let old_pw = payload.old_password.clone();
+        let new_pw = payload.new_password.clone();
+
+        auth_service
+            .change_password(&user_id, &old_pw, &new_pw)
+            .await?;
+
+        Ok(ResponseValue::empty())
+    }
+}
+
+struct ResetPasswordHandler;
+
+#[async_trait]
+impl HttpHandler for ResetPasswordHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload: ResetPasswordRequest = context.json()?;
+        let auth_service = context.service::<AuthService>()?;
+        let token = payload.token.clone();
+        let new_pw = payload.new_password.clone();
+
+        auth_service.reset_password(&token, &new_pw).await?;
+
+        Ok(ResponseValue::empty())
+    }
+}
+
+struct VerifyEmailHandler;
+
+#[async_trait]
+impl HttpHandler for VerifyEmailHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload: VerifyEmailRequest = context.json()?;
+        let auth_service = context.service::<AuthService>()?;
+        let token = payload.token.clone();
+
+        auth_service.verify_email(&token).await?;
+
+        Ok(ResponseValue::empty())
     }
 }

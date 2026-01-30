@@ -106,6 +106,10 @@ fn login_returns_token() {
         display_name: "Me".to_string(),
         password_hash: encrypted_password,
         created_at: chrono::Utc::now(),
+        reset_token: None,
+        reset_token_expires_at: None,
+        verification_token: None,
+        email_verified: false,
     }]);
 
     let mut container = ServiceContainer::new();
@@ -175,6 +179,10 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
         display_name: "Me".to_string(),
         password_hash: "x".to_string(),
         created_at: chrono::Utc::now(),
+        reset_token: None,
+        reset_token_expires_at: None,
+        verification_token: None,
+        email_verified: false,
     }]);
 
     let settings_repo = MemoryRepository::<UserSettings>::new();

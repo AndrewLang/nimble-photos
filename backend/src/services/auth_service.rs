@@ -45,6 +45,10 @@ impl AuthService {
             display_name: email.to_string(),
             password_hash,
             created_at: chrono::Utc::now(),
+            reset_token: None,
+            reset_token_expires_at: None,
+            verification_token: Some(uuid::Uuid::new_v4().to_string()),
+            email_verified: false,
         };
 
         let user_id = user.id.clone();
@@ -58,9 +62,11 @@ impl AuthService {
     }
 
     pub async fn login(&self, email: &str, password: &str) -> Result<LoginResponse, PipelineError> {
+        let email_val = email.to_string();
+        let value = Value::String(email_val);
         let user = self
             .repo
-            .get_by("email", Value::String(email.to_string()))
+            .get_by("email", value)
             .await
             .map_err(|_| PipelineError::message("data error"))?
             .ok_or_else(|| PipelineError::message("invalid credentials"))?;
@@ -91,11 +97,101 @@ impl AuthService {
     }
 
     pub async fn me(&self, user_id: &str) -> Result<User, PipelineError> {
+        let id = user_id.to_string();
         self.repo
-            .get(&user_id.to_string())
+            .get(&id)
             .await
             .map_err(|e| PipelineError::message(&format!("data error: {:?}", e)))?
             .ok_or_else(|| PipelineError::message("user not found"))
+    }
+
+    pub async fn change_password(
+        &self,
+        user_id: &str,
+        old_pw: &str,
+        new_pw: &str,
+    ) -> Result<(), PipelineError> {
+        let id = user_id.to_string();
+        let mut user = self
+            .repo
+            .get(&id)
+            .await
+            .map_err(|_| PipelineError::message("data error"))?
+            .ok_or_else(|| PipelineError::message("user not found"))?;
+
+        if !self
+            .encrypt
+            .verify(old_pw, &user.password_hash)
+            .map_err(|e| PipelineError::message(&e.to_string()))?
+        {
+            return Err(PipelineError::message("invalid credentials"));
+        }
+
+        let new_hash = self
+            .encrypt
+            .encrypt(new_pw)
+            .map_err(|e| PipelineError::message(&e.to_string()))?;
+
+        user.password_hash = new_hash;
+        self.repo
+            .update(user)
+            .await
+            .map_err(|_| PipelineError::message("failed to update user"))?;
+        Ok(())
+    }
+
+    pub async fn reset_password(&self, token: &str, new_pw: &str) -> Result<(), PipelineError> {
+        let token_val = token.to_string();
+        let value = Value::String(token_val);
+        let mut user = self
+            .repo
+            .get_by("reset_token", value)
+            .await
+            .map_err(|_| PipelineError::message("data error"))?
+            .ok_or_else(|| PipelineError::message("invalid token"))?;
+
+        if let Some(expires_at) = user.reset_token_expires_at {
+            if chrono::Utc::now() > expires_at {
+                return Err(PipelineError::message("token expired"));
+            }
+        } else {
+            return Err(PipelineError::message("invalid token"));
+        }
+
+        let new_hash = self
+            .encrypt
+            .encrypt(new_pw)
+            .map_err(|e| PipelineError::message(&e.to_string()))?;
+
+        user.password_hash = new_hash;
+        user.reset_token = None;
+        user.reset_token_expires_at = None;
+
+        self.repo
+            .update(user)
+            .await
+            .map_err(|_| PipelineError::message("failed to update user"))?;
+        Ok(())
+    }
+
+    pub async fn verify_email(&self, token: &str) -> Result<(), PipelineError> {
+        let token_val = token.to_string();
+        let value = Value::String(token_val);
+        let mut user = self
+            .repo
+            .get_by("verification_token", value)
+            .await
+            .map_err(|_| PipelineError::message("data error"))?
+            .ok_or_else(|| PipelineError::message("invalid token"))?;
+
+        user.email_verified = true;
+        user.verification_token = None;
+
+        self.repo
+            .update(user)
+            .await
+            .map_err(|_| PipelineError::message("failed to update user"))?;
+        Ok(())
     }
 
     fn issue_tokens(&self, user_id: &str) -> Result<LoginResponse, PipelineError> {

@@ -203,6 +203,10 @@ async fn me_returns_user_for_valid_user_id() {
         display_name: email.to_string(),
         password_hash: "hash".to_string(),
         created_at: chrono::Utc::now(),
+        reset_token: None,
+        reset_token_expires_at: None,
+        verification_token: None,
+        email_verified: false,
     };
 
     repo.insert(user.clone()).await.unwrap();
