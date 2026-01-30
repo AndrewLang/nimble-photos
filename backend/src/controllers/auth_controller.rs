@@ -131,6 +131,6 @@ impl HttpHandler for MeHandler {
 
         let dto: UserProfileDto = (user, settings).into();
 
-        Ok(ResponseValue::new(Json(dto)))
+        Ok(ResponseValue::json(dto))
     }
 }

@@ -5,12 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch",
+            "name": "Debug Backend",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceRoot}/<your program>",
+            "program": "${workspaceFolder}/backend/target/debug/nimble-photos.exe",
             "args": [],
-            "cwd": "${workspaceRoot}"
+            "cwd": "${workspaceFolder}/backend/target/debug",
+            "preLaunchTask": "cargo build"
         }
     ]
 }
