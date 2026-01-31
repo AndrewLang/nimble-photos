@@ -18,7 +18,7 @@ pub struct Photo {
     pub hash: String,
     pub path: String,
     pub file_name: String,
-    pub file_size: i64,
+    pub file_size: i32,
     pub rating: Option<i16>,
     pub label: Option<String>,
     pub description: Option<String>,
@@ -69,7 +69,7 @@ impl PostgresEntity for Photo {
             Value::String(self.hash.clone()),
             Value::String(self.path.clone()),
             Value::String(self.file_name.clone()),
-            Value::Int(self.file_size),
+            Value::Int(self.file_size as i64),
             match self.rating {
                 Some(v) => Value::Int(v as i64),
                 None => Value::Null,
@@ -105,7 +105,7 @@ impl PostgresEntity for Photo {
             Value::String(self.hash.clone()),
             Value::String(self.path.clone()),
             Value::String(self.file_name.clone()),
-            Value::Int(self.file_size),
+            Value::Int(self.file_size as i64),
             match self.rating {
                 Some(v) => Value::Int(v as i64),
                 None => Value::Null,

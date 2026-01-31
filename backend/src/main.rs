@@ -43,6 +43,6 @@ fn init_logging() {
     let mut builder = env_logger::Builder::from_default_env();
     builder
         .filter_level(log::LevelFilter::Debug)
-        .filter_module("sqlx", log::LevelFilter::Debug);
+        .filter_module("sqlx", log::LevelFilter::Info);
     let _ = builder.try_init();
 }

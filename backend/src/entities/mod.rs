@@ -1,16 +1,16 @@
-use nimble_web::app::application::Application;
-use nimble_web::*;
 use album::Album;
 use exif::Exif;
+use nimble_web::app::application::Application;
+use nimble_web::*;
 use photo::Photo;
 use user::User;
 use user_settings::UserSettings;
 
-pub mod user;
-pub mod user_settings;
 pub mod album;
 pub mod exif;
 pub mod photo;
+pub mod user;
+pub mod user_settings;
 
 pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.use_entity::<User>();
@@ -24,6 +24,7 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         use nimble_web::data::repository::Repository;
         use sqlx::PgPool;
 
+        log::debug!("Registering Postgres repositories for entities...");
         builder.register_singleton(|p| {
             let pool = p.get::<PgPool>();
             let provider = PostgresProvider::<Photo>::new((*pool).clone());
