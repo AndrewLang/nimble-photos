@@ -12,8 +12,6 @@ pub struct EncryptService {
 
 impl EncryptService {
     pub fn new(config: &Configuration) -> Result<Self> {
-        log::debug!("Config in EncryptService: {:?}", config);
-
         let key_b64 = config
             .get("encryption.key")
             .ok_or_else(|| anyhow!("encryption key not configured"))?;
@@ -54,10 +52,6 @@ impl EncryptService {
             .map_err(|e| anyhow!("decryption failed: {}", e))?;
 
         String::from_utf8(plaintext).map_err(|e| anyhow!("invalid utf8: {}", e))
-    }
-
-    pub fn hash(&self, password: &str) -> Result<String> {
-        self.encrypt(password)
     }
 
     pub fn verify(&self, password: &str, hash: &str) -> Result<bool> {

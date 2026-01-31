@@ -1,11 +1,15 @@
 use chrono::Utc;
+use uuid::Uuid;
 
 use nimble_photos::entities::user::User;
 
+const USER_ID_STR: &str = "00000000-0000-0000-0000-000000000001";
+
 #[test]
 fn user_basic_properties() {
+    let user_id = Uuid::parse_str(USER_ID_STR).unwrap();
     let user = User {
-        id: "u1".to_string(),
+        id: user_id,
         email: "test@example.com".to_string(),
         display_name: "test user".to_string(),
         password_hash: "hashed".to_string(),
@@ -16,6 +20,6 @@ fn user_basic_properties() {
         email_verified: false,
     };
 
-    assert_eq!(user.id, "u1".to_string());
+    assert_eq!(user.id, user_id);
     assert_eq!(user.email, "test@example.com");
 }

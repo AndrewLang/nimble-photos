@@ -17,13 +17,14 @@ sqlx = { version = "0.8", default-features = false, features = [
     "postgres",
     "macros",
     "chrono",
+    "uuid",
 ], optional = true }
 
 chacha20poly1305 = "0.10"
 rand = "0.9"
 base64 = "0.22"
 anyhow = "1.0"
-uuid = { version = "1.13", features = ["v4"] }
+uuid = { version = "1.13", features = ["v4", "serde"] }
 
 
 [features]

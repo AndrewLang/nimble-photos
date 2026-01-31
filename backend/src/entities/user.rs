@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use nimble_web::Entity;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[cfg(feature = "postgres")]
 use {
@@ -13,7 +14,7 @@ use {
 #[cfg_attr(feature = "postgres", derive(FromRow))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
-    pub id: String,
+    pub id: Uuid,
     pub email: String,
     pub display_name: String,
     pub password_hash: String,
@@ -26,7 +27,7 @@ pub struct User {
 }
 
 impl Entity for User {
-    type Id = String;
+    type Id = Uuid;
 
     fn id(&self) -> &Self::Id {
         &self.id
@@ -44,7 +45,7 @@ impl PostgresEntity for User {
     }
 
     fn id_value(id: &Self::Id) -> Value {
-        Value::String(id.clone())
+        Value::Uuid(*id)
     }
 
     fn insert_columns() -> &'static [&'static str] {
@@ -63,7 +64,7 @@ impl PostgresEntity for User {
 
     fn insert_values(&self) -> Vec<Value> {
         vec![
-            Value::String(self.id.clone()),
+            Value::Uuid(self.id),
             Value::String(self.email.clone()),
             Value::String(self.display_name.clone()),
             Value::String(self.password_hash.clone()),
@@ -119,7 +120,7 @@ impl PostgresEntity for User {
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
-            ColumnDef::new("id", ColumnType::Text).primary_key(),
+            ColumnDef::new("id", ColumnType::Uuid).primary_key(),
             ColumnDef::new("email", ColumnType::Text)
                 .not_null()
                 .unique(),

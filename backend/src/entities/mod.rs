@@ -1,19 +1,40 @@
 use nimble_web::app::application::Application;
 use nimble_web::*;
+use album::Album;
+use exif::Exif;
+use photo::Photo;
 use user::User;
 use user_settings::UserSettings;
 
 pub mod user;
 pub mod user_settings;
+pub mod album;
+pub mod exif;
+pub mod photo;
 
 pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.use_entity::<User>();
     builder.use_entity::<UserSettings>();
+    builder.use_entity::<Photo>();
+    builder.use_entity::<Album>();
+    builder.use_entity::<Exif>();
 
     #[cfg(feature = "postgres")]
     {
         use nimble_web::data::repository::Repository;
         use sqlx::PgPool;
+
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<Photo>::new((*pool).clone());
+            Repository::<Photo>::new(Box::new(provider))
+        });
+
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<Exif>::new((*pool).clone());
+            Repository::<Exif>::new(Box::new(provider))
+        });
 
         builder.register_singleton(|p| {
             let pool = p.get::<PgPool>();
@@ -26,6 +47,12 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let provider = PostgresProvider::<UserSettings>::new((*pool).clone());
             Repository::<UserSettings>::new(Box::new(provider))
         });
+
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<Album>::new((*pool).clone());
+            Repository::<Album>::new(Box::new(provider))
+        });
     }
 
     builder
@@ -36,5 +63,8 @@ pub async fn migrate_entities(app: &Application) {
     {
         let _ = app.migrate_entity::<User>().await;
         let _ = app.migrate_entity::<UserSettings>().await;
+        let _ = app.migrate_entity::<Photo>().await;
+        let _ = app.migrate_entity::<Album>().await;
+        let _ = app.migrate_entity::<Exif>().await;
     }
 }

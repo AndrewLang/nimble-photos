@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use uuid::Uuid;
 
 use nimble_photos::controllers::auth_controller::AuthController;
 use nimble_photos::dtos::user_profile_dto::UserProfileDto;
@@ -16,9 +17,11 @@ use nimble_web::data::repository::Repository;
 use nimble_web::security::token::{JwtTokenService, TokenService};
 use nimble_web::*;
 
+const TEST_USER_ID_STR: &str = "00000000-0000-0000-0000-000000000001";
+
 #[derive(Clone)]
 struct InMemoryUserProvider {
-    store: Arc<Mutex<HashMap<String, User>>>,
+    store: Arc<Mutex<HashMap<Uuid, User>>>,
 }
 
 impl InMemoryUserProvider {
@@ -30,7 +33,7 @@ impl InMemoryUserProvider {
     fn seed(&self, entities: Vec<User>) {
         let mut store = self.store.lock().unwrap();
         for entity in entities {
-            store.insert(entity.id.clone(), entity);
+            store.insert(entity.id, entity);
         }
     }
 }
@@ -38,17 +41,17 @@ impl InMemoryUserProvider {
 #[async_trait]
 impl DataProvider<User> for InMemoryUserProvider {
     async fn create(&self, e: User) -> DataResult<User> {
-        self.store.lock().unwrap().insert(e.id.clone(), e.clone());
+        self.store.lock().unwrap().insert(e.id, e.clone());
         Ok(e)
     }
-    async fn get(&self, id: &String) -> DataResult<Option<User>> {
+    async fn get(&self, id: &Uuid) -> DataResult<Option<User>> {
         Ok(self.store.lock().unwrap().get(id).cloned())
     }
     async fn update(&self, e: User) -> DataResult<User> {
-        self.store.lock().unwrap().insert(e.id.clone(), e.clone());
+        self.store.lock().unwrap().insert(e.id, e.clone());
         Ok(e)
     }
-    async fn delete(&self, id: &String) -> DataResult<bool> {
+    async fn delete(&self, id: &Uuid) -> DataResult<bool> {
         Ok(self.store.lock().unwrap().remove(id).is_some())
     }
     async fn query(&self, _q: Query<User>) -> DataResult<Page<User>> {
@@ -100,8 +103,9 @@ fn login_returns_token() {
     let encrypted_password = encrypt_service.encrypt("x").unwrap();
 
     let user_repo = InMemoryUserProvider::new();
+    let test_user_id = Uuid::parse_str(TEST_USER_ID_STR).unwrap();
     user_repo.seed(vec![User {
-        id: "u1".to_string(),
+        id: test_user_id,
         email: "me@example.com".to_string(),
         display_name: "Me".to_string(),
         password_hash: encrypted_password,
@@ -173,8 +177,9 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
     }
 
     let user_repo = InMemoryUserProvider::new();
+    let test_user_id = Uuid::parse_str(TEST_USER_ID_STR).unwrap();
     user_repo.seed(vec![User {
-        id: "u1".to_string(),
+        id: test_user_id,
         email: "me@example.com".to_string(),
         display_name: "Me".to_string(),
         password_hash: "x".to_string(),
@@ -187,7 +192,7 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
 
     let settings_repo = MemoryRepository::<UserSettings>::new();
     settings_repo.seed(vec![UserSettings {
-        user_id: "u1".to_string(),
+        user_id: TEST_USER_ID_STR.to_string(),
         display_name: "Display Name".to_string(),
         avatar_url: None,
         theme: "dark".to_string(),
@@ -241,7 +246,7 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
     let services = container.build();
 
     let token_service = JwtTokenService::new("secret".to_string(), "issuer".to_string());
-    let identity = UserIdentity::new("u1".to_string(), Claims::new());
+    let identity = UserIdentity::new(TEST_USER_ID_STR.to_string(), Claims::new());
     let token = TokenService::create_access_token(&token_service, &identity).unwrap();
 
     let mut request = HttpRequest::new("GET", "/api/auth/me");
@@ -265,7 +270,7 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
     assert_eq!(context.response().status(), 200);
 
     let expected = serde_json::to_string(&UserProfileDto {
-        id: "u1".to_string(),
+        id: Uuid::parse_str(TEST_USER_ID_STR).unwrap(),
         email: "me@example.com".to_string(),
         display_name: "Display Name".to_string(),
         avatar_url: None,

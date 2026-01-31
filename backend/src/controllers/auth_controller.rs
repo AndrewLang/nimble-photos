@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 
 use chrono::Utc;
+use uuid::Uuid;
 
 use crate::dtos::auth_dtos::{
     ChangePasswordRequest, LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterRequest,
@@ -87,7 +88,9 @@ impl HttpHandler for MeHandler {
             .get::<IdentityContext>()
             .ok_or_else(|| PipelineError::message("identity not found"))?;
 
-        let user_id = identity.identity().subject().to_string();
+        let subject = identity.identity().subject().to_string();
+        let user_id = Uuid::parse_str(&subject)
+            .map_err(|_| PipelineError::message("invalid identity"))?;
 
         let user_repo = context.service::<Repository<User>>()?;
         let settings_repo = context.service::<Repository<UserSettings>>()?;
@@ -99,11 +102,11 @@ impl HttpHandler for MeHandler {
             .ok_or_else(|| PipelineError::message("user not found"))?;
 
         let settings = settings_repo
-            .get(&user_id)
+            .get(&user_id.to_string())
             .await
             .map_err(|_| PipelineError::message("data error"))?
             .unwrap_or(UserSettings {
-                user_id: user.id.clone(),
+                user_id: user_id.to_string(),
                 display_name: user.email.clone(),
                 avatar_url: None,
                 theme: "light".to_string(),

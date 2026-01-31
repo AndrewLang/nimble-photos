@@ -10,13 +10,16 @@ use nimble_web::data::provider::{DataProvider, DataResult};
 use nimble_web::data::query::{Query, Value};
 use nimble_web::data::repository::Repository;
 use nimble_web::security::token::{JwtTokenService, TokenService};
+use uuid::Uuid;
 
 use nimble_photos::entities::user::User;
 use nimble_photos::services::{AuthService, EncryptService};
 
+const TEST_USER_ID_STR: &str = "00000000-0000-0000-0000-000000000002";
+
 #[derive(Clone)]
 struct InMemoryUserProvider {
-    store: Arc<Mutex<HashMap<String, User>>>,
+    store: Arc<Mutex<HashMap<Uuid, User>>>,
 }
 
 impl InMemoryUserProvider {
@@ -30,20 +33,20 @@ impl InMemoryUserProvider {
 #[async_trait]
 impl DataProvider<User> for InMemoryUserProvider {
     async fn create(&self, e: User) -> DataResult<User> {
-        self.store.lock().unwrap().insert(e.id.clone(), e.clone());
+        self.store.lock().unwrap().insert(e.id, e.clone());
         Ok(e)
     }
 
-    async fn get(&self, id: &String) -> DataResult<Option<User>> {
+    async fn get(&self, id: &Uuid) -> DataResult<Option<User>> {
         Ok(self.store.lock().unwrap().get(id).cloned())
     }
 
     async fn update(&self, e: User) -> DataResult<User> {
-        self.store.lock().unwrap().insert(e.id.clone(), e.clone());
+        self.store.lock().unwrap().insert(e.id, e.clone());
         Ok(e)
     }
 
-    async fn delete(&self, id: &String) -> DataResult<bool> {
+    async fn delete(&self, id: &Uuid) -> DataResult<bool> {
         Ok(self.store.lock().unwrap().remove(id).is_some())
     }
 
@@ -197,8 +200,9 @@ async fn me_returns_user_for_valid_user_id() {
     let memory_repo = InMemoryUserProvider::new();
     let repo = Repository::new(Box::new(memory_repo));
 
+    let test_user_id = Uuid::parse_str(TEST_USER_ID_STR).unwrap();
     let user = User {
-        id: "test-user-id".to_string(),
+        id: test_user_id,
         email: email.to_string(),
         display_name: email.to_string(),
         password_hash: "hash".to_string(),
@@ -214,7 +218,7 @@ async fn me_returns_user_for_valid_user_id() {
     let encrypt = EncryptService::new(&config).unwrap();
     let service = AuthService::new(Arc::new(repo), encrypt, tokens);
 
-    let result = service.me(&user.id).await;
+    let result = service.me(&user.id.to_string()).await;
 
     assert!(result.is_ok());
     let returned_user = result.unwrap();

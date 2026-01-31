@@ -9,22 +9,23 @@ use nimble_web::identity::user::UserIdentity;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::security::token::TokenService;
 use std::sync::Arc;
+use uuid::Uuid;
 
 pub struct AuthService {
     repo: Arc<Repository<User>>,
-    encrypt: EncryptService,
+    encrypt_service: EncryptService,
     tokens: Arc<dyn TokenService>,
 }
 
 impl AuthService {
     pub fn new(
         repo: Arc<Repository<User>>,
-        encrypt: EncryptService,
+        encrypt_service: EncryptService,
         tokens: Arc<dyn TokenService>,
     ) -> Self {
         Self {
             repo,
-            encrypt,
+            encrypt_service,
             tokens,
         }
     }
@@ -35,30 +36,43 @@ impl AuthService {
         password: &str,
     ) -> Result<LoginResponse, PipelineError> {
         let password_hash = self
-            .encrypt
+            .encrypt_service
             .encrypt(password)
             .map_err(|e| PipelineError::message(&e.to_string()))?;
 
+        let email_string = email.to_string();
+        let email_value = Value::String(email_string.clone());
+        if let Some(_) = self
+            .repo
+            .get_by("email", email_value)
+            .await
+            .map_err(|_| PipelineError::message("data error"))?
+        {
+            return Err(PipelineError::message("email already registered"));
+        }
+
+        let display_name = email_string.clone();
+
         let user = User {
-            id: uuid::Uuid::new_v4().to_string(),
-            email: email.to_string(),
-            display_name: email.to_string(),
+            id: Uuid::new_v4(),
+            email: email_string,
+            display_name,
             password_hash,
             created_at: chrono::Utc::now(),
             reset_token: None,
             reset_token_expires_at: None,
-            verification_token: Some(uuid::Uuid::new_v4().to_string()),
+            verification_token: Some(Uuid::new_v4().to_string()),
             email_verified: false,
         };
 
-        let user_id = user.id.clone();
+        let user_id = user.id;
 
-        self.repo
-            .insert(user)
-            .await
-            .map_err(|_| PipelineError::message("failed to create user"))?;
+        self.repo.insert(user).await.map_err(|err| {
+            log::error!("User insert failed: {:?}", err);
+            PipelineError::message("Failed to create user")
+        })?;
 
-        self.issue_tokens(&user_id)
+        self.issue_tokens(user_id)
     }
 
     pub async fn login(&self, email: &str, password: &str) -> Result<LoginResponse, PipelineError> {
@@ -72,14 +86,14 @@ impl AuthService {
             .ok_or_else(|| PipelineError::message("invalid credentials"))?;
 
         if !self
-            .encrypt
+            .encrypt_service
             .verify(password, &user.password_hash)
             .map_err(|e| PipelineError::message(&e.to_string()))?
         {
             return Err(PipelineError::message("invalid credentials"));
         }
 
-        self.issue_tokens(&user.id)
+        self.issue_tokens(user.id)
     }
 
     pub fn refresh(&self, refresh_token: &str) -> Result<LoginResponse, PipelineError> {
@@ -87,7 +101,9 @@ impl AuthService {
             .tokens
             .validate_refresh_token(refresh_token)
             .map_err(|e| PipelineError::message(&e.to_string()))?;
-        self.issue_tokens(&user_id)
+        let user_id = Uuid::parse_str(&user_id)
+            .map_err(|_| PipelineError::message("invalid refresh token subject"))?;
+        self.issue_tokens(user_id)
     }
 
     pub fn logout(&self, refresh_token: &str) -> Result<(), PipelineError> {
@@ -97,7 +113,7 @@ impl AuthService {
     }
 
     pub async fn me(&self, user_id: &str) -> Result<User, PipelineError> {
-        let id = user_id.to_string();
+        let id = Uuid::parse_str(user_id).map_err(|_| PipelineError::message("invalid user id"))?;
         self.repo
             .get(&id)
             .await
@@ -111,7 +127,7 @@ impl AuthService {
         old_pw: &str,
         new_pw: &str,
     ) -> Result<(), PipelineError> {
-        let id = user_id.to_string();
+        let id = Uuid::parse_str(user_id).map_err(|_| PipelineError::message("invalid user id"))?;
         let mut user = self
             .repo
             .get(&id)
@@ -120,7 +136,7 @@ impl AuthService {
             .ok_or_else(|| PipelineError::message("user not found"))?;
 
         if !self
-            .encrypt
+            .encrypt_service
             .verify(old_pw, &user.password_hash)
             .map_err(|e| PipelineError::message(&e.to_string()))?
         {
@@ -128,7 +144,7 @@ impl AuthService {
         }
 
         let new_hash = self
-            .encrypt
+            .encrypt_service
             .encrypt(new_pw)
             .map_err(|e| PipelineError::message(&e.to_string()))?;
 
@@ -159,7 +175,7 @@ impl AuthService {
         }
 
         let new_hash = self
-            .encrypt
+            .encrypt_service
             .encrypt(new_pw)
             .map_err(|e| PipelineError::message(&e.to_string()))?;
 
@@ -194,8 +210,9 @@ impl AuthService {
         Ok(())
     }
 
-    fn issue_tokens(&self, user_id: &str) -> Result<LoginResponse, PipelineError> {
-        let identity = UserIdentity::new(user_id.to_string(), Claims::new());
+    fn issue_tokens(&self, user_id: Uuid) -> Result<LoginResponse, PipelineError> {
+        let user_id_str = user_id.to_string();
+        let identity = UserIdentity::new(user_id_str.clone(), Claims::new());
 
         Ok(LoginResponse {
             access_token: self
@@ -204,7 +221,7 @@ impl AuthService {
                 .map_err(|e| PipelineError::message(&e.to_string()))?,
             refresh_token: self
                 .tokens
-                .create_refresh_token(user_id)
+                .create_refresh_token(&user_id_str)
                 .map_err(|e| PipelineError::message(&e.to_string()))?,
         })
     }
