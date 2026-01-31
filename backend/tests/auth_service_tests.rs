@@ -100,7 +100,12 @@ fn create_auth_service() -> AuthService {
     let settings_repo = MemoryRepository::<UserSettings>::new();
     let settings_repository = Repository::new(Box::new(settings_repo));
 
-    AuthService::new(Arc::new(repo), Arc::new(settings_repository), encrypt, tokens)
+    AuthService::new(
+        Arc::new(repo),
+        Arc::new(settings_repository),
+        encrypt,
+        tokens,
+    )
 }
 
 #[test]

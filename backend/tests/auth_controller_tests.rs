@@ -137,9 +137,7 @@ fn login_returns_token() {
     });
     container.register_singleton::<AuthService, _>(move |provider| {
         let repo = provider.resolve::<Repository<User>>().unwrap();
-        let settings_repo = provider
-            .resolve::<Repository<UserSettings>>()
-            .unwrap();
+        let settings_repo = provider.resolve::<Repository<UserSettings>>().unwrap();
         let encrypt = provider.resolve::<EncryptService>().unwrap();
         let tokens = provider.resolve::<Arc<dyn TokenService>>().unwrap();
         AuthService::new(

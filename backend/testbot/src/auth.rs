@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use nimble_photos::dtos::auth_dtos::{LoginRequest, LoginResponse, RegisterRequest};
 use nimble_photos::dtos::user_profile_dto::UserProfileDto;
-use nimble_web::testbot::{AssertResponse, TestBot, TestError, TestResult, TestScenario, TestStep};
+use nimble_web::testbot::{AssertResponse, TestBot, TestResult, TestScenario, TestStep};
 
 pub struct AuthScenario {
     email: String,
@@ -23,10 +23,10 @@ impl AuthScenario {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl TestScenario for AuthScenario {
     fn name(&self) -> &'static str {
-        "auth-scenario"
+        "Auth endpoints"
     }
 
     fn steps(&self) -> Vec<Box<dyn TestStep>> {
@@ -62,7 +62,7 @@ impl RegisterStep {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl TestStep for RegisterStep {
     fn name(&self) -> &'static str {
         "register"
@@ -108,7 +108,7 @@ impl LoginStep {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl TestStep for LoginStep {
     fn name(&self) -> &'static str {
         "login"
@@ -154,7 +154,7 @@ impl MeStep {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl TestStep for MeStep {
     fn name(&self) -> &'static str {
         "me"
@@ -169,24 +169,15 @@ impl TestStep for MeStep {
         response.assert_status(200)?;
 
         let profile: UserProfileDto = response.json()?;
-        log::info!(
-            "MeStep received profile: email={}, display_name={}",
-            profile.email,
-            profile.display_name
-        );
+        let email = profile.email.clone();
+        let display_name = profile.display_name.clone();
 
-        if profile.email != self.expected_email {
-            return Err(TestError::msg(format!(
-                "❌ Expected email [{}], got [{}]",
-                self.expected_email, profile.email
-            )));
-        }
-        if profile.display_name != self.expected_display_name {
-            return Err(TestError::msg(format!(
-                "❌ Expected display name [{}], got [{}]",
-                self.expected_display_name, profile.display_name
-            )));
-        }
+        bot.assert_equals_named("email", email.clone(), self.expected_email.clone());
+        bot.assert_equals_named(
+            "display_name",
+            display_name.clone(),
+            self.expected_display_name.clone(),
+        );
 
         Ok(())
     }
