@@ -8,7 +8,7 @@ pub use id_generation_service::IdGenerationService;
 
 use std::sync::Arc;
 
-use crate::entities::user::User;
+use crate::entities::{user::User, user_settings::UserSettings};
 use nimble_web::AppBuilder;
 use nimble_web::config::Configuration;
 use nimble_web::data::repository::Repository;
@@ -37,10 +37,16 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
 
     builder.register_singleton(|provider| {
         let repo = provider.get::<Repository<User>>();
+        let settings_repo = provider.get::<Repository<UserSettings>>();
         let encrypt = provider.get::<EncryptService>();
         let tokens = provider.get::<Arc<dyn TokenService>>();
 
-        AuthService::new(repo, (*encrypt).clone(), tokens.as_ref().clone())
+        AuthService::new(
+            repo,
+            settings_repo,
+            (*encrypt).clone(),
+            tokens.as_ref().clone(),
+        )
     });
 
     builder

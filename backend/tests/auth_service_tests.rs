@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use nimble_web::config::Configuration;
+use nimble_web::data::memory_repository::MemoryRepository;
 use nimble_web::data::paging::Page;
 use nimble_web::data::provider::{DataProvider, DataResult};
 use nimble_web::data::query::{Query, Value};
@@ -12,7 +13,7 @@ use nimble_web::data::repository::Repository;
 use nimble_web::security::token::{JwtTokenService, TokenService};
 use uuid::Uuid;
 
-use nimble_photos::entities::user::User;
+use nimble_photos::entities::{user::User, user_settings::UserSettings};
 use nimble_photos::services::{AuthService, EncryptService};
 
 const TEST_USER_ID_STR: &str = "00000000-0000-0000-0000-000000000002";
@@ -96,7 +97,10 @@ fn create_auth_service() -> AuthService {
     let memory_repo = InMemoryUserProvider::new();
     let repo = Repository::new(Box::new(memory_repo));
 
-    AuthService::new(Arc::new(repo), encrypt, tokens)
+    let settings_repo = MemoryRepository::<UserSettings>::new();
+    let settings_repository = Repository::new(Box::new(settings_repo));
+
+    AuthService::new(Arc::new(repo), Arc::new(settings_repository), encrypt, tokens)
 }
 
 #[test]
@@ -111,7 +115,7 @@ async fn register_creates_user_and_returns_tokens() {
     let email = "test@example.com";
     let password = "password123";
 
-    let result = service.register(email, password).await;
+    let result = service.register(email, password, "Test User").await;
 
     assert!(result.is_ok());
     let response = result.unwrap();
@@ -125,7 +129,10 @@ async fn login_with_valid_credentials_returns_tokens() {
     let email = "test@example.com";
     let password = "password123";
 
-    service.register(email, password).await.unwrap();
+    service
+        .register(email, password, "Test User")
+        .await
+        .unwrap();
 
     let result = service.login(email, password).await;
     assert!(result.is_ok());
@@ -140,7 +147,10 @@ async fn login_with_invalid_email_returns_error() {
     let email = "test@example.com";
     let password = "password123";
 
-    service.register(email, password).await.unwrap();
+    service
+        .register(email, password, "Test User")
+        .await
+        .unwrap();
 
     let result = service.login("wrong@example.com", password).await;
 
@@ -153,7 +163,10 @@ async fn login_with_invalid_password_returns_error() {
     let email = "test@example.com";
     let password = "password123";
 
-    service.register(email, password).await.unwrap();
+    service
+        .register(email, password, "Test User")
+        .await
+        .unwrap();
 
     let result = service.login(email, "wrongpassword").await;
 
@@ -166,7 +179,10 @@ async fn refresh_with_valid_token_returns_new_tokens() {
     let email = "test@example.com";
     let password = "password123";
 
-    let register_response = service.register(email, password).await.unwrap();
+    let register_response = service
+        .register(email, password, "Test User")
+        .await
+        .unwrap();
 
     let result = service.refresh(&register_response.refresh_token);
 
@@ -191,7 +207,10 @@ async fn me_returns_user_for_valid_user_id() {
     let email = "test@example.com";
     let password = "password123";
 
-    service.register(email, password).await.unwrap();
+    service
+        .register(email, password, "Test User")
+        .await
+        .unwrap();
 
     let config = create_test_config();
     let token_service = JwtTokenService::new("test-secret".to_string(), "test-issuer".to_string());
@@ -216,7 +235,14 @@ async fn me_returns_user_for_valid_user_id() {
     repo.insert(user.clone()).await.unwrap();
 
     let encrypt = EncryptService::new(&config).unwrap();
-    let service = AuthService::new(Arc::new(repo), encrypt, tokens);
+    let settings_repo = MemoryRepository::<UserSettings>::new();
+    let settings_repository = Repository::new(Box::new(settings_repo));
+    let service = AuthService::new(
+        Arc::new(repo),
+        Arc::new(settings_repository),
+        encrypt,
+        tokens,
+    );
 
     let result = service.me(&user.id.to_string()).await;
 
@@ -241,7 +267,10 @@ async fn logout_succeeds() {
     let email = "test@example.com";
     let password = "password123";
 
-    let register_response = service.register(email, password).await.unwrap();
+    let register_response = service
+        .register(email, password, "Test User")
+        .await
+        .unwrap();
 
     let result = service.logout(&register_response.refresh_token);
 

@@ -1,6 +1,9 @@
 use album::Album;
 use exif::Exif;
 use nimble_web::app::application::Application;
+#[cfg(not(feature = "postgres"))]
+use nimble_web::data::memory_repository::MemoryRepository;
+use nimble_web::data::repository::Repository;
 use nimble_web::*;
 use photo::Photo;
 use user::User;
@@ -19,9 +22,32 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.use_entity::<Album>();
     builder.use_entity::<Exif>();
 
+    #[cfg(not(feature = "postgres"))]
+    {
+        builder.register_singleton(|_| {
+            let provider = MemoryRepository::<Photo>::new();
+            Repository::<Photo>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
+            let provider = MemoryRepository::<Exif>::new();
+            Repository::<Exif>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
+            let provider = MemoryRepository::<User>::new();
+            Repository::<User>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
+            let provider = MemoryRepository::<UserSettings>::new();
+            Repository::<UserSettings>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
+            let provider = MemoryRepository::<Album>::new();
+            Repository::<Album>::new(Box::new(provider))
+        });
+    }
+
     #[cfg(feature = "postgres")]
     {
-        use nimble_web::data::repository::Repository;
         use sqlx::PgPool;
 
         log::debug!("Registering Postgres repositories for entities...");
@@ -60,6 +86,10 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
 }
 
 pub async fn migrate_entities(app: &Application) {
+    #[cfg(not(feature = "postgres"))]
+    {
+        let _ = app;
+    }
     #[cfg(feature = "postgres")]
     {
         let _ = app.migrate_entity::<User>().await;

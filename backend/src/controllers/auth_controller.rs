@@ -72,7 +72,7 @@ impl HttpHandler for RegisterHandler {
 
         let auth_service = context.service::<AuthService>()?;
         let response = auth_service
-            .register(&payload.email, &payload.password)
+            .register(&payload.email, &payload.password, &payload.display_name)
             .await?;
 
         Ok(ResponseValue::json(response))
@@ -89,8 +89,8 @@ impl HttpHandler for MeHandler {
             .ok_or_else(|| PipelineError::message("identity not found"))?;
 
         let subject = identity.identity().subject().to_string();
-        let user_id = Uuid::parse_str(&subject)
-            .map_err(|_| PipelineError::message("invalid identity"))?;
+        let user_id =
+            Uuid::parse_str(&subject).map_err(|_| PipelineError::message("invalid identity"))?;
 
         let user_repo = context.service::<Repository<User>>()?;
         let settings_repo = context.service::<Repository<UserSettings>>()?;

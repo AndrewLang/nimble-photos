@@ -218,6 +218,7 @@ impl PostgresEntity for Exif {
     }
 }
 
+#[cfg(feature = "postgres")]
 fn opt_string(value: &Option<String>) -> Value {
     match value {
         Some(v) => Value::String(v.clone()),
@@ -225,6 +226,7 @@ fn opt_string(value: &Option<String>) -> Value {
     }
 }
 
+#[cfg(feature = "postgres")]
 fn opt_datetime(value: Option<DateTime<Utc>>) -> Value {
     match value {
         Some(v) => Value::DateTime(v),
@@ -232,6 +234,7 @@ fn opt_datetime(value: Option<DateTime<Utc>>) -> Value {
     }
 }
 
+#[cfg(feature = "postgres")]
 fn opt_int(value: Option<i64>) -> Value {
     match value {
         Some(v) => Value::Int(v),
@@ -239,6 +242,7 @@ fn opt_int(value: Option<i64>) -> Value {
     }
 }
 
+#[cfg(feature = "postgres")]
 fn opt_float(value: Option<f64>) -> Value {
     match value {
         Some(v) => Value::Float(v),
@@ -246,6 +250,7 @@ fn opt_float(value: Option<f64>) -> Value {
     }
 }
 
+#[cfg(feature = "postgres")]
 fn opt_bool(value: Option<bool>) -> Value {
     match value {
         Some(v) => Value::Bool(v),
@@ -253,6 +258,7 @@ fn opt_bool(value: Option<bool>) -> Value {
     }
 }
 
+#[cfg(feature = "postgres")]
 fn opt_json(value: &Option<JsonValue>) -> Value {
     match value {
         Some(v) => Value::String(v.to_string()),

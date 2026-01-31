@@ -1,0 +1,19 @@
+[package]
+name = "nimble-photos-testbot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+env_logger = "0.11"
+nimble-photos = { path = "..", default-features = false, features = [
+    "testbot",
+] }
+nimble-web = { path = "../crates/nimble-web", default-features = false, features = [
+    "testbot",
+] }
+serde_json = "1"
+tokio = { version = "1.49", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+async-trait = "0.1"
+log = "0.4"

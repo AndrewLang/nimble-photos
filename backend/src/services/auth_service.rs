@@ -1,6 +1,8 @@
 use crate::dtos::auth_dtos::LoginResponse;
 use crate::entities::user::User;
+use crate::entities::user_settings::UserSettings;
 use crate::services::EncryptService;
+use chrono::Utc;
 use nimble_web::data::provider::DataProvider;
 use nimble_web::data::query::Value;
 use nimble_web::data::repository::Repository;
@@ -13,6 +15,7 @@ use uuid::Uuid;
 
 pub struct AuthService {
     repo: Arc<Repository<User>>,
+    settings_repo: Arc<Repository<UserSettings>>,
     encrypt_service: EncryptService,
     tokens: Arc<dyn TokenService>,
 }
@@ -20,10 +23,12 @@ pub struct AuthService {
 impl AuthService {
     pub fn new(
         repo: Arc<Repository<User>>,
+        settings_repo: Arc<Repository<UserSettings>>,
         encrypt_service: EncryptService,
         tokens: Arc<dyn TokenService>,
     ) -> Self {
         Self {
+            settings_repo,
             repo,
             encrypt_service,
             tokens,
@@ -34,6 +39,7 @@ impl AuthService {
         &self,
         email: &str,
         password: &str,
+        display_name: &str,
     ) -> Result<LoginResponse, PipelineError> {
         let password_hash = self
             .encrypt_service
@@ -51,14 +57,19 @@ impl AuthService {
             return Err(PipelineError::message("email already registered"));
         }
 
-        let display_name = email_string.clone();
+        let display_name_value = display_name.to_string();
+        log::info!(
+            "Registering new user with email: {}, display_name: {}",
+            email_string,
+            display_name_value
+        );
 
         let user = User {
             id: Uuid::new_v4(),
             email: email_string,
-            display_name,
+            display_name: display_name_value.clone(),
             password_hash,
-            created_at: chrono::Utc::now(),
+            created_at: Utc::now(),
             reset_token: None,
             reset_token_expires_at: None,
             verification_token: Some(Uuid::new_v4().to_string()),
@@ -70,6 +81,21 @@ impl AuthService {
         self.repo.insert(user).await.map_err(|err| {
             log::error!("User insert failed: {:?}", err);
             PipelineError::message("Failed to create user")
+        })?;
+
+        let settings = UserSettings {
+            user_id: user_id.to_string(),
+            display_name: display_name_value,
+            avatar_url: None,
+            theme: "light".to_string(),
+            language: "en".to_string(),
+            timezone: "UTC".to_string(),
+            created_at: Utc::now(),
+        };
+
+        self.settings_repo.insert(settings).await.map_err(|err| {
+            log::error!("User settings insert failed: {:?}", err);
+            PipelineError::message("Failed to create user settings")
         })?;
 
         self.issue_tokens(user_id)
@@ -167,7 +193,7 @@ impl AuthService {
             .ok_or_else(|| PipelineError::message("invalid token"))?;
 
         if let Some(expires_at) = user.reset_token_expires_at {
-            if chrono::Utc::now() > expires_at {
+            if Utc::now() > expires_at {
                 return Err(PipelineError::message("token expired"));
             }
         } else {

@@ -19,6 +19,8 @@ async fn main() -> std::result::Result<(), AppError> {
     let mut builder = AppBuilder::new();
     builder
         .use_config("web.config.json")
+        .use_env()
+        .use_address_env("Nimble_Photo_Url")
         .use_postgres()
         .use_authentication();
 

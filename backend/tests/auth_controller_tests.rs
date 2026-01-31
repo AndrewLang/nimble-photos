@@ -116,11 +116,16 @@ fn login_returns_token() {
         email_verified: false,
     }]);
 
+    let settings_repo = MemoryRepository::<UserSettings>::new();
+
     let mut container = ServiceContainer::new();
     let config_clone = config.clone();
     container.register_singleton::<Configuration, _>(move |_| config_clone.clone());
     container.register_singleton::<Repository<User>, _>(move |_| {
         Repository::new(Box::new(user_repo.clone()))
+    });
+    container.register_singleton::<Repository<UserSettings>, _>(move |_| {
+        Repository::new(Box::new(settings_repo.clone()))
     });
     container.register_singleton::<EncryptService, _>(move |provider| {
         let config = provider.resolve::<Configuration>().unwrap();
@@ -132,10 +137,14 @@ fn login_returns_token() {
     });
     container.register_singleton::<AuthService, _>(move |provider| {
         let repo = provider.resolve::<Repository<User>>().unwrap();
+        let settings_repo = provider
+            .resolve::<Repository<UserSettings>>()
+            .unwrap();
         let encrypt = provider.resolve::<EncryptService>().unwrap();
         let tokens = provider.resolve::<Arc<dyn TokenService>>().unwrap();
         AuthService::new(
             repo.clone(),
+            settings_repo.clone(),
             encrypt.as_ref().clone(),
             tokens.as_ref().clone(),
         )
