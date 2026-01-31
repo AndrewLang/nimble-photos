@@ -2,7 +2,7 @@
     "Postgres": {
         "Url": "postgres://nimble_photos_admin:nimble_photos_password@localhost:5438/nimble_photos",
         "PoolSize": 20,
-        "Timeout": 5
+        "Timeout": 15
     },
     "Jwt": {
         "Secret": "your_jwt_secret_key_here",
