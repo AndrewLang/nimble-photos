@@ -1,0 +1,36 @@
+<header
+    class="gallery-header absolute top-0 w-full flex items-center justify-between gap-4 border-b border-white/5 bg-slate-950/80 px-6 py-3 backdrop-blur-md z-50">
+    <div class="flex items-center gap-4">
+        <div
+            class="logo flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-b from-indigo-500 to-purple-500 text-base font-semibold text-white shadow-lg shadow-indigo-500/20">
+            NM
+        </div>
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-200">Nimble Photos</p>
+            <p class="text-xs font-light text-slate-400">My Photos Stories</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-3">
+
+        <a routerLink="/" routerLinkActive="bg-white/10 text-white" [routerLinkActiveOptions]="{exact: true}"
+            class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-slate-300 hover:bg-white/10 transition-colors cursor-pointer text-decoration-none">
+            Masonry
+        </a>
+        <a routerLink="/timeline" routerLinkActive="bg-white/10 text-white"
+            class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-slate-300 hover:bg-white/10 transition-colors cursor-pointer text-decoration-none">
+            Timeline
+        </a>
+
+        <div class="hidden sm:flex items-center gap-3 ml-2">
+
+            <button class="icon-button" aria-label="Open search">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M15.5 15.5L20 20m-4.5-4.5a6 6 0 1 0-8.485-8.485 6 6 0 0 0 8.485 8.485z" />
+                </svg>
+            </button>
+        </div>
+
+    </div>
+</header>

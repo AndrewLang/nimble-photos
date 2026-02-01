@@ -2,15 +2,14 @@ import { Component, OnInit, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 
-import { PhotoService } from '../../services/photo.service';
 import { Photo } from '../../models/photo.model';
+import { PhotoService } from '../../services/photo.service';
+import { HeaderComponent } from '../header/header.component';
 
 @Component({
-  standalone: true,
   selector: 'app-gallery',
-  imports: [RouterModule],
+  imports: [RouterModule, HeaderComponent],
   templateUrl: './gallery.component.html',
-  styleUrls: ['./gallery.component.css'],
   host: {
     class: 'block',
   },
@@ -32,9 +31,7 @@ export class GalleryComponent implements OnInit {
 
   onScroll(event: Event): void {
     const element = event.target as HTMLElement;
-    // console.log('Scroll:', element.scrollTop, element.clientHeight, element.scrollHeight);
 
-    // Check if we are close to the bottom (1000px threshold)
     if (element.scrollHeight - element.scrollTop <= element.clientHeight + 1000) {
       this.fetchNextPage();
     }
@@ -42,16 +39,13 @@ export class GalleryComponent implements OnInit {
 
   private fetchNextPage(): void {
     if (this.isFetching()) {
-      // console.log('Already fetching');
       return;
     }
 
     if (this.totalPhotos() > 0 && this.photos().length >= this.totalPhotos()) {
-      // console.log('All photos loaded');
       return;
     }
 
-    // console.log('Fetching next page...');
     const nextPage = this.currentPage + 1;
     this.isFetching.set(true);
 

@@ -1,0 +1,224 @@
+/* 
+   Many shared styles (masonry, photo-cards, shells) 
+   have been moved to src/styles.css for global reuse.
+*/
+
+.gallery-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+}
+
+.search-input {
+  width: 220px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.6);
+  color: #f8fafc;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border 0.2s ease, background 0.2s ease;
+}
+
+.search-input:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(15, 23, 42, 0.85);
+}
+
+/* Global Gallery Styles */
+
+/* Host & Shell */
+.gallery-shell {
+  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-backdrop {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at top, rgba(129, 140, 248, 0.25), transparent 35%),
+    radial-gradient(circle at 20% 80%, rgba(248, 113, 113, 0.2), transparent 35%),
+    linear-gradient(180deg, #020617 0%, #020617 45%, #010409 100%);
+  filter: blur(0px);
+  opacity: 0.7;
+}
+
+/* Scroll Container & Bars */
+.scroll-container {
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  padding-top: 5rem;
+  /* Space for the sticky header */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+
+.scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Buttons & Pills */
+.icon-button {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.6);
+  color: #f8fafc;
+  transition: background 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.pill {
+  padding: 0.45rem 1.25rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  border: 1px solid transparent;
+  background: #facc15;
+  color: #020617;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 30px rgba(250, 204, 21, 0.25);
+  cursor: pointer;
+}
+
+.pill.ghost {
+  background: transparent;
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: none;
+}
+
+.pill:hover,
+.icon-button:hover {
+  transform: translateY(-2px);
+}
+
+
+
+.gallery-status {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+/* Group Section */
+.group-section {
+  padding: 0 1.5rem 2rem 1.5rem;
+}
+
+.group-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  display: inline-block;
+}
+
+/* Timeline Ruler */
+.timeline-ruler {
+  position: absolute;
+  right: 1.5rem;
+  top: 55%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 60;
+  padding: 1rem 0.5rem;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 70vh;
+  overflow-y: auto;
+  min-width: 60px;
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+/* Hide scrollbar for ruler */
+.timeline-ruler::-webkit-scrollbar {
+  display: none;
+}
+
+.timeline-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  color: rgba(248, 250, 252, 0.4);
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  position: relative;
+}
+
+.timeline-item:hover,
+.timeline-item.active {
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.timeline-line {
+  width: 2px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  margin-top: 0.25rem;
+}
+
+.timeline-item:hover .timeline-line,
+.timeline-item.active .timeline-line {
+  background: #fff;
+  height: 16px;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.timeline-year {
+  font-weight: 700;
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.timeline-month {
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+}

@@ -2,36 +2,8 @@
     <div class="gallery-backdrop pointer-events-none fixed inset-0 z-0"></div>
 
     <div class="gallery-content relative z-10 flex h-full flex-col">
-        <!-- Header -->
-        <header
-            class="gallery-header absolute top-0 w-full flex items-center justify-between gap-4 border-b border-white/5 bg-slate-950/80 px-6 py-3 backdrop-blur-md z-50">
-            <div class="flex items-center gap-4">
-                <div
-                    class="logo flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 text-base font-semibold text-white shadow-lg shadow-indigo-500/20">
-                    NM
-                </div>
-                <div>
-                    <p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-slate-400 ">Nimble Photos</p>
-                    <p class="text-sm font-light text-slate-200">Your Photos Stories</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-3">
-                <!-- Toggle Button logic would go here ideally, for now just a link/button -->
-                <a href="/" class="icon-button" aria-label="Switch to Masonry">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </a>
-                <div
-                    class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-slate-300">
-                    Timeline
-                </div>
-            </div>
-        </header>
+        <app-header></app-header>
 
-        <!-- Timeline Ruler -->
         <div class="timeline-ruler">
             @for (group of groups(); track group.title) {
             <div class="timeline-item" [class.active]="activeGroupTitle() === group.title"
@@ -43,7 +15,6 @@
             }
         </div>
 
-        <!-- Scrollable Content -->
         <div class="scroll-container" (scroll)="onScroll($event)">
             @for (group of groups(); track group.title) {
             <section class="group-section" [id]="'group-' + group.title">
