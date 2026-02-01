@@ -1,79 +1,75 @@
-<div class="gallery-shell relative isolate min-h-screen overflow-hidden bg-ink-900 text-white">
-  <div class="gallery-backdrop pointer-events-none"></div>
-  <div class="gallery-content relative z-10 flex min-h-screen flex-col gap-6 px-4 py-6 sm:px-8 lg:px-12">
+<div class="gallery-shell relative isolate h-screen w-screen overflow-hidden bg-slate-950 text-white">
+  <div class="gallery-backdrop pointer-events-none fixed inset-0 z-0"></div>
+
+  <div class="gallery-content relative z-10 flex h-full flex-col">
     <header
-      class="gallery-header flex flex-wrap items-center justify-between gap-4 rounded-4xl border border-white/10 bg-slate-950/50 px-5 py-4 shadow-[0_10px_70px_rgba(2,6,23,0.7)] backdrop-blur">
-      <div class="flex items-center gap-3">
+      class="gallery-header absolute top-0 w-full flex items-center justify-between gap-4 border-b border-white/5 bg-slate-950/80 px-6 py-3 backdrop-blur-md z-50">
+      <div class="flex items-center gap-4">
         <div
-          class="logo flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 text-lg font-semibold text-white">
-          IA
+          class="logo flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-b from-indigo-500 to-purple-500 text-base font-semibold text-white shadow-lg shadow-indigo-500/20">
+          NM
         </div>
         <div>
-          <p class="text-[0.55rem] uppercase tracking-[0.4em] text-slate-400">Innei's Afilmory</p>
-          <p class="text-lg font-semibold text-white">166 stories streaming</p>
+          <p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-slate-400 ">Nimble Photos</p>
+          <p class="text-sm font-light text-slate-200">Your Photos Stories</p>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-3">
-        <button class="icon-button" aria-label="Switch layout">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M4 7h4M4 17h4M10 7h7M10 17h7M4 12h16" />
-          </svg>
-        </button>
-        <button class="icon-button" aria-label="Open search">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M15.5 15.5L20 20m-4.5-4.5a6 6 0 1 0-8.485-8.485 6 6 0 0 0 8.485 8.485z" />
-          </svg>
-        </button>
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex items-center gap-3">
+          <button class="icon-button" aria-label="Switch layout">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M4 7h4M4 17h4M10 7h7M10 17h7M4 12h16" />
+            </svg>
+          </button>
+          <button class="icon-button" aria-label="Open search">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M15.5 15.5L20 20m-4.5-4.5a6 6 0 1 0-8.485-8.485 6 6 0 0 0 8.485 8.485z" />
+            </svg>
+          </button>
+        </div>
         <div
-          class="flex items-center gap-2 rounded-full border border-white/30 bg-white/5 px-4 py-1 text-xs uppercase tracking-[0.4em] text-white">
+          class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-slate-300 hover:bg-white/10 transition-colors cursor-pointer">
           Masonry
         </div>
       </div>
     </header>
 
-    <section
-      class="gallery-panel flex flex-col gap-4 rounded-[36px] border border-white/10 bg-slate-950/70 px-5 py-6 shadow-[0_35px_120px_rgba(2,6,23,0.75)] backdrop-blur-lg">
-      <div class="gallery-toolbar flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
-        <div>
-          <p class="text-[0.65rem] uppercase tracking-[0.4em] text-slate-400">Live feed</p>
-          <h1 class="text-3xl font-semibold text-white leading-tight">Responsive masonry window</h1>
-        </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <input type="text" placeholder="Search mood, city, story..." class="search-input"
-            aria-label="Search photographs" />
-          <button class="pill">Explore</button>
-          <button class="pill ghost">Collections</button>
-        </div>
-      </div>
-
-      <div class="gallery-viewport flex-1 min-h-[60vh]">
-        <div class="scroll-container" (scroll)="onScroll($event)">
+    <main class="gallery-panel flex flex-1 flex-col overflow-hidden relative">
+      <div class="gallery-viewport flex-1 min-h-0 relative">
+        <div class="scroll-container px-4 py-6" (scroll)="onScroll($event)">
           <div class="masonry-grid">
-            <article *ngFor="let photo of photos(); trackBy: trackByPhoto" class="photo-card"
-              [style.backgroundImage]="'linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.9) 100%), url(' + photo.url + ')'"
+            @for (photo of photos(); track photo.id) {
+            <article class="photo-card"
+              [style.backgroundImage]="'linear-gradient(180deg, rgba(2,6,23,0) 0%, rgba(2,6,23,0.2) 50%, rgba(2,6,23,0.9) 100%), url(' + photo.url + ')'"
               [style.aspectRatio]="photo.metadata.aspectRatio">
               <div class="photo-content">
-                <p class="photo-title">{{ photo.title }}</p>
-                <p class="photo-description">{{ photo.description }}</p>
-                <div class="photo-meta">
-                  <span>{{ photo.metadata.location }}</span>
-                  <span>{{ photo.metadata.camera }}</span>
-                </div>
-                <div class="photo-tags">
-                  <span *ngFor="let tag of photo.tags">{{ tag }}</span>
+                <div class="mt-auto">
+                  <p class="photo-title text-lg leading-tight mb-1">{{ photo.title }}</p>
+                  <p class="photo-description text-sm text-slate-300 line-clamp-2 mb-3">{{ photo.description }}</p>
+                  <div class="photo-meta flex gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
+                    <span>{{ photo.metadata.location }}</span>
+                    <span>{{ photo.metadata.camera }}</span>
+                  </div>
                 </div>
               </div>
             </article>
+            }
+          </div>
+
+          <div class="gallery-status flex justify-center py-8 text-sm text-slate-500 font-medium tracking-wide">
+            @if (isFetching()) {
+            <span class="animate-pulse">Loading more art...</span>
+            }
+            @if (!isFetching() && photos().length > 0) {
+            <span>End of stream</span>
+            }
           </div>
         </div>
       </div>
-
-      <div class="gallery-status flex flex-wrap items-center justify-between gap-2 text-sm text-slate-400">
-        <span>Loaded {{ photos().length }} of {{ totalPhotos() }} works</span>
-        <span *ngIf="isFetching()" class="text-slate-200">Loading more art...</span>
-      </div>
-    </section>
+    </main>
   </div>
 </div>

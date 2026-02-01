@@ -6,6 +6,7 @@
 .gallery-shell {
   min-height: 100vh;
   height: 100vh;
+  width: 100vw;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -26,6 +27,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  padding: 0 !important;
 }
 
 .search-input {
@@ -88,7 +90,29 @@
   height: 100%;
   overflow-y: auto;
   padding-right: 0.5rem;
-  /* space for scrollbar */
+  padding-top: 5rem;
+  /* Space for the sticky header */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+
+.scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .masonry-grid {
@@ -239,6 +263,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .gallery-viewport {

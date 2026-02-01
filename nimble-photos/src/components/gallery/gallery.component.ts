@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { first } from 'rxjs';
 
@@ -8,7 +7,7 @@ import { Photo } from '../../models/photo.model';
 @Component({
   standalone: true,
   selector: 'app-gallery',
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './gallery.component.html',
   styleUrls: ['./gallery.component.css'],
   host: {
@@ -28,10 +27,6 @@ export class GalleryComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetchNextPage();
-  }
-
-  trackByPhoto(_: number, photo: Photo): string {
-    return photo.id;
   }
 
   onScroll(event: Event): void {
