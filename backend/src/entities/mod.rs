@@ -1,11 +1,7 @@
 use album::Album;
 use exif::Exif;
-use nimble_web::app::application::Application;
 #[cfg(not(feature = "postgres"))]
 use nimble_web::data::memory_repository::MemoryRepository;
-use nimble_web::data::repository::Repository;
-use nimble_web::entity::operation::EntityOperation;
-// use nimble_web::security::policy::Policy;
 use nimble_web::*;
 use photo::Photo;
 use user::User;

@@ -25,6 +25,7 @@ impl TestScenario for PhotoScenario {
             Box::new(CreatePhotoStep::new()),
             Box::new(GetPhotoStep),
             Box::new(UpdatePhotoStep),
+            Box::new(ScanPhotosStep),
             Box::new(DeletePhotoStep),
         ]
     }
@@ -202,6 +203,27 @@ impl TestStep for UpdatePhotoStep {
         let updated = response.json()?;
         bot.context.set("photo_snapshot", updated);
         bot.log_info(format!("update-photo returned status {}", response.status));
+        Ok(())
+    }
+}
+
+struct ScanPhotosStep;
+
+#[async_trait(?Send)]
+impl TestStep for ScanPhotosStep {
+    fn name(&self) -> &'static str {
+        "scan-photo"
+    }
+
+    fn endpoint(&self) -> &'static str {
+        "/api/photos/scan"
+    }
+
+    async fn run(&self, bot: &mut TestBot) -> TestResult {
+        let response = bot.post_auth(self.endpoint(), &json!({})).await?;
+        response.assert_status(200)?;
+
+        bot.log_info(format!("scan-photo returned status {}", response.status));
         Ok(())
     }
 }
