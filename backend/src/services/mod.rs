@@ -1,10 +1,12 @@
 pub mod auth_service;
 pub mod encrypt_service;
 pub mod id_generation_service;
+pub mod photo_service;
 
 pub use auth_service::AuthService;
 pub use encrypt_service::EncryptService;
 pub use id_generation_service::IdGenerationService;
+pub use photo_service::PhotoService;
 
 use std::sync::Arc;
 
@@ -22,6 +24,8 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     });
 
     builder.register_singleton(|_| IdGenerationService::new());
+
+    builder.register_singleton(|_| PhotoService::new());
 
     builder.register_singleton(|provider| {
         let config = provider.get::<Configuration>();
