@@ -44,9 +44,7 @@ fn cleanup_env() {
 }
 
 async fn execute_testbot() -> Result<()> {
-    let bound_address = wait_for_bot_address()
-        .await
-        .unwrap_or_else(|_| format!("localhost:{}", DEFAULT_PORT));
+    let bound_address = wait_for_bot_address().await?;
     let base_url = format!("http://{bound_address}");
 
     log::info!("Start testing endpoints at URL: {}", base_url);
@@ -67,7 +65,7 @@ async fn wait_for_bot_address() -> Result<String> {
 async fn start_hosting_application() -> Result<Child> {
     log::info!("Starting hosting application...");
     let child = Command::new("cargo")
-        .args(&["run", "--bin", "nimble-photos"])
+        .args(&["run", "--bin", "nimble-photos", "--features", "testbot"])
         .current_dir("..")
         .env("RUST_LOG", "off")
         .spawn()?;

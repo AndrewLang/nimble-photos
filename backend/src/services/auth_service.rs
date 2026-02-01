@@ -2,7 +2,7 @@ use crate::dtos::auth_dtos::LoginResponse;
 use crate::entities::user::User;
 use crate::entities::user_settings::UserSettings;
 use crate::services::EncryptService;
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use nimble_web::data::provider::DataProvider;
 use nimble_web::data::query::Value;
 use nimble_web::data::repository::Repository;
@@ -234,6 +234,41 @@ impl AuthService {
             .await
             .map_err(|_| PipelineError::message("failed to update user"))?;
         Ok(())
+    }
+
+    pub async fn issue_reset_token(&self, email: &str) -> Result<String, PipelineError> {
+        let value = Value::String(email.to_string());
+        let mut user = self
+            .repo
+            .get_by("email", value)
+            .await
+            .map_err(|_| PipelineError::message("data error"))?
+            .ok_or_else(|| PipelineError::message("user not found"))?;
+
+        let token = Uuid::new_v4().to_string();
+        user.reset_token = Some(token.clone());
+        user.reset_token_expires_at = Some(Utc::now() + Duration::minutes(30));
+
+        self.repo
+            .update(user)
+            .await
+            .map_err(|_| PipelineError::message("failed to update user"))?;
+
+        Ok(token)
+    }
+
+    pub async fn issue_verification_token(&self, email: &str) -> Result<String, PipelineError> {
+        let value = Value::String(email.to_string());
+        let user = self
+            .repo
+            .get_by("email", value)
+            .await
+            .map_err(|_| PipelineError::message("data error"))?
+            .ok_or_else(|| PipelineError::message("user not found"))?;
+
+        user.verification_token
+            .clone()
+            .ok_or_else(|| PipelineError::message("verification token missing"))
     }
 
     fn issue_tokens(&self, user_id: Uuid) -> Result<LoginResponse, PipelineError> {
