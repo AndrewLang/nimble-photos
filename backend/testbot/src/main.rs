@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use env_logger;
 use std::env;
 use std::process::{Child, Command};
@@ -59,10 +59,42 @@ async fn execute_testbot() -> Result<()> {
     bot.run().await?;
     Ok(())
 }
-
 async fn wait_for_bot_address() -> Result<String> {
-    sleep(Duration::from_millis(1000 * 5)).await;
-    Ok(format!("localhost:{}", DEFAULT_PORT))
+    let addr = env::var("Nimble_Photo_Url").unwrap_or_else(|_| format!("0.0.0.0:{DEFAULT_PORT}"));
+
+    let mut socket: std::net::SocketAddr = addr
+        .parse()
+        .map_err(|e| anyhow!("invalid Nimble_Photo_Url '{}': {}", addr, e))?;
+
+    if socket.ip().is_unspecified() {
+        socket.set_ip(std::net::IpAddr::from([127, 0, 0, 1]));
+    }
+
+    let display = socket.to_string();
+    log::info!("🤖 ⏳ waiting for host at {}", display);
+
+    let deadline = Instant::now() + Duration::from_secs(30);
+
+    loop {
+        match tokio::net::TcpStream::connect(socket).await {
+            Ok(stream) => {
+                drop(stream);
+                log::info!("🤖 ✅ host ready at {}", display);
+                return Ok(display);
+            }
+            Err(err) if Instant::now() < deadline => {
+                log::debug!("🤖 … waiting: {}", err);
+                sleep(Duration::from_millis(500)).await;
+            }
+            Err(err) => {
+                return Err(anyhow!(
+                    "timed out waiting for host at {}: {}",
+                    display,
+                    err
+                ));
+            }
+        }
+    }
 }
 
 async fn start_hosting_application() -> Result<Child> {

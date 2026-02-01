@@ -5,6 +5,7 @@ use nimble_web::app::application::Application;
 use nimble_web::data::memory_repository::MemoryRepository;
 use nimble_web::data::repository::Repository;
 use nimble_web::entity::operation::EntityOperation;
+// use nimble_web::security::policy::Policy;
 use nimble_web::*;
 use photo::Photo;
 use user::User;
@@ -17,7 +18,10 @@ pub mod user;
 pub mod user_settings;
 
 pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
-    builder.use_entity_with_operations::<User>(&[EntityOperation::Get, EntityOperation::List]);
+    builder.use_entity_with_operations_and_policy::<User>(
+        &[EntityOperation::Get, EntityOperation::List],
+        Policy::Authenticated,
+    );
     builder.use_entity_with_operations::<UserSettings>(&[
         EntityOperation::Get,
         EntityOperation::Update,
