@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use nimble_web::testbot::{AssertResponse, TestBot, TestError, TestResult, TestScenario, TestStep};

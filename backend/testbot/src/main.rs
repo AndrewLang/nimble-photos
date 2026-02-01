@@ -6,8 +6,10 @@ use std::time::{Duration, Instant};
 
 use nimble_web::testbot::TestBot;
 use tokio::time::sleep;
+mod album;
 mod auth;
 mod photo;
+use album::AlbumScenario;
 use auth::AuthScenario;
 use photo::PhotoScenario;
 
@@ -52,6 +54,7 @@ async fn execute_testbot() -> Result<()> {
     let mut bot = TestBot::connect(base_url).await?;
     bot.add_scenario(AuthScenario::new());
     bot.add_scenario(PhotoScenario::new());
+    bot.add_scenario(AlbumScenario::new());
 
     bot.run().await?;
     Ok(())
