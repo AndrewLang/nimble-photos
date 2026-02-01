@@ -1,11 +1,14 @@
 pub mod auth_controller;
-
-use nimble_web::*;
+pub mod photo_controller;
 
 use auth_controller::AuthController;
+use nimble_web::*;
+use photo_controller::PhotoController;
 
 pub fn register_controllers(builder: &mut AppBuilder) -> &mut AppBuilder {
-    builder.use_controller::<AuthController>();
+    builder
+        .use_controller::<AuthController>()
+        .use_controller::<PhotoController>();
 
     builder
 }

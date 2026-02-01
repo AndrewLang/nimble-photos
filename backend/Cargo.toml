@@ -30,3 +30,4 @@ uuid = { version = "1.13", features = ["v4", "serde"] }
 [features]
 default = ["postgres"]
 postgres = ["nimble-web/postgres", "dep:sqlx"]
+testbot = []

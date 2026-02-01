@@ -1,7 +1,9 @@
 use async_trait::async_trait;
-
 use chrono::Utc;
 use uuid::Uuid;
+
+#[cfg(feature = "testbot")]
+use serde::{Deserialize, Serialize};
 
 use crate::dtos::auth_dtos::{
     ChangePasswordRequest, LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterRequest,
@@ -39,6 +41,10 @@ impl Controller for AuthController {
             EndpointRoute::get("/api/auth/me", MeHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
+            #[cfg(feature = "testbot")]
+            EndpointRoute::post("/api/test/auth/reset-token", TestResetTokenHandler).build(),
+            #[cfg(feature = "testbot")]
+            EndpointRoute::post("/api/test/auth/verify-token", TestVerifyTokenHandler).build(),
         ]
     }
 }
@@ -72,7 +78,7 @@ impl HttpHandler for RegisterHandler {
 
         let auth_service = context.service::<AuthService>()?;
         let response = auth_service
-            .register(&payload.email, &payload.password)
+            .register(&payload.email, &payload.password, &payload.display_name)
             .await?;
 
         Ok(ResponseValue::json(response))
@@ -89,8 +95,8 @@ impl HttpHandler for MeHandler {
             .ok_or_else(|| PipelineError::message("identity not found"))?;
 
         let subject = identity.identity().subject().to_string();
-        let user_id = Uuid::parse_str(&subject)
-            .map_err(|_| PipelineError::message("invalid identity"))?;
+        let user_id =
+            Uuid::parse_str(&subject).map_err(|_| PipelineError::message("invalid identity"))?;
 
         let user_repo = context.service::<Repository<User>>()?;
         let settings_repo = context.service::<Repository<UserSettings>>()?;
@@ -198,5 +204,47 @@ impl HttpHandler for VerifyEmailHandler {
         auth_service.verify_email(&token).await?;
 
         Ok(ResponseValue::empty())
+    }
+}
+
+#[cfg(feature = "testbot")]
+#[derive(Deserialize)]
+struct TokenRequest {
+    email: String,
+}
+
+#[cfg(feature = "testbot")]
+#[derive(Serialize)]
+struct TokenResponse {
+    token: String,
+}
+
+#[cfg(feature = "testbot")]
+struct TestResetTokenHandler;
+
+#[cfg(feature = "testbot")]
+#[async_trait]
+impl HttpHandler for TestResetTokenHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload: TokenRequest = context.json()?;
+        let auth_service = context.service::<AuthService>()?;
+        let token = auth_service.issue_reset_token(&payload.email).await?;
+        Ok(ResponseValue::json(TokenResponse { token }))
+    }
+}
+
+#[cfg(feature = "testbot")]
+struct TestVerifyTokenHandler;
+
+#[cfg(feature = "testbot")]
+#[async_trait]
+impl HttpHandler for TestVerifyTokenHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload: TokenRequest = context.json()?;
+        let auth_service = context.service::<AuthService>()?;
+        let token = auth_service
+            .issue_verification_token(&payload.email)
+            .await?;
+        Ok(ResponseValue::json(TokenResponse { token }))
     }
 }
