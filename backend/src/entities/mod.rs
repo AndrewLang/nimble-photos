@@ -4,6 +4,7 @@ use nimble_web::app::application::Application;
 #[cfg(not(feature = "postgres"))]
 use nimble_web::data::memory_repository::MemoryRepository;
 use nimble_web::data::repository::Repository;
+use nimble_web::entity::operation::EntityOperation;
 use nimble_web::*;
 use photo::Photo;
 use user::User;
@@ -16,11 +17,14 @@ pub mod user;
 pub mod user_settings;
 
 pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
-    builder.use_entity::<User>();
-    builder.use_entity::<UserSettings>();
+    builder.use_entity_with_operations::<User>(&[EntityOperation::Get, EntityOperation::List]);
+    builder.use_entity_with_operations::<UserSettings>(&[
+        EntityOperation::Get,
+        EntityOperation::Update,
+    ]);
     builder.use_entity::<Photo>();
     builder.use_entity::<Album>();
-    builder.use_entity::<Exif>();
+    builder.use_entity_with_operations::<Exif>(&[EntityOperation::Get]);
 
     #[cfg(not(feature = "postgres"))]
     {
