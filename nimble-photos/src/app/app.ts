@@ -1,11 +1,10 @@
 import { Component } from '@angular/core';
-import { GalleryComponent } from '../components/gallery/gallery.component';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [GalleryComponent],
-  templateUrl: './app.html',
-  styleUrls: ['./app.css']
+  imports: [RouterOutlet],
+  template: '<router-outlet></router-outlet>',
 })
-export class App {}
+export class App { }

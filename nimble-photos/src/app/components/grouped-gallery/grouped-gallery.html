@@ -1,0 +1,85 @@
+<div class="gallery-shell relative isolate h-screen w-screen overflow-hidden bg-slate-950 text-white">
+    <div class="gallery-backdrop pointer-events-none fixed inset-0 z-0"></div>
+
+    <div class="gallery-content relative z-10 flex h-full flex-col">
+        <!-- Header -->
+        <header
+            class="gallery-header absolute top-0 w-full flex items-center justify-between gap-4 border-b border-white/5 bg-slate-950/80 px-6 py-3 backdrop-blur-md z-50">
+            <div class="flex items-center gap-4">
+                <div
+                    class="logo flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 text-base font-semibold text-white shadow-lg shadow-indigo-500/20">
+                    NM
+                </div>
+                <div>
+                    <p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-slate-400 ">Nimble Photos</p>
+                    <p class="text-sm font-light text-slate-200">Your Photos Stories</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- Toggle Button logic would go here ideally, for now just a link/button -->
+                <a href="/" class="icon-button" aria-label="Switch to Masonry">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </a>
+                <div
+                    class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-slate-300">
+                    Timeline
+                </div>
+            </div>
+        </header>
+
+        <!-- Timeline Ruler -->
+        <div class="timeline-ruler">
+            @for (group of groups(); track group.title) {
+            <div class="timeline-item" [class.active]="activeGroupTitle() === group.title"
+                (click)="scrollToGroup(group.title)">
+                <span class="timeline-year">{{ group.title.split('-')[0] }}</span>
+                <span class="timeline-month">{{ getMonthName(group.title.split('-')[1]) }}</span>
+                <div class="timeline-line"></div>
+            </div>
+            }
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="scroll-container" (scroll)="onScroll($event)">
+            @for (group of groups(); track group.title) {
+            <section class="group-section" [id]="'group-' + group.title">
+                <div class="group-header sticky top-0 z-30 pt-4 pb-2" [id]="'group-header-' + group.title">
+                    <h2 class="group-title text-2xl font-bold tracking-tight text-white/90 drop-shadow-md">{{
+                        group.title }}</h2>
+                </div>
+
+                <div class="masonry-grid">
+                    @for (photo of group.photos.items; track photo.id) {
+                    <article class="photo-card"
+                        [style.backgroundImage]="'linear-gradient(180deg, rgba(2,6,23,0) 0%, rgba(2,6,23,0.2) 50%, rgba(2,6,23,0.9) 100%), url(' + photo.url + ')'"
+                        [style.aspectRatio]="photo.metadata.aspectRatio">
+                        <div class="photo-content">
+                            <div class="mt-auto">
+                                <p class="photo-title text-lg leading-tight mb-1">{{ photo.title }}</p>
+                                <div
+                                    class="photo-meta flex gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
+                                    <span>{{ photo.metadata.location }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                    }
+                </div>
+            </section>
+            }
+
+            <div class="gallery-status flex justify-center py-8 text-sm text-slate-500 font-medium tracking-wide">
+                @if (loading()) {
+                <span class="animate-pulse">Loading timeline...</span>
+                }
+                @else if (groups().length === 0) {
+                <span>No photos found.</span>
+                }
+            </div>
+        </div>
+    </div>
+</div>

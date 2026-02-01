@@ -1,4 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
+import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 
 import { PhotoService } from '../../services/photo.service';
@@ -7,7 +8,7 @@ import { Photo } from '../../models/photo.model';
 @Component({
   standalone: true,
   selector: 'app-gallery',
-  imports: [],
+  imports: [RouterModule],
   templateUrl: './gallery.component.html',
   styleUrls: ['./gallery.component.css'],
   host: {

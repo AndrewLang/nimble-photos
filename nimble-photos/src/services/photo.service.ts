@@ -1,11 +1,11 @@
 import { Injectable } from '@angular/core';
 import { delay, Observable, of } from 'rxjs';
 
-import { Photo, PhotoMetadata, PhotoPage } from '../models/photo.model';
+import { GroupedPhotos, PagedPhotos, Photo, PhotoMetadata } from '../models/photo.model';
 
 type PhotoTemplate = Pick<Photo, 'title' | 'description' | 'tags'> & {
   url: string;
-  metadata: Omit<PhotoMetadata, 'capturedAt' | 'iso'>;
+  metadata: Omit<PhotoMetadata, 'iso'>;
 };
 
 const PHOTO_TEMPLATES: PhotoTemplate[] = [
@@ -21,6 +21,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/320',
       focalLength: '35mm',
       aspectRatio: '3 / 4',
+      dateCreated: '2023-11-15T08:00:00Z',
     },
   },
   {
@@ -35,6 +36,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/250',
       focalLength: '45mm',
       aspectRatio: '2 / 3',
+      dateCreated: '2023-12-01T14:30:00Z',
     },
   },
   {
@@ -49,6 +51,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/160',
       focalLength: '55mm',
       aspectRatio: '4 / 5',
+      dateCreated: '2023-10-20T16:45:00Z',
     },
   },
   {
@@ -63,6 +66,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/60',
       focalLength: '24mm',
       aspectRatio: '3 / 4',
+      dateCreated: '2024-01-05T09:15:00Z',
     },
   },
   {
@@ -77,6 +81,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/200',
       focalLength: '35mm',
       aspectRatio: '2 / 3',
+      dateCreated: '2023-09-12T19:20:00Z',
     },
   },
   {
@@ -91,6 +96,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/400',
       focalLength: '85mm',
       aspectRatio: '9 / 16',
+      dateCreated: '2024-02-14T07:30:00Z',
     },
   },
   {
@@ -105,6 +111,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/125',
       focalLength: '70mm',
       aspectRatio: '4 / 3',
+      dateCreated: '2023-08-30T10:00:00Z',
     },
   },
 
@@ -120,6 +127,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/60',
       focalLength: '50mm',
       aspectRatio: '3 / 4',
+      dateCreated: '2023-11-02T18:10:00Z',
     },
   },
   {
@@ -134,6 +142,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/320',
       focalLength: '40mm',
       aspectRatio: '4 / 3',
+      dateCreated: '2023-07-25T12:00:00Z',
     },
   },
   {
@@ -148,6 +157,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/500',
       focalLength: '35mm',
       aspectRatio: '5 / 4',
+      dateCreated: '2023-09-05T15:40:00Z',
     },
   },
   {
@@ -162,6 +172,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/250',
       focalLength: '45mm',
       aspectRatio: '9 / 16',
+      dateCreated: '2024-01-20T17:00:00Z',
     },
   },
   {
@@ -176,6 +187,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/160',
       focalLength: '30mm',
       aspectRatio: '3 / 4',
+      dateCreated: '2023-12-31T23:59:00Z',
     },
   },
   {
@@ -190,6 +202,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       shutterSpeed: '1/200',
       focalLength: '35mm',
       aspectRatio: '3 / 5',
+      dateCreated: '2023-10-15T11:20:00Z',
     },
   },
 ];
@@ -200,7 +213,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
 export class PhotoService {
   private readonly library = this.buildPhotoLibrary();
 
-  getPhotos(page = 1, pageSize = 56): Observable<PhotoPage> {
+  getPhotos(page = 1, pageSize = 56): Observable<PagedPhotos> {
     const start = (page - 1) * pageSize;
     const items = this.library.slice(start, start + pageSize);
     return of({
@@ -211,22 +224,95 @@ export class PhotoService {
     }).pipe(delay(220));
   }
 
+  getGroupedPhotos(
+    groupIndex: number,
+    pageInGroup: number = 1,
+    pageSize: number = 100
+  ): Observable<GroupedPhotos | null> {
+
+    // 1. Group entire library (in real app, this would be DB query)
+    const allGroups = this.groupLibraryByYearMonth();
+
+    if (groupIndex >= allGroups.length) {
+      return of(null).pipe(delay(200));
+    }
+
+    const targetGroup = allGroups[groupIndex];
+    if (pageInGroup > Math.ceil(targetGroup.items.length / pageSize)) {
+      // Page out of range
+      return of({
+        title: targetGroup.title,
+        photos: {
+          page: pageInGroup, // Return empty page
+          pageSize,
+          total: targetGroup.items.length,
+          items: []
+        }
+      }).pipe(delay(200));
+    }
+
+    const totalPhotos = targetGroup.items.length;
+
+    // Pagination within group
+    const start = (pageInGroup - 1) * pageSize;
+    const items = targetGroup.items.slice(start, start + pageSize);
+
+    return of({
+      title: targetGroup.title,
+      photos: {
+        page: pageInGroup,
+        pageSize,
+        total: totalPhotos,
+        items
+      }
+    }).pipe(delay(220));
+  }
+
+  private groupLibraryByYearMonth(): { title: string; items: Photo[] }[] {
+    const groups: Record<string, Photo[]> = {};
+
+    const sorted = [...this.library].sort((a, b) =>
+      b.dateCreated.getTime() - a.dateCreated.getTime()
+    );
+
+    for (const p of sorted) {
+      const key = p.dateCreated.toISOString().slice(0, 7); // "YYYY-MM"
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    }
+
+    return Object.keys(groups)
+      .sort((a, b) => b.localeCompare(a))
+      .map(key => ({ title: key, items: groups[key] }));
+  }
+
   private buildPhotoLibrary(): Photo[] {
-    const targetSize = 1520;
+    const targetSize = 3500;
     const photos: Photo[] = [];
     for (let index = 0; index < targetSize; index++) {
       const template = PHOTO_TEMPLATES[index % PHOTO_TEMPLATES.length];
       const variant = Math.floor(index / PHOTO_TEMPLATES.length) + 1;
+
+      // Clustering logic:
+      const clusterSize = 6;
+      const daysPerCluster = 7; // Step back a week every cluster
+      const clusterIndex = Math.floor(index / clusterSize);
+      // Add a tiny random offset within the day so they sort deterministically but look natural
+      const offsetWithinDay = (index % clusterSize) * 0.1;
+      const totalDaysBack = (clusterIndex * daysPerCluster) + offsetWithinDay;
+      const date = new Date(Date.now() - 3600 * 1000 * 24 * totalDaysBack);
+
       photos.push({
         id: `photo-${String(index + 1).padStart(4, '0')}`,
         url: `${template.url}?auto=format&fit=crop&w=900&q=80&fm=jpg&sig=${index + 1}`,
+        dateCreated: date,
         title: `${template.title} ${variant}`,
         description: template.description,
         tags: template.tags,
         metadata: {
           ...template.metadata,
           iso: 100 + ((index * 13) % 700),
-          capturedAt: new Date(Date.now() - 3600 * 1000 * index).toISOString(),
+          dateCreated: date.toISOString(),
         },
       });
     }
