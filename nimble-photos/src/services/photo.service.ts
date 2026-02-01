@@ -1,7 +1,15 @@
 import { Injectable } from '@angular/core';
 import { delay, Observable, of } from 'rxjs';
 
-import { GroupedPhotos, PagedPhotos, Photo, PhotoMetadata } from '../models/photo.model';
+import { Album, GroupedPhotos, PagedPhotos, Photo, PhotoMetadata } from '../models/photo.model';
+
+export interface PagedAlbums {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: Album[];
+}
+
 
 type PhotoTemplate = Pick<Photo, 'title' | 'description' | 'tags'> & {
   url: string;
@@ -212,6 +220,33 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
 })
 export class PhotoService {
   private readonly library = this.buildPhotoLibrary();
+  private readonly albums = this.buildAlbums();
+
+  getAlbums(page = 1, pageSize = 12): Observable<PagedAlbums> {
+    const start = (page - 1) * pageSize;
+    const sorted = [...this.albums].sort((a, b) => b.dateCreated.getTime() - a.dateCreated.getTime());
+    const items = sorted.slice(start, start + pageSize);
+    return of({
+      page,
+      pageSize,
+      total: this.albums.length,
+      items,
+    }).pipe(delay(300));
+  }
+
+  getAlbumById(id: string): Observable<Album | null> {
+    const album = this.albums.find((a) => a.id === id);
+    return of(album || null).pipe(delay(200));
+  }
+
+  getAlbumPhotos(albumId: string, page = 1, pageSize = 20): Observable<PagedPhotos | null> {
+    const album = this.albums.find((a) => a.id === albumId);
+    if (!album) return of(null);
+
+    // In this mock, all photos are already in album.photos.items. 
+    // If we had more, we would slice them here.
+    return of(album.photos).pipe(delay(200));
+  }
 
   getPhotos(page = 1, pageSize = 56): Observable<PagedPhotos> {
     const start = (page - 1) * pageSize;
@@ -284,6 +319,45 @@ export class PhotoService {
     return Object.keys(groups)
       .sort((a, b) => b.localeCompare(a))
       .map(key => ({ title: key, items: groups[key] }));
+  }
+
+  private buildAlbums(): Album[] {
+    const albumCount = 15;
+    const albums: Album[] = [];
+
+    const stories = [
+      'A journey through the misty mountains of the East, where the air is thin and the spirits are high.',
+      'Summer days spent by the crystal clear lakes, reflecting the deepest blues of the sky.',
+      'Exploring the neon-lit streets of a restless city that never sleeps, catching glimpses of hidden lives.',
+      'A quiet retreat into the heart of the forest, rediscovering the rhythms of nature and the songs of birds.',
+      'The vibrant colors of a coastal village at dusk, where the salt air meets the smell of fresh seafood.',
+      'Architectural marvels that stand as witnesses to centuries past, their stones whispering secrets of history.',
+      'Chasing the golden hour across rolling hills and open fields, where every ray of light tells a story.',
+      'A winter tale in a snow-covered land, filled with frozen beauty and warm moments by the fire.',
+      'Cultural celebrations and festivals that bring communities together in a burst of music and dance.',
+      'The minimal elegance of desert landscapes, where silence becomes a powerful presence.',
+    ];
+
+    for (let i = 0; i < albumCount; i++) {
+      const storyIndex = i % stories.length;
+      const albumPhotos = this.library.slice(i * 10, (i + 1) * 10);
+      const date = new Date(Date.now() - 3600 * 1000 * 24 * (i * 15 + 5));
+
+      albums.push({
+        id: `album-${i + 1}`,
+        title: `Adventure ${i + 1}: ${albumPhotos[0]?.title || 'Untitled'}`,
+        story: stories[storyIndex],
+        coverPhotoUrl: albumPhotos[0]?.url || '',
+        dateCreated: date,
+        photos: {
+          page: 1,
+          pageSize: 10,
+          total: albumPhotos.length,
+          items: albumPhotos,
+        },
+      });
+    }
+    return albums;
   }
 
   private buildPhotoLibrary(): Photo[] {

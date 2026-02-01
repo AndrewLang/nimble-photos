@@ -6,11 +6,14 @@ import { GroupedPhotos, Photo } from '../../models/photo.model';
 import { HeaderComponent } from '../header/header.component';
 
 @Component({
-  selector: 'app-grouped-gallery',
+  selector: 'mtx-grouped-gallery',
   imports: [RouterModule, HeaderComponent],
   templateUrl: './grouped-gallery.html',
   styleUrls: [],
-  standalone: true
+  standalone: true,
+  host: {
+    class: 'block flex-1 min-h-0',
+  },
 })
 export class GroupedGallery implements OnInit {
   readonly groups = signal<GroupedPhotos[]>([]);

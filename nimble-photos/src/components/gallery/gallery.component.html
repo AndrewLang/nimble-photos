@@ -1,39 +1,33 @@
-<div class="gallery-shell relative isolate h-screen w-screen overflow-hidden bg-slate-950 text-white">
-  <div class="gallery-backdrop pointer-events-none fixed inset-0 z-0"></div>
-
-  <div class="gallery-content relative z-10 flex h-full flex-col">
-    <main class="gallery-panel flex flex-1 flex-col overflow-hidden relative">
-      <div class="gallery-viewport flex-1 min-h-0 relative">
-        <div class="scroll-container px-4 py-6" (scroll)="onScroll($event)">
-          <div class="masonry-grid">
-            @for (photo of photos(); track photo.id) {
-            <article class="photo-card"
-              [style.backgroundImage]="'linear-gradient(180deg, rgba(2,6,23,0) 0%, rgba(2,6,23,0.2) 50%, rgba(2,6,23,0.9) 100%), url(' + photo.url + ')'"
-              [style.aspectRatio]="photo.metadata.aspectRatio">
-              <div class="photo-content">
-                <div class="mt-auto">
-                  <p class="photo-title text-lg leading-tight mb-1">{{ photo.title }}</p>
-                  <p class="photo-description text-sm text-slate-300 line-clamp-2 mb-3">{{ photo.description }}</p>
-                  <div class="photo-meta flex gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
-                    <span>{{ photo.metadata.location }}</span>
-                    <span>{{ photo.metadata.camera }}</span>
-                  </div>
-                </div>
+<main class="gallery-panel flex flex-1 flex-col overflow-hidden relative h-full">
+  <div class="gallery-viewport flex-1 min-h-0 relative">
+    <div class="scroll-container px-4 py-6" (scroll)="onScroll($event)">
+      <div class="masonry-grid">
+        @for (photo of photos(); track photo.id) {
+        <article class="photo-card"
+          [style.backgroundImage]="'linear-gradient(180deg, rgba(2,6,23,0) 0%, rgba(2,6,23,0.2) 50%, rgba(2,6,23,0.9) 100%), url(' + photo.url + ')'"
+          [style.aspectRatio]="photo.metadata.aspectRatio">
+          <div class="photo-content">
+            <div class="mt-auto">
+              <p class="photo-title text-lg leading-tight mb-1">{{ photo.title }}</p>
+              <p class="photo-description text-sm text-slate-300 line-clamp-2 mb-3">{{ photo.description }}</p>
+              <div class="photo-meta flex gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
+                <span>{{ photo.metadata.location }}</span>
+                <span>{{ photo.metadata.camera }}</span>
               </div>
-            </article>
-            }
+            </div>
           </div>
-
-          <div class="gallery-status flex justify-center py-8 text-sm text-slate-500 font-medium tracking-wide">
-            @if (isFetching()) {
-            <span class="animate-pulse">Loading more art...</span>
-            }
-            @if (!isFetching() && photos().length > 0) {
-            <span>End of stream</span>
-            }
-          </div>
-        </div>
+        </article>
+        }
       </div>
-    </main>
+
+      <div class="gallery-status flex justify-center py-8 text-sm text-slate-500 font-medium tracking-wide">
+        @if (isFetching()) {
+        <span class="animate-pulse">Loading more art...</span>
+        }
+        @if (!isFetching() && photos().length > 0) {
+        <span>End of stream</span>
+        }
+      </div>
+    </div>
   </div>
-</div>
+</main>

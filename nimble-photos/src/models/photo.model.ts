@@ -30,3 +30,13 @@ export interface GroupedPhotos {
   title: string;
   photos: PagedPhotos;
 }
+
+export interface Album {
+  id: string;
+  title: string;
+  story: string;
+  coverPhotoUrl: string;
+  dateCreated: Date;
+  photos: PagedPhotos;
+}
+

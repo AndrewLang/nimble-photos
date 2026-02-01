@@ -6,11 +6,11 @@ import { Photo } from '../../models/photo.model';
 import { PhotoService } from '../../services/photo.service';
 
 @Component({
-  selector: 'app-gallery',
+  selector: 'mtx-gallery',
   imports: [RouterModule],
   templateUrl: './gallery.component.html',
   host: {
-    class: 'block',
+    class: 'block flex-1 min-h-0',
   },
 })
 export class GalleryComponent implements OnInit {
