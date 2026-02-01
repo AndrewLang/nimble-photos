@@ -65,11 +65,14 @@ async fn wait_for_bot_address() -> Result<String> {
 }
 
 async fn start_hosting_application() -> Result<Child> {
+    log::info!("Starting hosting application...");
     let child = Command::new("cargo")
         .args(&["run", "--bin", "nimble-photos"])
         .current_dir("..")
         .env("RUST_LOG", "off")
         .spawn()?;
+
+    log::info!("Hosting application started with PID {}", child.id());
 
     Ok(child)
 }
@@ -84,7 +87,8 @@ fn init_logging() {
     builder
         .filter(None, log::LevelFilter::Off)
         .filter_module("testbot", log::LevelFilter::Debug)
-        .filter_module("nimble_web::testbot", log::LevelFilter::Debug);
+        .filter_module("nimble_web::testbot", log::LevelFilter::Debug)
+        .filter_module("nimble_photos", log::LevelFilter::Error);
 
     let _ = builder.try_init();
 }
