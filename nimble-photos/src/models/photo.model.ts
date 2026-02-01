@@ -15,6 +15,7 @@ export interface Photo {
   dateCreated: Date;
   title: string;
   description: string;
+  story: string;
   tags: string[];
   metadata: PhotoMetadata;
 }

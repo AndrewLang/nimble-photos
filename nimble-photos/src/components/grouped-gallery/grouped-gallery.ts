@@ -1,13 +1,12 @@
-import { Component, OnInit, signal, effect } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
+import { GroupedPhotos } from '../../models/photo.model';
 import { PhotoService } from '../../services/photo.service';
-import { GroupedPhotos, Photo } from '../../models/photo.model';
-import { HeaderComponent } from '../header/header.component';
 
 @Component({
   selector: 'mtx-grouped-gallery',
-  imports: [RouterModule, HeaderComponent],
+  imports: [RouterModule],
   templateUrl: './grouped-gallery.html',
   styleUrls: [],
   standalone: true,

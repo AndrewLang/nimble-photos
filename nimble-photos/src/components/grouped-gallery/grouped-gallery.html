@@ -20,7 +20,7 @@
 
             <div class="masonry-grid">
                 @for (photo of group.photos.items; track photo.id) {
-                <article class="photo-card"
+                <article [routerLink]="['/photo', photo.id]" class="photo-card cursor-pointer"
                     [style.backgroundImage]="'linear-gradient(180deg, rgba(2,6,23,0) 0%, rgba(2,6,23,0.2) 50%, rgba(2,6,23,0.9) 100%), url(' + photo.url + ')'"
                     [style.aspectRatio]="photo.metadata.aspectRatio">
                     <div class="photo-content">

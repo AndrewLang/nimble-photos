@@ -11,7 +11,7 @@ export interface PagedAlbums {
 }
 
 
-type PhotoTemplate = Pick<Photo, 'title' | 'description' | 'tags'> & {
+type PhotoTemplate = Pick<Photo, 'title' | 'description' | 'story' | 'tags'> & {
   url: string;
   metadata: Omit<PhotoMetadata, 'iso'>;
 };
@@ -19,7 +19,8 @@ type PhotoTemplate = Pick<Photo, 'title' | 'description' | 'tags'> & {
 const PHOTO_TEMPLATES: PhotoTemplate[] = [
   {
     title: 'Lighthouse Calm',
-    description: 'A lonely beacon brushes the gray line between sea and sky.',
+    description: 'A lonely beacon brushes the gray line.',
+    story: 'The morning mist was so thick you could almost lean against it. I stood there for nearly an hour, watching the rhythmic pulse of the lighthouse through the haze. It felt like a conversation between the land and the infinite sea, a steady promise of safety in a world of shifting tides.',
     url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e',
     tags: ['coast', 'dawn', 'ruck'],
     metadata: {
@@ -34,7 +35,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   },
   {
     title: 'Fog Rail',
-    description: 'Tracks disappear in a breath of mist and cold copper tones.',
+    description: 'Tracks disappear in a breath of mist.',
+    story: 'There is a specific kind of silence that only exists on a train platform at 4 AM. The cold copper tones of the rails seemed to draw the fog toward them. I remember the smell of damp iron and the feeling that I was the only person left in the world for just a few moments before the first morning engine roared to life.',
     url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e',
     tags: ['rail', 'fog', 'minimal'],
     metadata: {
@@ -50,6 +52,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   {
     title: 'Golden Paths',
     description: 'Afternoon sun turns the meadow into a quilt of gold.',
+    story: 'Walking through these fields felt like wading through liquid light. The wildflowers were catchers of the sun, and for a brief window before sunset, every blade of grass turned into a filament of gold. It was one of those rare afternoons where time seems to slow down just long enough for you to breathe.',
     url: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
     tags: ['meadow', 'golden hour', 'nature'],
     metadata: {
@@ -65,6 +68,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   {
     title: 'Temple Stillness',
     description: 'Gilded pillars shelter the silence of an ancient courtyard.',
+    story: 'The weight of history is heavy in a place like this, but it doesn’t push you down; it grounds you. The gold leaf on the pillars caught the low light, reflecting a warmth that seemed to come from within the stone itself. I sat on the frozen floor for an hour, just listening to the wind chime in the distance.',
     url: 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e',
     tags: ['architecture', 'zen', 'culture'],
     metadata: {
@@ -80,6 +84,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   {
     title: 'City Steps',
     description: 'Warm dusk light spills over the concrete geometry.',
+    story: 'Modern cities often feel cold, but Lisbon has a way of turning concrete into a canvas for the sun. These steps had been baked by the heat all day, and as evening fell, they glowed with a retained warmth. The geometry of the shadows created a rhythm that felt perfectly composed, even though it was entirely accidental.',
     url: 'https://images.unsplash.com/photo-1494526585095-c41746248156',
     tags: ['city', 'evening', 'minimal'],
     metadata: {
@@ -94,7 +99,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   },
   {
     title: 'Monk’s Pause',
-    description: 'Stone guardians stare across the courtyard of a quiet monastery.',
+    description: 'Stone guardians stare across the quiet courtyard.',
+    story: 'In the high altitude of Bhutan, the air is crisp and clear. This monk had been walking in silence for hours before stopping here. There was a profound symmetry between the stillness of the stone statues and the calm of the man. It was a moment of absolute presence, unbothered by the passing of time.',
     url: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429',
     tags: ['statue', 'monk', 'stillness'],
     metadata: {
@@ -109,7 +115,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   },
   {
     title: 'Prairie Gathering',
-    description: 'Families gather along the winding trail as dusk paints the grasses.',
+    description: 'Families gather along the winding trail at dusk.',
+    story: 'The prairie wind carries the scent of dry grass and approaching rain. As the sun dipped below the horizon, the community came together on the ridge. It wasn’t a formal event—just a spontaneous collection of people drawn to the beauty of the day’s end. The trail seemed to pull everyone toward the light.',
     url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1',
     tags: ['community', 'outdoors', 'joy'],
     metadata: {
@@ -125,7 +132,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
 
   {
     title: 'Copper Lantern',
-    description: 'Lantern light whispers from the treetops, written characters glowing.',
+    description: 'Lantern light whispers from the treetops.',
+    story: 'Autumn in Hangzhou is a sensory overload of orange leaves and the smell of tea. These lanterns, inscribed with ancient calligraphy, were hung for the Mid-Autumn festival. They didn’t just illuminate the path; they seemed to cast a spell over the entire garden, turning a regular walk into a journey through a legend.',
     url: 'https://images.unsplash.com/photo-1681215919198-83896a9ead7d',
     tags: ['lantern', 'calligraphy', 'autumn'],
     metadata: {
@@ -140,7 +148,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   },
   {
     title: 'Harbor Study',
-    description: 'Cobalt isles punctuate the horizon behind a reflective boardwalk.',
+    description: 'Cobalt isles punctuate the horizon behind a boardwalk.',
+    story: 'The Atlantic breeze in Lisbon is constant and refreshing. I spent the afternoon on the boardwalk, watching the ferries cross to the far isles. The water was a deep, restless cobalt that contrasted sharply with the white stone of the city. It’s a place where the horizons always feel open.',
     url: 'https://images.unsplash.com/photo-1551259510-6c2adc679053',
     tags: ['harbor', 'water', 'architecture'],
     metadata: {
@@ -156,6 +165,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   {
     title: 'Cloud White',
     description: 'A tally of cloudbanks drifts above a lonely berm.',
+    story: 'Mongolia is a land of massive skies. I drove for six hours across the steppe without seeing another car. When I finally stopped, these massive, architectural clouds were marching across the horizon like a slow-motion army. The scale of the landscape makes you feel tiny, but in a way that is oddly liberating.',
     url: 'https://images.unsplash.com/photo-1627307285965-ad88240f7bca',
     tags: ['cloud', 'sky', 'serene'],
     metadata: {
@@ -170,7 +180,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   },
   {
     title: 'Ferris Memory',
-    description: 'A wheel of lights hovers against a pastel afternoon sky.',
+    description: 'A wheel of lights hovers against a pastel sky.',
+    story: 'Parisian dusks have a specific color palette that I’ve never seen anywhere else—a mix of lavender, rose, and pale gold. As the Ferris wheel began its slow rotation, the lights flickered on, competing with the dying sun. It felt less like a fairground and more like a glowing clock marking the end of a beautiful day.',
     url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330',
     tags: ['fair', 'pastel', 'calm'],
     metadata: {
@@ -185,7 +196,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   },
   {
     title: 'Crowd Chant',
-    description: 'Young voices raise banners beneath cool laser lights.',
+    description: 'Young voices raise banners beneath laser lights.',
+    story: 'The energy in the Bangkok stadium was electric. Thousands of people, but only one voice. As the lasers cut through the humidity and the smoke, the colors blurred into a fever dream of neon. It was loud, chaotic, and beautiful—a reminder that we are at our most alive when we are part of something bigger than ourselves.',
     url: 'https://images.unsplash.com/photo-1544894079-e81a9eb1da8b',
     tags: ['crowd', 'culture', 'festival'],
     metadata: {
@@ -200,7 +212,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
   },
   {
     title: 'Sunlit Way',
-    description: 'Tree-lined avenues collect every golden leaf that falls.',
+    description: 'Tree-lined avenues collect every golden leaf.',
+    story: 'I found this hidden path in Seoul while trying to take a shortcut. The ginkgo trees had dropped a literal carpet of gold onto the pavement. The light was filtering through the remaining leaves, creating a glowing tunnel that felt like it belonged in a movie. I just stood there for a while, afraid that moving would break the spell.',
     url: 'https://images.unsplash.com/photo-1546464677-c25cd52c470b',
     tags: ['autumn', 'trees', 'silence'],
     metadata: {
@@ -214,6 +227,7 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
     },
   },
 ];
+
 
 @Injectable({
   providedIn: 'root',
@@ -257,6 +271,30 @@ export class PhotoService {
       total: this.library.length,
       items,
     }).pipe(delay(220));
+  }
+
+  getPhotoById(id: string): Observable<Photo | null> {
+    const photo = this.library.find(p => p.id === id);
+    return of(photo || null).pipe(delay(150));
+  }
+
+  getAdjacentPhotos(id: string, albumId?: string): Observable<{ prevId: string | null; nextId: string | null }> {
+    let list: Photo[] = [];
+
+    if (albumId) {
+      const album = this.albums.find(a => a.id === albumId);
+      list = album ? album.photos.items : [];
+    } else {
+      list = this.library;
+    }
+
+    const index = list.findIndex(p => p.id === id);
+    if (index === -1) return of({ prevId: null, nextId: null });
+
+    const prevId = index > 0 ? list[index - 1].id : null;
+    const nextId = index < list.length - 1 ? list[index + 1].id : null;
+
+    return of({ prevId, nextId }).pipe(delay(100));
   }
 
   getGroupedPhotos(
@@ -382,6 +420,7 @@ export class PhotoService {
         dateCreated: date,
         title: `${template.title} ${variant}`,
         description: template.description,
+        story: template.story,
         tags: template.tags,
         metadata: {
           ...template.metadata,
