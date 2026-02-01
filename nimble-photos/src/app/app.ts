@@ -3,7 +3,7 @@ import { RouterModule } from '@angular/router';
 import { HeaderComponent } from '../components/header/header.component';
 
 @Component({
-  selector: 'app-root',
+  selector: 'mtx-root',
   imports: [RouterModule, HeaderComponent],
   templateUrl: './app.html'
 })

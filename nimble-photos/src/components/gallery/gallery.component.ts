@@ -4,11 +4,10 @@ import { first } from 'rxjs';
 
 import { Photo } from '../../models/photo.model';
 import { PhotoService } from '../../services/photo.service';
-import { HeaderComponent } from '../header/header.component';
 
 @Component({
   selector: 'app-gallery',
-  imports: [RouterModule, HeaderComponent],
+  imports: [RouterModule],
   templateUrl: './gallery.component.html',
   host: {
     class: 'block',
