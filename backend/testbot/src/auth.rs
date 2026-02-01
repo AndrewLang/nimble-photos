@@ -8,7 +8,9 @@ use nimble_photos::dtos::auth_dtos::{
     RegisterRequest, ResetPasswordRequest, VerifyEmailRequest,
 };
 use nimble_photos::dtos::user_profile_dto::UserProfileDto;
-use nimble_web::testbot::{AssertResponse, TestBot, TestError, TestResult, TestScenario, TestStep};
+use nimble_web::testbot::{
+    AssertResponse, ComboStep, TestBot, TestError, TestResult, TestScenario, TestStep,
+};
 
 #[derive(Deserialize)]
 struct TokenResponse {
@@ -47,6 +49,27 @@ impl TestScenario for AuthScenario {
             "Creating steps for AuthScenario {}",
             self.display_name.clone()
         );
+        let logout_flow = ComboStep::new(
+            "Logout flow",
+            "/api/auth/logout",
+            vec![
+                Box::new(LoginStep::new(self.email.clone(), self.password.clone())),
+                Box::new(LogoutStep),
+            ],
+        );
+
+        let change_password_flow = ComboStep::new(
+            "Change Password flow",
+            "/api/auth/change-password",
+            vec![
+                Box::new(LoginStep::new(self.email.clone(), self.password.clone())),
+                Box::new(ChangePasswordStep::new(
+                    self.password.clone(),
+                    self.changed_password.clone(),
+                )),
+            ],
+        );
+
         vec![
             Box::new(RegisterStep::new(
                 self.email.clone(),
@@ -56,12 +79,8 @@ impl TestScenario for AuthScenario {
             Box::new(LoginStep::new(self.email.clone(), self.password.clone())),
             Box::new(MeStep::new(self.email.clone(), self.display_name.clone())),
             Box::new(RefreshStep),
-            Box::new(LogoutStep),
-            Box::new(LoginStep::new(self.email.clone(), self.password.clone())),
-            Box::new(ChangePasswordStep::new(
-                self.password.clone(),
-                self.changed_password.clone(),
-            )),
+            Box::new(logout_flow),
+            Box::new(change_password_flow),
             Box::new(LoginStep::new(
                 self.email.clone(),
                 self.changed_password.clone(),
