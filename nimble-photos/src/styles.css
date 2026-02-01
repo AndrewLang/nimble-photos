@@ -3,6 +3,7 @@
 @import "tailwindcss";
 @import './assets/css/gallery.css';
 @import './assets/css/photo.css';
+@import 'leaflet/dist/leaflet.css';
 
 :root {
   font-family: 'Inter', 'Space Grotesk', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;

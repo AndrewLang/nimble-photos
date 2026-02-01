@@ -31,6 +31,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '35mm',
       aspectRatio: '3 / 4',
       dateCreated: '2023-11-15T08:00:00Z',
+      lat: 43.06417,
+      lng: 141.34694,
     },
   },
   {
@@ -47,6 +49,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '45mm',
       aspectRatio: '2 / 3',
       dateCreated: '2023-12-01T14:30:00Z',
+      lat: 56.83333,
+      lng: 60.58333,
     },
   },
   {
@@ -63,6 +67,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '55mm',
       aspectRatio: '4 / 5',
       dateCreated: '2023-10-20T16:45:00Z',
+      lat: 43.76667,
+      lng: 11.25,
     },
   },
   {
@@ -79,6 +85,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '24mm',
       aspectRatio: '3 / 4',
       dateCreated: '2024-01-05T09:15:00Z',
+      lat: 35.01167,
+      lng: 135.76833,
     },
   },
   {
@@ -95,6 +103,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '35mm',
       aspectRatio: '2 / 3',
       dateCreated: '2023-09-12T19:20:00Z',
+      lat: 38.72225,
+      lng: -9.13934,
     },
   },
   {
@@ -111,6 +121,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '85mm',
       aspectRatio: '9 / 16',
       dateCreated: '2024-02-14T07:30:00Z',
+      lat: 27.46667,
+      lng: 89.63333,
     },
   },
   {
@@ -127,6 +139,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '70mm',
       aspectRatio: '4 / 3',
       dateCreated: '2023-08-30T10:00:00Z',
+      lat: 41.12528,
+      lng: -95.91895,
     },
   },
 
@@ -144,6 +158,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '50mm',
       aspectRatio: '3 / 4',
       dateCreated: '2023-11-02T18:10:00Z',
+      lat: 30.26737,
+      lng: 120.15279,
     },
   },
   {
@@ -160,6 +176,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '40mm',
       aspectRatio: '4 / 3',
       dateCreated: '2023-07-25T12:00:00Z',
+      lat: 38.72225,
+      lng: -9.13934,
     },
   },
   {
@@ -176,6 +194,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '35mm',
       aspectRatio: '5 / 4',
       dateCreated: '2023-09-05T15:40:00Z',
+      lat: 47.91847,
+      lng: 106.91771,
     },
   },
   {
@@ -192,6 +212,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '45mm',
       aspectRatio: '9 / 16',
       dateCreated: '2024-01-20T17:00:00Z',
+      lat: 48.85661,
+      lng: 2.35222,
     },
   },
   {
@@ -208,6 +230,8 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '30mm',
       aspectRatio: '3 / 4',
       dateCreated: '2023-12-31T23:59:00Z',
+      lat: 13.75633,
+      lng: 100.50177,
     },
   },
   {
@@ -224,8 +248,11 @@ const PHOTO_TEMPLATES: PhotoTemplate[] = [
       focalLength: '35mm',
       aspectRatio: '3 / 5',
       dateCreated: '2023-10-15T11:20:00Z',
+      lat: 37.56653,
+      lng: 126.97796,
     },
   },
+
 ];
 
 

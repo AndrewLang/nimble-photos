@@ -7,6 +7,8 @@ export interface PhotoMetadata {
   focalLength: string;
   aspectRatio: string;
   dateCreated: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface Photo {

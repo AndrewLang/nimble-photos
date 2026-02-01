@@ -6,6 +6,7 @@ export const routes: Routes = [
     { path: 'album/:id', loadComponent: () => import('../components/album-detail/album-detail.component').then(m => m.AlbumDetailComponent) },
     { path: 'photo/:id', loadComponent: () => import('../components/photo-detail/photo-detail.component').then(m => m.PhotoDetailComponent) },
     { path: 'album/:albumId/photo/:id', loadComponent: () => import('../components/photo-detail/photo-detail.component').then(m => m.PhotoDetailComponent) },
+    { path: 'map', loadComponent: () => import('../components/map/map.component').then(m => m.MapComponent) },
     { path: 'all', loadComponent: () => import('../components/gallery/gallery.component').then(m => m.GalleryComponent) }
 ];
 
