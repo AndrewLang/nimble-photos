@@ -1,0 +1,73 @@
+<div #container class="gallery-container h-full w-full relative bg-[#010409]">
+  <div class="absolute inset-0 pointer-events-none overflow-hidden">
+    <div class="absolute top-0 left-1/4 w-1/2 h-1/2 bg-indigo-500/5 blur-[120px] rounded-full opacity-50"></div>
+    <div class="absolute bottom-0 right-1/4 w-1/2 h-1/2 bg-violet-500/5 blur-[120px] rounded-full opacity-50"></div>
+  </div>
+
+  <cdk-virtual-scroll-viewport [itemSize]="targetHeight()" (scrolledIndexChange)="onScroll($event)"
+    class="h-full w-full scroll-container">
+    <div class="px-4 py-8 min-h-full">
+      <header class="mb-12 px-2">
+        <h1
+          class="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+          Library
+        </h1>
+        <p class="text-slate-500 text-sm mt-1 uppercase tracking-widest font-medium">
+          {{ totalPhotos() }} Photos · Managed View
+        </p>
+      </header>
+
+      <div *cdkVirtualFor="let item of items(); let last = last">
+        @if (item.type === 'header') {
+        <div
+          class="group-header sticky top-0 z-20 py-4 bg-[#010409]/95 backdrop-blur-sm -mx-4 px-6 mb-2 flex items-baseline gap-4">
+          <h2 class="text-xl font-bold text-slate-100 tracking-tight">
+            {{ item.title | date:'EEE, MMM d' }}
+          </h2>
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+            {{ item.count }} PHOTOS
+          </span>
+        </div>
+        } @else {
+        <div class="flex items-stretch justify-start overflow-hidden mb-[6px]" [style.height.px]="item.row.height">
+          @for (photo of item.row.photos; track photo.id; let lastPhoto = $last) {
+          <article [routerLink]="['/photo', photo.id]"
+            class="photo-item relative group cursor-pointer overflow-hidden rounded-sm bg-slate-900/50 transition-all duration-300 hover:ring-2 hover:ring-indigo-500/50 h-full"
+            [style.width.px]="getPhotoWidth(photo, item.row.height)" [class.mr-[6px]]="!lastPhoto">
+            <img [src]="getImageUrl(photo)" [alt]="photo.name"
+              class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+              loading="lazy">
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-4">
+              <span
+                class="text-white text-[10px] font-bold leading-tight truncate drop-shadow-md mb-1 px-1 py-0.5 bg-black/20 rounded-xs self-start">
+                {{ photo.name }}
+              </span>
+            </div>
+
+            <div class="absolute inset-0 bg-slate-800 -z-10 animate-pulse"></div>
+          </article>
+          }
+        </div>
+        }
+      </div>
+
+      @if (isFetching()) {
+      <div class="flex flex-col items-center justify-center py-16 gap-4">
+        <div class="flex gap-1.5">
+          <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce"></div>
+          <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+          <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+        </div>
+        <span class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Refining layout</span>
+      </div>
+      }
+
+      @if (!isFetching() && loadedPhotosCount() >= totalPhotos() && totalPhotos() > 0) {
+      <div class="flex justify-center py-20">
+        <div class="h-[1px] w-24 bg-gradient-to-r from-transparent via-slate-800 to-transparent"></div>
+      </div>
+      }
+    </div>
+  </cdk-virtual-scroll-viewport>
+</div>

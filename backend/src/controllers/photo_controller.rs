@@ -9,6 +9,7 @@ use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::FileResponse;
+use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
 
@@ -30,7 +31,10 @@ struct ScanPhotoHandler;
 
 #[async_trait]
 impl HttpHandler for ScanPhotoHandler {
-    async fn invoke(&self, _context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+    async fn invoke(
+        &self,
+        _context: &mut HttpContext,
+    ) -> std::result::Result<ResponseValue, PipelineError> {
         Ok(ResponseValue::empty())
     }
 }
@@ -39,7 +43,10 @@ struct ThumbnailHandler;
 
 #[async_trait]
 impl HttpHandler for ThumbnailHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+    async fn invoke(
+        &self,
+        context: &mut HttpContext,
+    ) -> std::result::Result<ResponseValue, PipelineError> {
         let hash = context
             .route()
             .and_then(|route| route.params().get("hash"))
@@ -63,20 +70,20 @@ impl HttpHandler for ThumbnailHandler {
 
         log::debug!("Thumbnail path resolved to: {}", path.to_string_lossy());
 
-        log::debug!("Config {:?}", config);
-
         Ok(ResponseValue::new(
             FileResponse::from_path(path).with_content_type("image/webp"),
         ))
     }
 }
-use nimble_web::result::Json;
 
 struct TimelineHandler;
 
 #[async_trait]
 impl HttpHandler for TimelineHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+    async fn invoke(
+        &self,
+        context: &mut HttpContext,
+    ) -> std::result::Result<ResponseValue, PipelineError> {
         let repository = context
             .services()
             .resolve::<Box<dyn PhotoRepository>>()
