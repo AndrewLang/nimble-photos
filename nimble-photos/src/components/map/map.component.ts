@@ -232,10 +232,10 @@ export class MapComponent implements OnInit, OnDestroy {
 
             const lat = firstPhoto.metadata.lat!;
             const lng = firstPhoto.metadata.lng!;
-            const latStr = `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'}`;
-            const lngStr = `${Math.abs(lng).toFixed(4)}°${lng >= 0 ? 'E' : 'W'}`;
+            const latStr = `${Math.abs(lat).toFixed(4)}deg${lat >= 0 ? 'N' : 'S'}`;
+            const lngStr = `${Math.abs(lng).toFixed(4)}deg${lng >= 0 ? 'E' : 'W'}`;
 
-            const dates = groupPhotos.map(p => p.dateCreated.getTime()).sort();
+            const dates = groupPhotos.map(p => p.dateTaken.getTime()).sort();
             const minDate = new Date(dates[0]);
             const maxDate = new Date(dates[dates.length - 1]);
             const dateStr = minDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +

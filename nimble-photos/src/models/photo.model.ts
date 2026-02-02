@@ -13,12 +13,28 @@ export interface PhotoMetadata {
 
 export interface Photo {
   id: string;
+  path: string;
+  thumbnailPath: string;
   url: string;
-  dateCreated: Date;
+  name: string;
   title: string;
   description: string;
   story: string;
   tags: string[];
+  format: string;
+  hash: string;
+  size: number;
+  createdAt: Date;
+  updatedAt: Date;
+  dateImported: Date;
+  dateTaken: Date;
+  thumbnailOptimized: boolean;
+  metadataExtracted: boolean;
+  isRaw: boolean;
+  width: number;
+  height: number;
+  thumbnailWidth: number;
+  thumbnailHeight: number;
   metadata: PhotoMetadata;
 }
 
@@ -42,4 +58,3 @@ export interface Album {
   dateCreated: Date;
   photos: PagedPhotos;
 }
-

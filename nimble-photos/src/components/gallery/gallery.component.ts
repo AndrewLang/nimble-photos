@@ -1,4 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 
@@ -7,7 +8,7 @@ import { PhotoService } from '../../services/photo.service';
 
 @Component({
   selector: 'mtx-gallery',
-  imports: [RouterModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './gallery.component.html',
   host: {
     class: 'block flex-1 min-h-0',

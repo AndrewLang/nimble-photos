@@ -372,11 +372,11 @@ export class PhotoService {
     const groups: Record<string, Photo[]> = {};
 
     const sorted = [...this.library].sort((a, b) =>
-      b.dateCreated.getTime() - a.dateCreated.getTime()
+      b.dateTaken.getTime() - a.dateTaken.getTime()
     );
 
     for (const p of sorted) {
-      const key = p.dateCreated.toISOString().slice(0, 7); // "YYYY-MM"
+      const key = p.dateTaken.toISOString().slice(0, 7); // "YYYY-MM"
       if (!groups[key]) groups[key] = [];
       groups[key].push(p);
     }
@@ -441,19 +441,46 @@ export class PhotoService {
       const totalDaysBack = (clusterIndex * daysPerCluster) + offsetWithinDay;
       const date = new Date(Date.now() - 3600 * 1000 * 24 * totalDaysBack);
 
+      const iso = 100 + ((index * 13) % 700);
+      const createdAt = date;
+      const updatedAt = new Date(date.getTime() + 1000 * 60 * 60);
+      const dateImported = new Date(date.getTime() + 1000 * 60 * 60 * 2);
+      const width = 4000 + ((index % 5) * 256);
+      const height = 3000 + ((index % 4) * 128);
+      const thumbWidth = 900;
+      const thumbHeight = Math.max(200, Math.round((height / width) * thumbWidth));
+      const basePath = `${template.url}?auto=format&fit=crop&fm=jpg&sig=${index + 1}`;
+      const metadata = {
+        ...template.metadata,
+        iso,
+        dateCreated: date.toISOString(),
+      };
+
       photos.push({
         id: `photo-${String(index + 1).padStart(4, '0')}`,
-        url: `${template.url}?auto=format&fit=crop&w=900&q=80&fm=jpg&sig=${index + 1}`,
-        dateCreated: date,
+        path: `${basePath}&w=1800&q=90`,
+        thumbnailPath: `${basePath}&w=700&q=80`,
+        url: `${basePath}&w=900&q=80`,
+        name: template.title,
         title: `${template.title} ${variant}`,
         description: template.description,
         story: template.story,
         tags: template.tags,
-        metadata: {
-          ...template.metadata,
-          iso: 100 + ((index * 13) % 700),
-          dateCreated: date.toISOString(),
-        },
+        format: 'jpeg',
+        hash: `nimble-${index + 1}-${template.title.toLowerCase().replace(/\s+/g, '-')}`,
+        size: 2_400_000 + (index % 7) * 150_000,
+        createdAt,
+        updatedAt,
+        dateImported,
+        dateTaken: date,
+        thumbnailOptimized: true,
+        metadataExtracted: true,
+        isRaw: false,
+        width,
+        height,
+        thumbnailWidth: thumbWidth,
+        thumbnailHeight: thumbHeight,
+        metadata,
       });
     }
     return photos;

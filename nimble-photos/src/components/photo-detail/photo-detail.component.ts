@@ -97,4 +97,18 @@ export class PhotoDetailComponent implements OnInit {
             this.router.navigate(['/']);
         }
     }
+
+    formatBytes(size?: number): string {
+        if (!size || size <= 0) {
+            return 'n/a';
+        }
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let value = size;
+        let index = 0;
+        while (value >= 1024 && index < units.length - 1) {
+            value /= 1024;
+            index += 1;
+        }
+        return `${value.toFixed(1)} ${units[index]}`;
+    }
 }
