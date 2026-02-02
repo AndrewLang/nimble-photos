@@ -1,19 +1,22 @@
 <header
-    class="gallery-header absolute top-0 w-full flex items-center justify-between gap-4 border-b border-white/5 bg-slate-950/80 px-6 py-3 backdrop-blur-md z-50">
-    <div class="flex items-center gap-4">
-        <a routerLink="/">
+    class="gallery-header absolute top-0 w-full flex items-center justify-between gap-4 border-b border-white/5 bg-slate-950/80 px-4 md:px-6 py-3 backdrop-blur-md z-50">
+
+    <!-- Logo Section -->
+    <div class="flex items-center gap-3 md:gap-4 z-50">
+        <a routerLink="/" (click)="closeMenu()">
             <div
-                class="logo flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-b from-indigo-500 to-purple-500 text-base font-semibold text-white shadow-lg shadow-indigo-500/20">
+                class="logo flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 text-sm md:text-base font-semibold text-white shadow-lg shadow-indigo-500/20">
                 NM
             </div>
         </a>
         <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-200">Nimble Photos</p>
-            <p class="text-xs font-light text-slate-400">My Photos Stories</p>
+            <p class="text-xs md:text-sm font-semibold uppercase tracking-[0.2em] text-slate-200">Nimble Photos</p>
+            <p class="text-[0.6rem] md:text-xs font-light text-slate-400">My Photo Stories</p>
         </div>
     </div>
-    <div class="flex items-center gap-3">
 
+    <!-- Desktop Navigation -->
+    <div class="hidden md:flex items-center gap-3">
         <a routerLink="/" routerLinkActive="bg-white/10 text-white"
             class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-slate-300 hover:bg-white/10 transition-colors cursor-pointer text-decoration-none">
             Timeline
@@ -26,13 +29,10 @@
             class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-slate-300 hover:bg-white/10 transition-colors cursor-pointer text-decoration-none">
             Map
         </a>
-        <a routerLink="/justified" routerLinkActive="bg-white/10 text-white"
-            class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-slate-300 hover:bg-white/10 transition-colors cursor-pointer text-decoration-none">
-            Justified
-        </a>
 
+        <div class="h-6 w-px bg-white/10 mx-2"></div>
 
-        <div class="hidden sm:flex items-center gap-3 ml-2">
+        <div class="flex items-center gap-3">
             <a routerLink="/register"
                 class="border border-indigo-500/50 hover:bg-indigo-500/10 text-indigo-400 text-[0.65rem] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-all text-decoration-none">
                 Register
@@ -42,6 +42,52 @@
                 Sign In
             </a>
         </div>
-
     </div>
+
+    <!-- Mobile Menu Button -->
+    <button (click)="toggleMenu()" class="md:hidden z-50 p-2 text-white/80 hover:text-white focus:outline-none">
+        @if (!isMenuOpen()) {
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        } @else {
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        }
+    </button>
 </header>
+
+<!-- Mobile Menu Overlay -->
+@if (isMenuOpen()) {
+<div
+    class="fixed inset-0 z-40 bg-slate-950/95 backdrop-blur-xl pt-24 px-6 md:hidden flex flex-col gap-6 animate-in fade-in slide-in-from-top-5 duration-200">
+    <nav class="flex flex-col gap-4">
+        <a routerLink="/" (click)="closeMenu()" routerLinkActive="text-white border-l-2 border-indigo-500 pl-4"
+            class="text-xl font-medium text-slate-300 hover:text-white transition-colors py-2 block">
+            Timeline
+        </a>
+        <a routerLink="/albums" (click)="closeMenu()" routerLinkActive="text-white border-l-2 border-indigo-500 pl-4"
+            class="text-xl font-medium text-slate-300 hover:text-white transition-colors py-2 block">
+            Albums
+        </a>
+        <a routerLink="/map" (click)="closeMenu()" routerLinkActive="text-white border-l-2 border-indigo-500 pl-4"
+            class="text-xl font-medium text-slate-300 hover:text-white transition-colors py-2 block">
+            Map
+        </a>
+    </nav>
+
+    <div class="h-px w-full bg-white/10 my-2"></div>
+
+    <div class="flex flex-col gap-4">
+        <a routerLink="/login" (click)="closeMenu()"
+            class="text-center bg-indigo-600 hover:bg-indigo-500 text-white font-bold uppercase tracking-widest py-3 rounded-xl shadow-lg shadow-indigo-600/20 text-sm">
+            Sign In
+        </a>
+        <a routerLink="/register" (click)="closeMenu()"
+            class="text-center border border-indigo-500/50 hover:bg-indigo-500/10 text-indigo-400 font-bold uppercase tracking-widest py-3 rounded-xl text-sm">
+            Create Account
+        </a>
+    </div>
+</div>
+}

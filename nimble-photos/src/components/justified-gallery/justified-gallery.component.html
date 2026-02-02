@@ -24,7 +24,7 @@
         <div
           class="group-header sticky top-0 z-20 py-4 bg-[#010409]/95 backdrop-blur-sm -mx-4 px-6 mb-2 flex items-baseline gap-4">
           <h2 class="text-xl font-bold text-slate-100 tracking-tight">
-            {{ item.title | date:'EEE, MMM d' }}
+            {{ item.title && item.title !== 'xxxx' ? (item.title | date:'EEE, MMM d') : '' }}
           </h2>
           <span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">
             {{ item.count }} PHOTOS

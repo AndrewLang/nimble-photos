@@ -51,7 +51,7 @@ impl PhotoRepository for PostgresPhotoRepository {
                 LEFT JOIN exifs e ON p.id = e.image_id
             )
             SELECT 
-                COALESCE(to_char(COALESCE(date_taken, created_at), 'YYYY-MM-DD'), 'Unknown') as day,
+                COALESCE(to_char(COALESCE(date_taken, created_at), 'YYYY-MM-DD'), 'xxxx') as day,
                 count(*) as total_count,
                 json_agg(pd.* ORDER BY COALESCE(date_taken, created_at) DESC) as photos_json
             FROM photo_data pd

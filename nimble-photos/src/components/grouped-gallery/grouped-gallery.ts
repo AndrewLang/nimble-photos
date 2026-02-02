@@ -23,12 +23,19 @@ export class GroupedGallery implements OnInit {
   constructor(private readonly photoService: PhotoService) { }
 
   ngOnInit(): void {
-    // Initial data is loaded by JustifiedGalleryComponent and emitted back
+
   }
 
   getMonthName(monthStr: string): string {
-    const date = new Date(2000, parseInt(monthStr) - 1, 1);
-    return date.toLocaleString('default', { month: 'short' });
+    try {
+      if (!monthStr)
+        return '';
+      const date = new Date(2000, parseInt(monthStr) - 1, 1);
+      return date.toLocaleString('default', { month: 'short' });
+    } catch (error) {
+      console.error('Error getting month name:', error);
+      return '';
+    }
   }
 
   scrollToGroup(title: string): void {
