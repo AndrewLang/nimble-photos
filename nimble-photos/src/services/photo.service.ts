@@ -68,6 +68,18 @@ export class PhotoService {
     );
   }
 
+  getThumbnailPath(photo: Photo): string {
+    if (photo.thumbnailPath) {
+      return photo.thumbnailPath;
+    }
+
+    if (photo.hash) {
+      return `${this.apiBase}/photos/thumbnail/${photo.hash}`;
+    }
+
+    return photo.path;
+  }
+
   getAdjacentPhotos(id: string, _albumId?: string): Observable<{ prevId: string | null; nextId: string | null }> {
     return this.getPhotos(1, 400).pipe(
       map((page) => {
@@ -138,6 +150,7 @@ export class PhotoService {
   }
 
   private mapPhotoPage(response: PagedResponse<PhotoDto>): PagedPhotos {
+    console.log('Mapping photo page', response);
     return {
       page: response.page,
       pageSize: response.page_size,
