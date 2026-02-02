@@ -49,7 +49,7 @@ impl HttpHandler for ThumbnailHandler {
 
         let config = context.config();
         let base = config
-            .get("thumbnail_base_path")
+            .get("thumbnail.base.path")
             .or_else(|| config.get("thumbnail.basepath"))
             .unwrap_or("./thumbnails");
 
@@ -57,6 +57,10 @@ impl HttpHandler for ThumbnailHandler {
             .join(&hash[0..2])
             .join(&hash[2..4])
             .join(format!("{hash}.webp"));
+
+        log::debug!("Thumbnail path resolved to: {}", path.to_string_lossy());
+
+        log::debug!("Config {:?}", config);
 
         Ok(ResponseValue::new(
             FileResponse::from_path(path).with_content_type("image/webp"),

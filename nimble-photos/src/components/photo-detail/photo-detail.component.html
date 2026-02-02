@@ -96,27 +96,37 @@
                 </div>
             </div>
 
-            <div *ngIf="p.metadata" class="w-full bg-slate-900/60 p-6 rounded-2xl border border-white/5">
+            @if (p.metadata) {
+            <div class="w-full bg-slate-900/60 p-6 rounded-2xl border border-white/5">
                 <h3 class="text-sm uppercase tracking-[0.3em] text-indigo-400 mb-4">Additional metadata</h3>
                 <div class="grid grid-cols-2 gap-4 text-sm text-slate-200">
-                    <div *ngIf="p.metadata?.location as location">
+                    @if (p.metadata?.location) {
+                    <div>
                         <p class="text-slate-500 text-[0.6rem] uppercase tracking-[0.3em] mb-1">Location</p>
-                        <p>{{ location }}</p>
+                        <p>{{ p.metadata.location }}</p>
                     </div>
-                    <div *ngIf="p.metadata?.camera as camera">
+                    }
+                    @if (p.metadata?.camera) {
+                    <div>
                         <p class="text-slate-500 text-[0.6rem] uppercase tracking-[0.3em] mb-1">Camera</p>
-                        <p>{{ camera }}</p>
+                        <p>{{ p.metadata.camera }}</p>
                     </div>
-                    <div *ngIf="p.metadata?.aperture as aperture">
+                    }
+                    @if (p.metadata?.aperture) {
+                    <div>
                         <p class="text-slate-500 text-[0.6rem] uppercase tracking-[0.3em] mb-1">Aperture</p>
-                        <p>{{ aperture }}</p>
+                        <p>{{ p.metadata.aperture }}</p>
                     </div>
-                    <div *ngIf="p.metadata?.shutterSpeed as shutterSpeed">
+                    }
+                    @if (p.metadata?.shutterSpeed) {
+                    <div>
                         <p class="text-slate-500 text-[0.6rem] uppercase tracking-[0.3em] mb-1">Shutter</p>
-                        <p>{{ shutterSpeed }}</p>
+                        <p>{{ p.metadata.shutterSpeed }}</p>
                     </div>
+                    }
                 </div>
             </div>
+            }
         </div>
         } @else if (loading()) {
         <div class="animate-pulse flex flex-col items-center">

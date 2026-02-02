@@ -11,13 +11,21 @@
             <p class="photo-title text-lg leading-tight mb-1">{{ photo.name }}</p>
             <div class="photo-meta flex flex-wrap gap-2 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
               <span>{{ photo.dateTaken ? (photo.dateTaken | date:'mediumDate') : 'Unknown date' }}</span>
-              <span *ngIf="photo.format">{{ photo.format.toUpperCase() }}</span>
+                @if (photo.format) {
+                <span>{{ photo.format.toUpperCase() }}</span>
+                }
               <span>{{ formatBytes(photo.size) }}</span>
             </div>
             <div class="photo-meta flex flex-wrap gap-2 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium mt-1">
-              <span *ngIf="photo.width && photo.height">{{ photo.width }} x {{ photo.height }}</span>
-              <span *ngIf="photo.thumbnailWidth && photo.thumbnailHeight">{{ photo.thumbnailWidth }} x {{ photo.thumbnailHeight }} thumbnail</span>
-              <span *ngIf="photo.metadata?.location">{{ photo.metadata?.location }}</span>
+                @if (photo.width && photo.height) {
+                <span>{{ photo.width }} x {{ photo.height }}</span>
+                }
+                @if (photo.thumbnailWidth && photo.thumbnailHeight) {
+                <span>{{ photo.thumbnailWidth }} x {{ photo.thumbnailHeight }} thumbnail</span>
+                }
+                @if (photo.metadata?.location) {
+                <span>{{ photo.metadata?.location }}</span>
+                }
             </div>
           </div>
         </article>

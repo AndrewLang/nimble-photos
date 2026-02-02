@@ -28,7 +28,9 @@
                     <p class="photo-title text-lg leading-tight mb-1">{{ photo.name }}</p>
                     <div class="photo-meta flex flex-wrap gap-2 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
                         <span>{{ photo.dateTaken ? (photo.dateTaken | date:'mediumDate') : 'Unknown date' }}</span>
-                        <span *ngIf="photo.format">{{ photo.format.toUpperCase() }}</span>
+                        @if (photo.format) {
+                        <span>{{ photo.format.toUpperCase() }}</span>
+                        }
                         <span>{{ photo.metadata?.location || 'Location unknown' }}</span>
                     </div>
                 </div>
