@@ -1,6 +1,6 @@
 ﻿import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, map, Observable, of, switchMap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 
 import { Album, GroupedPhotos, PagedPhotos, Photo } from '../models/photo.model';
 
@@ -51,6 +51,11 @@ interface PagedResponse<T> {
 })
 export class PhotoService {
   private readonly apiBase = 'http://localhost:8080/api';
+  private timelinePhotoIds: string[] | null = null;
+  private timelineCache: GroupedPhotos[] | null = null;
+
+  // State for gallery scroll position
+  lastGalleryScrollIndex = 0;
 
   constructor(private readonly http: HttpClient) { }
 
@@ -75,18 +80,49 @@ export class PhotoService {
     return photo.path;
   }
 
-  getAdjacentPhotos(id: string, _albumId?: string): Observable<{ prevId: string | null; nextId: string | null }> {
-    return this.getPhotos(1, 400).pipe(
-      map((page) => {
-        const index = page.items.findIndex((photo) => photo.id === id);
-        const prevId = index > 0 ? page.items[index - 1].id : null;
-        const nextId = index >= 0 && index < page.items.length - 1 ? page.items[index + 1].id : null;
-        return { prevId, nextId };
+  getAdjacentPhotos(id: string, albumId?: string): Observable<{ prevId: string | null; nextId: string | null }> {
+    if (albumId) {
+      // If in an album, we currently just fetch the first page. 
+      // TODO: Implement proper album-wide navigation context
+      return this.getAlbumPhotos(albumId, 1, 400).pipe(
+        map((page) => {
+          if (!page) return { prevId: null, nextId: null };
+          const index = page.items.findIndex((photo) => photo.id === id);
+          return this.resolveAdjacent(page.items.map(p => p.id), index);
+        })
+      );
+    }
+
+    // Default: Timeline navigation
+    let source$: Observable<string[]>;
+    if (this.timelinePhotoIds) {
+      source$ = of(this.timelinePhotoIds);
+    } else {
+      source$ = this.getTimeline().pipe(
+        map(() => this.timelinePhotoIds || [])
+      );
+    }
+
+    return source$.pipe(
+      map(ids => {
+        const index = ids.indexOf(id);
+        return this.resolveAdjacent(ids, index);
       })
     );
   }
 
+  private resolveAdjacent(ids: string[], index: number) {
+    if (index === -1) return { prevId: null, nextId: null };
+    const prevId = index > 0 ? ids[index - 1] : null;
+    const nextId = index >= 0 && index < ids.length - 1 ? ids[index + 1] : null;
+    return { prevId, nextId };
+  }
+
   getTimeline(): Observable<GroupedPhotos[]> {
+    if (this.timelineCache) {
+      return of(this.timelineCache);
+    }
+
     return this.http
       .get<{ title: string; photos: PagedResponse<PhotoDto> }[]>(`${this.apiBase}/photos/timeline`)
       .pipe(
@@ -96,6 +132,10 @@ export class PhotoService {
             photos: this.mapPhotoPage(g.photos),
           }))
         ),
+        tap(groups => {
+          this.timelineCache = groups;
+          this.timelinePhotoIds = groups.flatMap(g => g.photos.items.map(p => p.id));
+        }),
         catchError(() => of([]))
       );
   }

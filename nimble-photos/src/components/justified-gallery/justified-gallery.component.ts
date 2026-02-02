@@ -134,10 +134,14 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
 
     private currentPage = 0;
     private readonly pageSize = 100;
+    private isRestoring = false;
 
     constructor(private readonly photoService: PhotoService) { }
 
     ngOnInit() {
+        if (this.photoService.lastGalleryScrollIndex > 0) {
+            this.isRestoring = true;
+        }
         this.fetchNextPage();
     }
 
@@ -176,11 +180,28 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
                 this._timeline.set(groups);
                 this.totalPhotos.set(groups.reduce((acc, g) => acc + g.photos.total, 0));
                 this.timelineLoaded.emit(groups);
-                this.isFetching.set(false);
+                if (this.photoService.lastGalleryScrollIndex > 0) {
+                    this.isRestoring = true;
+                    // Use requestAnimationFrame to execute as soon as the DOM is updated but before paint
+                    requestAnimationFrame(() => {
+                        this.viewport?.scrollToIndex(this.photoService.lastGalleryScrollIndex);
+                        // Short buffer to ignore resulting scroll events
+                        setTimeout(() => {
+                            this.isRestoring = false;
+                        }, 100);
+                    });
+                } else {
+                    this.isRestoring = false;
+                }
             });
     }
 
     onScroll(index: number) {
+        // Save scroll position only if not restoring
+        if (!this.isRestoring) {
+            this.photoService.lastGalleryScrollIndex = index;
+        }
+
         const currentItems = this.items();
         if (index >= 0 && index < currentItems.length) {
             for (let i = index; i >= 0; i--) {

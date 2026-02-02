@@ -110,4 +110,8 @@ export class PhotoDetailComponent implements OnInit {
         }
         return `${value.toFixed(1)} ${units[index]}`;
     }
+
+    getPhotoPath(): string {
+        return this.photoService.getThumbnailPath(this.photo()!);
+    }
 }
