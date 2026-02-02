@@ -3,6 +3,7 @@
 mod controllers;
 mod dtos;
 mod entities;
+mod repositories;
 mod services;
 
 use controllers::register_controllers;

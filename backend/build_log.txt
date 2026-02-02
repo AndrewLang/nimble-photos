@@ -1,0 +1,2 @@
+warning: nimble-photos@0.1.0: copied D:\Code\Github\nimble-photos\backend\src\web.config.json -> D:\Code\Github\nimble-photos\backend\target\debug\web.config.json
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.44s

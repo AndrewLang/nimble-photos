@@ -8,6 +8,8 @@ use user::User;
 use user_settings::UserSettings;
 use uuid_id::EnsureUuidIdHooks;
 
+use crate::repositories::photo::PhotoRepository;
+
 pub mod album;
 pub mod exif;
 pub mod photo;
@@ -64,6 +66,14 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let pool = p.get::<PgPool>();
             let provider = PostgresProvider::<Photo>::new((*pool).clone());
             Repository::<Photo>::new(Box::new(provider))
+        });
+
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let repo: Box<dyn PhotoRepository> = Box::new(
+                crate::repositories::photo::PostgresPhotoRepository::new((*pool).clone()),
+            );
+            repo
         });
 
         builder.register_singleton(|p| {

@@ -51,7 +51,6 @@ interface PagedResponse<T> {
 })
 export class PhotoService {
   private readonly apiBase = 'http://localhost:8080/api';
-  private readonly maxGroupFetch = 1000;
 
   constructor(private readonly http: HttpClient) { }
 
@@ -87,26 +86,39 @@ export class PhotoService {
     );
   }
 
+  getTimeline(): Observable<GroupedPhotos[]> {
+    return this.http
+      .get<{ title: string; photos: PagedResponse<PhotoDto> }[]>(`${this.apiBase}/photos/timeline`)
+      .pipe(
+        map((groups) =>
+          groups.map((g) => ({
+            title: g.title,
+            photos: this.mapPhotoPage(g.photos),
+          }))
+        ),
+        catchError(() => of([]))
+      );
+  }
+
   getGroupedPhotos(
     groupIndex: number,
     pageInGroup: number = 1,
     pageSize: number = 100
   ): Observable<GroupedPhotos | null> {
-    return this.getPhotos(1, this.maxGroupFetch).pipe(
-      map((page) => {
-        const groups = this.groupByMonth(page.items);
+    return this.getTimeline().pipe(
+      map((groups) => {
         if (groupIndex >= groups.length) {
           return null;
         }
         const target = groups[groupIndex];
         const start = (pageInGroup - 1) * pageSize;
-        const items = target.items.slice(start, start + pageSize);
+        const items = target.photos.items.slice(start, start + pageSize);
         return {
           title: target.title,
           photos: {
+            ...target.photos,
             page: pageInGroup,
             pageSize,
-            total: target.items.length,
             items,
           },
         };
@@ -194,33 +206,6 @@ export class PhotoService {
     };
   }
 
-  private groupByMonth(photos: Photo[]): { title: string; items: Photo[] }[] {
-    const buckets = new Map<string, Photo[]>();
-    photos.forEach((photo) => {
-      const date = photo.dateTaken ?? photo.createdAt;
-      if (!date) {
-        return;
-      }
-      const year = date.getUTCFullYear();
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-      const key = `${year}-${month}`;
-      const bucket = buckets.get(key) ?? [];
-      bucket.push(photo);
-      buckets.set(key, bucket);
-    });
-
-    const grouped = Array.from(buckets.entries()).map(([title, items]) => ({
-      title,
-      items: items.sort((a, b) => {
-        const aValue = (a.dateTaken ?? a.createdAt)?.valueOf() ?? 0;
-        const bValue = (b.dateTaken ?? b.createdAt)?.valueOf() ?? 0;
-        return bValue - aValue;
-      }),
-    }));
-
-    grouped.sort((a, b) => b.title.localeCompare(a.title));
-    return grouped;
-  }
 
   private toDate(value?: string | null): Date | undefined {
     if (!value) {
