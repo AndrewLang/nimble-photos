@@ -20,20 +20,16 @@
 
             <div class="masonry-grid">
             @for (photo of group.photos.items; track photo.id) {
-            <article [routerLink]="['/photo', photo.id]" class="photo-card cursor-pointer"
-                [style.backgroundImage]="'linear-gradient(180deg, rgba(2,6,23,0) 0%, rgba(2,6,23,0.2) 50%, rgba(2,6,23,0.9) 100%), url(' + getImageUrl(photo) + ')'"
-                [style.aspectRatio]="getAspectRatio(photo)">
-                <div class="photo-content">
-                    <div class="mt-auto">
-                        <p class="photo-title text-lg leading-tight mb-1">{{ photo.name }}</p>
-                        <div
-                            class="photo-meta flex gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
-                            <span>{{ photo.dateTaken ? (photo.dateTaken | date:'mediumDate') : 'Unknown date' }}</span>
-                            <span *ngIf="photo.format">{{ photo.format.toUpperCase() }}</span>
-                        </div>
-                        <div class="photo-meta flex gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium mt-1">
-                            <span *ngIf="photo.metadata?.location">{{ photo.metadata?.location }}</span>
-                        </div>
+            <article [routerLink]="['/photo', photo.id]" class="photo-card cursor-pointer">
+                <div class="photo-visual">
+                    <img [src]="getImageUrl(photo)" [alt]="photo.name" />
+                </div>
+                <div class="photo-content px-3 pb-4">
+                    <p class="photo-title text-lg leading-tight mb-1">{{ photo.name }}</p>
+                    <div class="photo-meta flex flex-wrap gap-2 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
+                        <span>{{ photo.dateTaken ? (photo.dateTaken | date:'mediumDate') : 'Unknown date' }}</span>
+                        <span *ngIf="photo.format">{{ photo.format.toUpperCase() }}</span>
+                        <span>{{ photo.metadata?.location || 'Location unknown' }}</span>
                     </div>
                 </div>
             </article>

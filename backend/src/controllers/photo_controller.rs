@@ -42,6 +42,7 @@ impl HttpHandler for ThumbnailHandler {
             .and_then(|route| route.params().get("hash"))
             .ok_or_else(|| PipelineError::message("hash parameter missing"))?;
 
+        log::debug!("Serving thumbnail for hash: {}", hash);
         if hash.len() < 4 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
             return Err(PipelineError::message("invalid thumbnail hash"));
         }
@@ -49,7 +50,7 @@ impl HttpHandler for ThumbnailHandler {
         let config = context.config();
         let base = config
             .get("thumbnail_base_path")
-            .or_else(|| config.get("thumbnail.base_path"))
+            .or_else(|| config.get("thumbnail.basepath"))
             .unwrap_or("./thumbnails");
 
         let path = Path::new(base)

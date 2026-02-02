@@ -69,10 +69,6 @@ export class PhotoService {
   }
 
   getThumbnailPath(photo: Photo): string {
-    if (photo.thumbnailPath) {
-      return photo.thumbnailPath;
-    }
-
     if (photo.hash) {
       return `${this.apiBase}/photos/thumbnail/${photo.hash}`;
     }

@@ -130,7 +130,7 @@ export class GroupedGallery implements OnInit {
   }
 
   getImageUrl(photo: Photo): string {
-    return photo.thumbnailPath ?? photo.path ?? '';
+    return this.photoService.getThumbnailPath(photo);
   }
 
   getAspectRatio(photo: Photo): string {
