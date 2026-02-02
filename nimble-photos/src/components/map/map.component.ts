@@ -147,6 +147,7 @@ export class MapComponent implements OnInit, OnDestroy {
     private map?: L.Map;
     readonly photos = signal<Photo[]>([]);
     readonly loading = signal(true);
+    readonly hasGpsData = signal(false);
 
     constructor(
         private readonly photoService: PhotoService,
@@ -166,8 +167,17 @@ export class MapComponent implements OnInit, OnDestroy {
     private fetchPhotos(): void {
         // Fetch a large-ish batch to fill the map
         this.photoService.getPhotos(1, 100).pipe(first()).subscribe(paged => {
-            const photosWithGps = paged.items.filter(p => p.metadata.lat !== undefined && p.metadata.lng !== undefined);
+            const photosWithGps = paged.items.filter(
+                (p) => p.metadata?.lat !== undefined && p.metadata?.lng !== undefined
+            );
+            this.hasGpsData.set(photosWithGps.length > 0);
             this.photos.set(photosWithGps);
+
+            if (photosWithGps.length === 0) {
+                this.loading.set(false);
+                return;
+            }
+
             this.initMap();
             this.loading.set(false);
         });
@@ -201,26 +211,34 @@ export class MapComponent implements OnInit, OnDestroy {
 
         const groups = new Map<string, Photo[]>();
         this.photos().forEach(photo => {
-            const key = `${photo.metadata.lat}_${photo.metadata.lng}`;
+            const lat = photo.metadata?.lat;
+            const lng = photo.metadata?.lng;
+            if (lat === undefined || lng === undefined) {
+                return;
+            }
+
+            const key = `${lat}_${lng}`;
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key)!.push(photo);
         });
 
         const markerGroup = L.featureGroup();
 
-        groups.forEach((groupPhotos, key) => {
+        groups.forEach((groupPhotos) => {
             const firstPhoto = groupPhotos[0];
+            const lat = firstPhoto.metadata?.lat!;
+            const lng = firstPhoto.metadata?.lng!;
             const count = groupPhotos.length;
-
+            const thumbnail = this.photoThumbnail(firstPhoto);
             const iconHtml = count > 1
                 ? `<div class="cluster-marker">
                      <div style="width: 40px; height: 40px; overflow: hidden; border-radius: 50%; border: 2px solid white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                       <img src="${firstPhoto.url.replace('w=900', 'w=100')}" class="marker-thumbnail" style="width: 100%; height: 100%; object-fit: cover;" />
+                       <img src="${thumbnail}" class="marker-thumbnail" style="width: 100%; height: 100%; object-fit: cover;" />
                      </div>
                      <span class="marker-count">${count}</span>
                    </div>`
                 : `<div style="width: 40px; height: 40px; overflow: hidden; border-radius: 50%; border: 2px solid white;">
-                     <img src="${firstPhoto.url.replace('w=900', 'w=100')}" class="marker-thumbnail" style="width: 100%; height: 100%; object-fit: cover;" />
+                     <img src="${thumbnail}" class="marker-thumbnail" style="width: 100%; height: 100%; object-fit: cover;" />
                    </div>`;
 
             const customIcon = L.divIcon({
@@ -230,26 +248,28 @@ export class MapComponent implements OnInit, OnDestroy {
                 iconAnchor: [20, 20]
             });
 
-            const lat = firstPhoto.metadata.lat!;
-            const lng = firstPhoto.metadata.lng!;
             const latStr = `${Math.abs(lat).toFixed(4)}deg${lat >= 0 ? 'N' : 'S'}`;
             const lngStr = `${Math.abs(lng).toFixed(4)}deg${lng >= 0 ? 'E' : 'W'}`;
 
-            const dates = groupPhotos.map(p => p.dateTaken.getTime()).sort();
-            const minDate = new Date(dates[0]);
-            const maxDate = new Date(dates[dates.length - 1]);
-            const dateStr = minDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
-                (count > 1 ? ` - ${maxDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : '');
+            const dates = groupPhotos
+                .map(p => (p.dateTaken ?? p.createdAt)?.valueOf())
+                .filter((value): value is number => value !== undefined)
+                .sort((a, b) => a - b);
+            const minDate = dates.length ? new Date(dates[0]) : null;
+            const maxDate = dates.length ? new Date(dates[dates.length - 1]) : null;
+            const dateStr = minDate
+                ? `${minDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}${count > 1 && maxDate ? ` - ${maxDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
+                : 'Date unknown';
 
             const popupContent = `
               <div class="map-grid-popup">
                 <div class="map-grid-header">
-                  <h3>${count} photos</h3>
+                  <h3>${count} photo${count > 1 ? 's' : ''}</h3>
                   <span>Click image to view details</span>
                 </div>
                 <div class="map-grid">
                   ${groupPhotos.slice(0, 6).map(p => `
-                    <img src="${p.url.replace('w=900', 'w=100')}" alt="${p.title}" data-id="${p.id}" class="popup-grid-img" />
+                    <img src="${this.photoThumbnail(p)}" alt="${p.name}" data-id="${p.id}" class="popup-grid-img" />
                   `).join('')}
                 </div>
                 <div class="map-footer">
@@ -271,9 +291,7 @@ export class MapComponent implements OnInit, OnDestroy {
                     closeButton: false
                 });
 
-            marker.on('mouseover', (e) => {
-                marker.openPopup();
-            });
+            marker.on('mouseover', () => marker.openPopup());
 
             marker.on('popupopen', () => {
                 const gridImages = document.querySelectorAll('.popup-grid-img');
@@ -295,5 +313,9 @@ export class MapComponent implements OnInit, OnDestroy {
         if (this.photos().length > 0) {
             this.map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
         }
+    }
+
+    private photoThumbnail(photo: Photo): string {
+        return photo.thumbnailPath ?? photo.path ?? '';
     }
 }

@@ -4,20 +4,20 @@
       <div class="masonry-grid">
         @for (photo of photos(); track photo.id) {
         <article [routerLink]="['/photo', photo.id]" class="photo-card cursor-pointer"
-          [style.backgroundImage]="'linear-gradient(180deg, rgba(2,6,23,0) 0%, rgba(2,6,23,0.2) 50%, rgba(2,6,23,0.9) 100%), url(' + (photo.thumbnailPath || photo.path || photo.url) + ')'"
-          [style.aspectRatio]="photo.metadata.aspectRatio">
+          [style.backgroundImage]="'linear-gradient(180deg, rgba(2,6,23,0) 0%, rgba(2,6,23,0.2) 50%, rgba(2,6,23,0.9) 100%), url(' + getImageUrl(photo) + ')'"
+          [style.aspectRatio]="getAspectRatio(photo)">
           <div class="photo-content">
             <div class="mt-auto">
               <p class="photo-title text-lg leading-tight mb-1">{{ photo.name }}</p>
-              <p class="photo-description text-sm text-slate-300 line-clamp-2 mb-3">{{ photo.description }}</p>
-              <div class="photo-meta flex gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
-                <span>{{ photo.dateTaken | date:'mediumDate' }}</span>
-                <span>{{ photo.format.toUpperCase() }}</span>
-                <span>{{ (photo.size / 1024) | number:'1.0-0' }} KB</span>
+              <div class="photo-meta flex flex-wrap gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
+                <span>{{ photo.dateTaken ? (photo.dateTaken | date:'mediumDate') : 'Unknown date' }}</span>
+                <span *ngIf="photo.format">{{ photo.format.toUpperCase() }}</span>
+                <span>{{ formatBytes(photo.size) }}</span>
               </div>
-              <div class="photo-meta flex gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium mt-1">
-                <span>{{ photo.metadata.location }}</span>
-                <span>{{ photo.metadata.camera }}</span>
+              <div class="photo-meta flex flex-wrap gap-3 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium mt-1">
+                <span *ngIf="photo.width && photo.height">{{ photo.width }} x {{ photo.height }}</span>
+                <span *ngIf="photo.thumbnailWidth && photo.thumbnailHeight">{{ photo.thumbnailWidth }} x {{ photo.thumbnailHeight }} thumbnail</span>
+                <span *ngIf="photo.metadata?.location">{{ photo.metadata?.location }}</span>
               </div>
             </div>
           </div>

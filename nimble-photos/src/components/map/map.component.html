@@ -38,4 +38,12 @@
     <!-- Main Map Container -->
     <div id="map" #mapContainer class="flex-1"></div>
 
+    @if (!hasGpsData() && !loading()) {
+    <div class="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+        <div class="bg-slate-900/70 border border-white/10 px-6 py-4 rounded-2xl text-center text-slate-300">
+            <p class="text-sm">Location metadata is not available yet. Upload images with GPS information to populate the map.</p>
+        </div>
+    </div>
+    }
+
 </div>

@@ -1,327 +1,82 @@
+﻿import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { delay, Observable, of } from 'rxjs';
+import { catchError, map, Observable, of, switchMap } from 'rxjs';
 
-import { Album, GroupedPhotos, PagedPhotos, Photo, PhotoMetadata } from '../models/photo.model';
+import { Album, GroupedPhotos, PagedPhotos, Photo } from '../models/photo.model';
 
-export interface PagedAlbums {
-  page: number;
-  pageSize: number;
-  total: number;
-  items: Album[];
+interface PhotoDto {
+  id: string;
+  path: string;
+  name: string;
+  format?: string | null;
+  hash?: string | null;
+  size?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  date_imported?: string | null;
+  date_taken?: string | null;
+  thumbnail_path?: string | null;
+  thumbnail_optimized?: boolean | null;
+  metadata_extracted?: boolean | null;
+  is_raw?: boolean | null;
+  width?: number | null;
+  height?: number | null;
+  thumbnail_width?: number | null;
+  thumbnail_height?: number | null;
 }
 
+interface AlbumDto {
+  id: string;
+  parent_id?: string | null;
+  name: string;
+  create_date?: string | null;
+  description?: string | null;
+  category?: string | null;
+  kind?: string | null;
+  rules_json?: string | null;
+  thumbnail_hash?: string | null;
+  sort_order?: number | null;
+  image_count?: number | null;
+}
 
-type PhotoTemplate = Pick<Photo, 'title' | 'description' | 'story' | 'tags'> & {
-  url: string;
-  metadata: Omit<PhotoMetadata, 'iso'>;
-};
-
-const PHOTO_TEMPLATES: PhotoTemplate[] = [
-  {
-    title: 'Lighthouse Calm',
-    description: 'A lonely beacon brushes the gray line.',
-    story: 'The morning mist was so thick you could almost lean against it. I stood there for nearly an hour, watching the rhythmic pulse of the lighthouse through the haze. It felt like a conversation between the land and the infinite sea, a steady promise of safety in a world of shifting tides.',
-    url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e',
-    tags: ['coast', 'dawn', 'ruck'],
-    metadata: {
-      location: 'Hokkaido, Japan',
-      camera: 'Sony Alpha 7R IV',
-      aperture: 'f/1.8',
-      shutterSpeed: '1/320',
-      focalLength: '35mm',
-      aspectRatio: '3 / 4',
-      dateCreated: '2023-11-15T08:00:00Z',
-      lat: 43.06417,
-      lng: 141.34694,
-    },
-  },
-  {
-    title: 'Fog Rail',
-    description: 'Tracks disappear in a breath of mist.',
-    story: 'There is a specific kind of silence that only exists on a train platform at 4 AM. The cold copper tones of the rails seemed to draw the fog toward them. I remember the smell of damp iron and the feeling that I was the only person left in the world for just a few moments before the first morning engine roared to life.',
-    url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e',
-    tags: ['rail', 'fog', 'minimal'],
-    metadata: {
-      location: 'Trans-Siberian, Russia',
-      camera: 'Fujifilm GFX 50S',
-      aperture: 'f/4.0',
-      shutterSpeed: '1/250',
-      focalLength: '45mm',
-      aspectRatio: '2 / 3',
-      dateCreated: '2023-12-01T14:30:00Z',
-      lat: 56.83333,
-      lng: 60.58333,
-    },
-  },
-  {
-    title: 'Golden Paths',
-    description: 'Afternoon sun turns the meadow into a quilt of gold.',
-    story: 'Walking through these fields felt like wading through liquid light. The wildflowers were catchers of the sun, and for a brief window before sunset, every blade of grass turned into a filament of gold. It was one of those rare afternoons where time seems to slow down just long enough for you to breathe.',
-    url: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
-    tags: ['meadow', 'golden hour', 'nature'],
-    metadata: {
-      location: 'Tuscany, Italy',
-      camera: 'Canon EOS R6',
-      aperture: 'f/2.8',
-      shutterSpeed: '1/160',
-      focalLength: '55mm',
-      aspectRatio: '4 / 5',
-      dateCreated: '2023-10-20T16:45:00Z',
-      lat: 43.76667,
-      lng: 11.25,
-    },
-  },
-  {
-    title: 'Temple Stillness',
-    description: 'Gilded pillars shelter the silence of an ancient courtyard.',
-    story: 'The weight of history is heavy in a place like this, but it doesn’t push you down; it grounds you. The gold leaf on the pillars caught the low light, reflecting a warmth that seemed to come from within the stone itself. I sat on the frozen floor for an hour, just listening to the wind chime in the distance.',
-    url: 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e',
-    tags: ['architecture', 'zen', 'culture'],
-    metadata: {
-      location: 'Kyoto, Japan',
-      camera: 'Nikon Z6',
-      aperture: 'f/5.6',
-      shutterSpeed: '1/60',
-      focalLength: '24mm',
-      aspectRatio: '3 / 4',
-      dateCreated: '2024-01-05T09:15:00Z',
-      lat: 35.01167,
-      lng: 135.76833,
-    },
-  },
-  {
-    title: 'City Steps',
-    description: 'Warm dusk light spills over the concrete geometry.',
-    story: 'Modern cities often feel cold, but Lisbon has a way of turning concrete into a canvas for the sun. These steps had been baked by the heat all day, and as evening fell, they glowed with a retained warmth. The geometry of the shadows created a rhythm that felt perfectly composed, even though it was entirely accidental.',
-    url: 'https://images.unsplash.com/photo-1494526585095-c41746248156',
-    tags: ['city', 'evening', 'minimal'],
-    metadata: {
-      location: 'Lisbon, Portugal',
-      camera: 'Leica M10',
-      aperture: 'f/2.2',
-      shutterSpeed: '1/200',
-      focalLength: '35mm',
-      aspectRatio: '2 / 3',
-      dateCreated: '2023-09-12T19:20:00Z',
-      lat: 38.72225,
-      lng: -9.13934,
-    },
-  },
-  {
-    title: 'Monk’s Pause',
-    description: 'Stone guardians stare across the quiet courtyard.',
-    story: 'In the high altitude of Bhutan, the air is crisp and clear. This monk had been walking in silence for hours before stopping here. There was a profound symmetry between the stillness of the stone statues and the calm of the man. It was a moment of absolute presence, unbothered by the passing of time.',
-    url: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429',
-    tags: ['statue', 'monk', 'stillness'],
-    metadata: {
-      location: 'Bhutan',
-      camera: 'Canon EOS R5',
-      aperture: 'f/2.0',
-      shutterSpeed: '1/400',
-      focalLength: '85mm',
-      aspectRatio: '9 / 16',
-      dateCreated: '2024-02-14T07:30:00Z',
-      lat: 27.46667,
-      lng: 89.63333,
-    },
-  },
-  {
-    title: 'Prairie Gathering',
-    description: 'Families gather along the winding trail at dusk.',
-    story: 'The prairie wind carries the scent of dry grass and approaching rain. As the sun dipped below the horizon, the community came together on the ridge. It wasn’t a formal event—just a spontaneous collection of people drawn to the beauty of the day’s end. The trail seemed to pull everyone toward the light.',
-    url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1',
-    tags: ['community', 'outdoors', 'joy'],
-    metadata: {
-      location: 'Nebraska, USA',
-      camera: 'Pentax 645Z',
-      aperture: 'f/6.3',
-      shutterSpeed: '1/125',
-      focalLength: '70mm',
-      aspectRatio: '4 / 3',
-      dateCreated: '2023-08-30T10:00:00Z',
-      lat: 41.12528,
-      lng: -95.91895,
-    },
-  },
-
-  {
-    title: 'Copper Lantern',
-    description: 'Lantern light whispers from the treetops.',
-    story: 'Autumn in Hangzhou is a sensory overload of orange leaves and the smell of tea. These lanterns, inscribed with ancient calligraphy, were hung for the Mid-Autumn festival. They didn’t just illuminate the path; they seemed to cast a spell over the entire garden, turning a regular walk into a journey through a legend.',
-    url: 'https://images.unsplash.com/photo-1681215919198-83896a9ead7d',
-    tags: ['lantern', 'calligraphy', 'autumn'],
-    metadata: {
-      location: 'Hangzhou, China',
-      camera: 'Sony A7 IV',
-      aperture: 'f/4.5',
-      shutterSpeed: '1/60',
-      focalLength: '50mm',
-      aspectRatio: '3 / 4',
-      dateCreated: '2023-11-02T18:10:00Z',
-      lat: 30.26737,
-      lng: 120.15279,
-    },
-  },
-  {
-    title: 'Harbor Study',
-    description: 'Cobalt isles punctuate the horizon behind a boardwalk.',
-    story: 'The Atlantic breeze in Lisbon is constant and refreshing. I spent the afternoon on the boardwalk, watching the ferries cross to the far isles. The water was a deep, restless cobalt that contrasted sharply with the white stone of the city. It’s a place where the horizons always feel open.',
-    url: 'https://images.unsplash.com/photo-1551259510-6c2adc679053',
-    tags: ['harbor', 'water', 'architecture'],
-    metadata: {
-      location: 'Lisbon, Portugal',
-      camera: 'Nikon D850',
-      aperture: 'f/8.0',
-      shutterSpeed: '1/320',
-      focalLength: '40mm',
-      aspectRatio: '4 / 3',
-      dateCreated: '2023-07-25T12:00:00Z',
-      lat: 38.72225,
-      lng: -9.13934,
-    },
-  },
-  {
-    title: 'Cloud White',
-    description: 'A tally of cloudbanks drifts above a lonely berm.',
-    story: 'Mongolia is a land of massive skies. I drove for six hours across the steppe without seeing another car. When I finally stopped, these massive, architectural clouds were marching across the horizon like a slow-motion army. The scale of the landscape makes you feel tiny, but in a way that is oddly liberating.',
-    url: 'https://images.unsplash.com/photo-1627307285965-ad88240f7bca',
-    tags: ['cloud', 'sky', 'serene'],
-    metadata: {
-      location: 'Mongolia',
-      camera: 'Fuji X-Pro3',
-      aperture: 'f/5.6',
-      shutterSpeed: '1/500',
-      focalLength: '35mm',
-      aspectRatio: '5 / 4',
-      dateCreated: '2023-09-05T15:40:00Z',
-      lat: 47.91847,
-      lng: 106.91771,
-    },
-  },
-  {
-    title: 'Ferris Memory',
-    description: 'A wheel of lights hovers against a pastel sky.',
-    story: 'Parisian dusks have a specific color palette that I’ve never seen anywhere else—a mix of lavender, rose, and pale gold. As the Ferris wheel began its slow rotation, the lights flickered on, competing with the dying sun. It felt less like a fairground and more like a glowing clock marking the end of a beautiful day.',
-    url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330',
-    tags: ['fair', 'pastel', 'calm'],
-    metadata: {
-      location: 'Paris, France',
-      camera: 'Olympus OM-D E-M1 Mark III',
-      aperture: 'f/4.0',
-      shutterSpeed: '1/250',
-      focalLength: '45mm',
-      aspectRatio: '9 / 16',
-      dateCreated: '2024-01-20T17:00:00Z',
-      lat: 48.85661,
-      lng: 2.35222,
-    },
-  },
-  {
-    title: 'Crowd Chant',
-    description: 'Young voices raise banners beneath laser lights.',
-    story: 'The energy in the Bangkok stadium was electric. Thousands of people, but only one voice. As the lasers cut through the humidity and the smoke, the colors blurred into a fever dream of neon. It was loud, chaotic, and beautiful—a reminder that we are at our most alive when we are part of something bigger than ourselves.',
-    url: 'https://images.unsplash.com/photo-1544894079-e81a9eb1da8b',
-    tags: ['crowd', 'culture', 'festival'],
-    metadata: {
-      location: 'Bangkok, Thailand',
-      camera: 'Canon EOS 5D',
-      aperture: 'f/2.8',
-      shutterSpeed: '1/160',
-      focalLength: '30mm',
-      aspectRatio: '3 / 4',
-      dateCreated: '2023-12-31T23:59:00Z',
-      lat: 13.75633,
-      lng: 100.50177,
-    },
-  },
-  {
-    title: 'Sunlit Way',
-    description: 'Tree-lined avenues collect every golden leaf.',
-    story: 'I found this hidden path in Seoul while trying to take a shortcut. The ginkgo trees had dropped a literal carpet of gold onto the pavement. The light was filtering through the remaining leaves, creating a glowing tunnel that felt like it belonged in a movie. I just stood there for a while, afraid that moving would break the spell.',
-    url: 'https://images.unsplash.com/photo-1546464677-c25cd52c470b',
-    tags: ['autumn', 'trees', 'silence'],
-    metadata: {
-      location: 'Seoul, South Korea',
-      camera: 'Sony A7S III',
-      aperture: 'f/4.0',
-      shutterSpeed: '1/200',
-      focalLength: '35mm',
-      aspectRatio: '3 / 5',
-      dateCreated: '2023-10-15T11:20:00Z',
-      lat: 37.56653,
-      lng: 126.97796,
-    },
-  },
-
-];
-
+interface PagedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
 
 @Injectable({
   providedIn: 'root',
 })
 export class PhotoService {
-  private readonly library = this.buildPhotoLibrary();
-  private readonly albums = this.buildAlbums();
+  private readonly apiBase = 'http://localhost:8080/api';
+  private readonly maxGroupFetch = 1000;
 
-  getAlbums(page = 1, pageSize = 12): Observable<PagedAlbums> {
-    const start = (page - 1) * pageSize;
-    const sorted = [...this.albums].sort((a, b) => b.dateCreated.getTime() - a.dateCreated.getTime());
-    const items = sorted.slice(start, start + pageSize);
-    return of({
-      page,
-      pageSize,
-      total: this.albums.length,
-      items,
-    }).pipe(delay(300));
-  }
-
-  getAlbumById(id: string): Observable<Album | null> {
-    const album = this.albums.find((a) => a.id === id);
-    return of(album || null).pipe(delay(200));
-  }
-
-  getAlbumPhotos(albumId: string, page = 1, pageSize = 20): Observable<PagedPhotos | null> {
-    const album = this.albums.find((a) => a.id === albumId);
-    if (!album) return of(null);
-
-    // In this mock, all photos are already in album.photos.items. 
-    // If we had more, we would slice them here.
-    return of(album.photos).pipe(delay(200));
-  }
+  constructor(private readonly http: HttpClient) { }
 
   getPhotos(page = 1, pageSize = 56): Observable<PagedPhotos> {
-    const start = (page - 1) * pageSize;
-    const items = this.library.slice(start, start + pageSize);
-    return of({
-      page,
-      pageSize,
-      total: this.library.length,
-      items,
-    }).pipe(delay(220));
+    return this.http
+      .get<PagedResponse<PhotoDto>>(`${this.apiBase}/photos/${page}/${pageSize}`)
+      .pipe(map((response) => this.mapPhotoPage(response)));
   }
 
   getPhotoById(id: string): Observable<Photo | null> {
-    const photo = this.library.find(p => p.id === id);
-    return of(photo || null).pipe(delay(150));
+    return this.http.get<PhotoDto>(`${this.apiBase}/photos/${id}`).pipe(
+      map((dto) => this.mapPhoto(dto)),
+      catchError(() => of(null))
+    );
   }
 
-  getAdjacentPhotos(id: string, albumId?: string): Observable<{ prevId: string | null; nextId: string | null }> {
-    let list: Photo[] = [];
-
-    if (albumId) {
-      const album = this.albums.find(a => a.id === albumId);
-      list = album ? album.photos.items : [];
-    } else {
-      list = this.library;
-    }
-
-    const index = list.findIndex(p => p.id === id);
-    if (index === -1) return of({ prevId: null, nextId: null });
-
-    const prevId = index > 0 ? list[index - 1].id : null;
-    const nextId = index < list.length - 1 ? list[index + 1].id : null;
-
-    return of({ prevId, nextId }).pipe(delay(100));
+  getAdjacentPhotos(id: string, _albumId?: string): Observable<{ prevId: string | null; nextId: string | null }> {
+    return this.getPhotos(1, 400).pipe(
+      map((page) => {
+        const index = page.items.findIndex((photo) => photo.id === id);
+        const prevId = index > 0 ? page.items[index - 1].id : null;
+        const nextId = index >= 0 && index < page.items.length - 1 ? page.items[index + 1].id : null;
+        return { prevId, nextId };
+      })
+    );
   }
 
   getGroupedPhotos(
@@ -329,160 +84,147 @@ export class PhotoService {
     pageInGroup: number = 1,
     pageSize: number = 100
   ): Observable<GroupedPhotos | null> {
-
-    // 1. Group entire library (in real app, this would be DB query)
-    const allGroups = this.groupLibraryByYearMonth();
-
-    if (groupIndex >= allGroups.length) {
-      return of(null).pipe(delay(200));
-    }
-
-    const targetGroup = allGroups[groupIndex];
-    if (pageInGroup > Math.ceil(targetGroup.items.length / pageSize)) {
-      // Page out of range
-      return of({
-        title: targetGroup.title,
-        photos: {
-          page: pageInGroup, // Return empty page
-          pageSize,
-          total: targetGroup.items.length,
-          items: []
+    return this.getPhotos(1, this.maxGroupFetch).pipe(
+      map((page) => {
+        const groups = this.groupByMonth(page.items);
+        if (groupIndex >= groups.length) {
+          return null;
         }
-      }).pipe(delay(200));
-    }
-
-    const totalPhotos = targetGroup.items.length;
-
-    // Pagination within group
-    const start = (pageInGroup - 1) * pageSize;
-    const items = targetGroup.items.slice(start, start + pageSize);
-
-    return of({
-      title: targetGroup.title,
-      photos: {
-        page: pageInGroup,
-        pageSize,
-        total: totalPhotos,
-        items
-      }
-    }).pipe(delay(220));
-  }
-
-  private groupLibraryByYearMonth(): { title: string; items: Photo[] }[] {
-    const groups: Record<string, Photo[]> = {};
-
-    const sorted = [...this.library].sort((a, b) =>
-      b.dateTaken.getTime() - a.dateTaken.getTime()
+        const target = groups[groupIndex];
+        const start = (pageInGroup - 1) * pageSize;
+        const items = target.items.slice(start, start + pageSize);
+        return {
+          title: target.title,
+          photos: {
+            page: pageInGroup,
+            pageSize,
+            total: target.items.length,
+            items,
+          },
+        };
+      })
     );
-
-    for (const p of sorted) {
-      const key = p.dateTaken.toISOString().slice(0, 7); // "YYYY-MM"
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(p);
-    }
-
-    return Object.keys(groups)
-      .sort((a, b) => b.localeCompare(a))
-      .map(key => ({ title: key, items: groups[key] }));
   }
 
-  private buildAlbums(): Album[] {
-    const albumCount = 15;
-    const albums: Album[] = [];
-
-    const stories = [
-      'A journey through the misty mountains of the East, where the air is thin and the spirits are high.',
-      'Summer days spent by the crystal clear lakes, reflecting the deepest blues of the sky.',
-      'Exploring the neon-lit streets of a restless city that never sleeps, catching glimpses of hidden lives.',
-      'A quiet retreat into the heart of the forest, rediscovering the rhythms of nature and the songs of birds.',
-      'The vibrant colors of a coastal village at dusk, where the salt air meets the smell of fresh seafood.',
-      'Architectural marvels that stand as witnesses to centuries past, their stones whispering secrets of history.',
-      'Chasing the golden hour across rolling hills and open fields, where every ray of light tells a story.',
-      'A winter tale in a snow-covered land, filled with frozen beauty and warm moments by the fire.',
-      'Cultural celebrations and festivals that bring communities together in a burst of music and dance.',
-      'The minimal elegance of desert landscapes, where silence becomes a powerful presence.',
-    ];
-
-    for (let i = 0; i < albumCount; i++) {
-      const storyIndex = i % stories.length;
-      const albumPhotos = this.library.slice(i * 10, (i + 1) * 10);
-      const date = new Date(Date.now() - 3600 * 1000 * 24 * (i * 15 + 5));
-
-      albums.push({
-        id: `album-${i + 1}`,
-        title: `Adventure ${i + 1}: ${albumPhotos[0]?.title || 'Untitled'}`,
-        story: stories[storyIndex],
-        coverPhotoUrl: albumPhotos[0]?.url || '',
-        dateCreated: date,
-        photos: {
-          page: 1,
-          pageSize: 10,
-          total: albumPhotos.length,
-          items: albumPhotos,
-        },
-      });
-    }
-    return albums;
+  getAlbums(page = 1, pageSize = 12): Observable<PagedAlbums> {
+    return this.http
+      .get<PagedResponse<AlbumDto>>(`${this.apiBase}/albums/${page}/${pageSize}`)
+      .pipe(
+        map((response) => ({
+          page: response.page,
+          pageSize: response.page_size,
+          total: response.total,
+          items: response.items.map((dto) => this.mapAlbum(dto)),
+        }))
+      );
   }
 
-  private buildPhotoLibrary(): Photo[] {
-    const targetSize = 3500;
-    const photos: Photo[] = [];
-    for (let index = 0; index < targetSize; index++) {
-      const template = PHOTO_TEMPLATES[index % PHOTO_TEMPLATES.length];
-      const variant = Math.floor(index / PHOTO_TEMPLATES.length) + 1;
-
-      // Clustering logic:
-      const clusterSize = 6;
-      const daysPerCluster = 7; // Step back a week every cluster
-      const clusterIndex = Math.floor(index / clusterSize);
-      // Add a tiny random offset within the day so they sort deterministically but look natural
-      const offsetWithinDay = (index % clusterSize) * 0.1;
-      const totalDaysBack = (clusterIndex * daysPerCluster) + offsetWithinDay;
-      const date = new Date(Date.now() - 3600 * 1000 * 24 * totalDaysBack);
-
-      const iso = 100 + ((index * 13) % 700);
-      const createdAt = date;
-      const updatedAt = new Date(date.getTime() + 1000 * 60 * 60);
-      const dateImported = new Date(date.getTime() + 1000 * 60 * 60 * 2);
-      const width = 4000 + ((index % 5) * 256);
-      const height = 3000 + ((index % 4) * 128);
-      const thumbWidth = 900;
-      const thumbHeight = Math.max(200, Math.round((height / width) * thumbWidth));
-      const basePath = `${template.url}?auto=format&fit=crop&fm=jpg&sig=${index + 1}`;
-      const metadata = {
-        ...template.metadata,
-        iso,
-        dateCreated: date.toISOString(),
-      };
-
-      photos.push({
-        id: `photo-${String(index + 1).padStart(4, '0')}`,
-        path: `${basePath}&w=1800&q=90`,
-        thumbnailPath: `${basePath}&w=700&q=80`,
-        url: `${basePath}&w=900&q=80`,
-        name: template.title,
-        title: `${template.title} ${variant}`,
-        description: template.description,
-        story: template.story,
-        tags: template.tags,
-        format: 'jpeg',
-        hash: `nimble-${index + 1}-${template.title.toLowerCase().replace(/\s+/g, '-')}`,
-        size: 2_400_000 + (index % 7) * 150_000,
-        createdAt,
-        updatedAt,
-        dateImported,
-        dateTaken: date,
-        thumbnailOptimized: true,
-        metadataExtracted: true,
-        isRaw: false,
-        width,
-        height,
-        thumbnailWidth: thumbWidth,
-        thumbnailHeight: thumbHeight,
-        metadata,
-      });
-    }
-    return photos;
+  getAlbumById(id: string): Observable<Album | null> {
+    return this.http.get<AlbumDto>(`${this.apiBase}/albums/${id}`).pipe(
+      switchMap((dto) =>
+        this.getPhotos(1, 20).pipe(
+          map((photos) => ({
+            ...this.mapAlbum(dto),
+            photos,
+          }))
+        )
+      ),
+      catchError(() => of(null))
+    );
   }
+
+  getAlbumPhotos(_albumId: string, page = 1, pageSize = 20): Observable<PagedPhotos | null> {
+    return this.getPhotos(page, pageSize);
+  }
+
+  private mapPhotoPage(response: PagedResponse<PhotoDto>): PagedPhotos {
+    return {
+      page: response.page,
+      pageSize: response.page_size,
+      total: response.total,
+      items: response.items.map((dto) => this.mapPhoto(dto)),
+    };
+  }
+
+  private mapPhoto(dto: PhotoDto): Photo {
+    return {
+      id: dto.id,
+      path: dto.path,
+      name: dto.name,
+      format: dto.format ?? undefined,
+      hash: dto.hash ?? undefined,
+      size: dto.size ?? undefined,
+      createdAt: this.toDate(dto.created_at),
+      updatedAt: this.toDate(dto.updated_at),
+      dateImported: this.toDate(dto.date_imported),
+      dateTaken: this.toDate(dto.date_taken),
+      thumbnailPath: dto.thumbnail_path ?? undefined,
+      thumbnailOptimized: dto.thumbnail_optimized ?? undefined,
+      metadataExtracted: dto.metadata_extracted ?? undefined,
+      isRaw: dto.is_raw ?? undefined,
+      width: dto.width ?? undefined,
+      height: dto.height ?? undefined,
+      thumbnailWidth: dto.thumbnail_width ?? undefined,
+      thumbnailHeight: dto.thumbnail_height ?? undefined,
+    };
+  }
+
+  private mapAlbum(dto: AlbumDto): Album {
+    return {
+      id: dto.id,
+      parentId: dto.parent_id ?? undefined,
+      name: dto.name,
+      createDate: this.toDate(dto.create_date),
+      description: dto.description ?? undefined,
+      category: dto.category ?? undefined,
+      kind: (dto.kind === 'smart' ? 'smart' : 'manual') as Album['kind'],
+      rulesJson: dto.rules_json ?? undefined,
+      thumbnailHash: dto.thumbnail_hash ?? undefined,
+      sortOrder: dto.sort_order ?? 0,
+      imageCount: dto.image_count ?? undefined,
+    };
+  }
+
+  private groupByMonth(photos: Photo[]): { title: string; items: Photo[] }[] {
+    const buckets = new Map<string, Photo[]>();
+    photos.forEach((photo) => {
+      const date = photo.dateTaken ?? photo.createdAt;
+      if (!date) {
+        return;
+      }
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const key = `${year}-${month}`;
+      const bucket = buckets.get(key) ?? [];
+      bucket.push(photo);
+      buckets.set(key, bucket);
+    });
+
+    const grouped = Array.from(buckets.entries()).map(([title, items]) => ({
+      title,
+      items: items.sort((a, b) => {
+        const aValue = (a.dateTaken ?? a.createdAt)?.valueOf() ?? 0;
+        const bValue = (b.dateTaken ?? b.createdAt)?.valueOf() ?? 0;
+        return bValue - aValue;
+      }),
+    }));
+
+    grouped.sort((a, b) => b.title.localeCompare(a.title));
+    return grouped;
+  }
+
+  private toDate(value?: string | null): Date | undefined {
+    if (!value) {
+      return undefined;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+}
+
+export interface PagedAlbums {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: Album[];
 }

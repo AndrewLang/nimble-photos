@@ -1,14 +1,14 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
+import { CommonModule, DatePipe } from '@angular/common';
 import { first } from 'rxjs';
 import { PhotoService } from '../../services/photo.service';
-import { Album } from '../../models/photo.model';
-import { DatePipe } from '@angular/common';
+import { Album, Photo } from '../../models/photo.model';
 
 @Component({
     selector: 'mtx-album-detail',
     standalone: true,
-    imports: [RouterModule, DatePipe],
+    imports: [CommonModule, RouterModule, DatePipe],
     templateUrl: './album-detail.component.html',
     host: {
         class: 'block flex-1 min-h-0',
@@ -34,9 +34,20 @@ export class AlbumDetailComponent implements OnInit {
 
     private fetchAlbum(id: string): void {
         this.loading.set(true);
-        this.photoService.getAlbumById(id).pipe(first()).subscribe(result => {
-            this.album.set(result);
-            this.loading.set(false);
-        });
+    this.photoService.getAlbumById(id).pipe(first()).subscribe(result => {
+        this.album.set(result);
+        this.loading.set(false);
+    });
+}
+
+    getImageUrl(photo: Photo): string {
+        return photo.thumbnailPath ?? photo.path ?? '';
+    }
+
+    getAspectRatio(photo: Photo): string {
+        if (photo.width && photo.height) {
+            return `${photo.width} / ${photo.height}`;
+        }
+        return '4 / 3';
     }
 }

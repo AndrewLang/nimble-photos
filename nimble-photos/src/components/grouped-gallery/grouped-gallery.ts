@@ -1,12 +1,13 @@
 import { Component, OnInit, signal } from '@angular/core';
+import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
-import { GroupedPhotos } from '../../models/photo.model';
+import { GroupedPhotos, Photo } from '../../models/photo.model';
 import { PhotoService } from '../../services/photo.service';
 
 @Component({
   selector: 'mtx-grouped-gallery',
-  imports: [RouterModule],
+  imports: [CommonModule, RouterModule, DatePipe],
   templateUrl: './grouped-gallery.html',
   styleUrls: [],
   standalone: true,
@@ -126,5 +127,16 @@ export class GroupedGallery implements OnInit {
           setTimeout(() => this.loadNextBatch(), 0);
         }
       });
+  }
+
+  getImageUrl(photo: Photo): string {
+    return photo.thumbnailPath ?? photo.path ?? '';
+  }
+
+  getAspectRatio(photo: Photo): string {
+    if (photo.width && photo.height) {
+      return `${photo.width} / ${photo.height}`;
+    }
+    return '4 / 3';
   }
 }
