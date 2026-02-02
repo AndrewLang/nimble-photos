@@ -71,7 +71,9 @@ impl HttpHandler for ThumbnailHandler {
         log::debug!("Thumbnail path resolved to: {}", path.to_string_lossy());
 
         Ok(ResponseValue::new(
-            FileResponse::from_path(path).with_content_type("image/webp"),
+            FileResponse::from_path(path)
+                .with_content_type("image/webp")
+                .with_header("Cache-Control", "public, max-age=31536000, immutable"),
         ))
     }
 }
