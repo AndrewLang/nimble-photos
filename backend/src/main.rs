@@ -47,7 +47,9 @@ fn init_logging() {
     let mut builder = env_logger::Builder::from_env(env);
 
     if std::env::var("RUST_LOG").is_err() {
-        builder.filter_module("sqlx", log::LevelFilter::Info);
+        builder
+            .filter_level(log::LevelFilter::Debug)
+            .filter_module("sqlx", log::LevelFilter::Info);
     }
 
     let _ = builder.try_init();
