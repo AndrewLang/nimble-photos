@@ -7,7 +7,6 @@ import { Album, Photo } from '../../models/photo.model';
 
 @Component({
     selector: 'mtx-album-detail',
-    standalone: true,
     imports: [CommonModule, RouterModule, DatePipe],
     templateUrl: './album-detail.component.html',
     host: {
@@ -34,11 +33,11 @@ export class AlbumDetailComponent implements OnInit {
 
     private fetchAlbum(id: string): void {
         this.loading.set(true);
-    this.photoService.getAlbumById(id).pipe(first()).subscribe(result => {
-        this.album.set(result);
-        this.loading.set(false);
-    });
-}
+        this.photoService.getAlbumById(id).pipe(first()).subscribe(result => {
+            this.album.set(result);
+            this.loading.set(false);
+        });
+    }
 
     getImageUrl(photo: Photo): string {
         return photo.thumbnailPath ?? photo.path ?? '';

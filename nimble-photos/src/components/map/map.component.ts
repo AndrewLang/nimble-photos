@@ -7,11 +7,10 @@ import { PhotoService } from '../../services/photo.service';
 import { Photo } from '../../models/photo.model';
 
 @Component({
-    selector: 'mtx-map',
-    standalone: true,
-    imports: [CommonModule, RouterModule],
-    templateUrl: './map.component.html',
-    styles: [`
+  selector: 'mtx-map',
+  imports: [CommonModule, RouterModule],
+  templateUrl: './map.component.html',
+  styles: [`
     :host {
       display: block;
       height: 100%;
@@ -137,131 +136,131 @@ import { Photo } from '../../models/photo.model';
       opacity: 0.5;
     }
   `],
-    host: {
-        class: 'block flex-1 min-h-0',
-    }
+  host: {
+    class: 'block flex-1 min-h-0',
+  }
 })
 export class MapComponent implements OnInit, OnDestroy {
-    @ViewChild('mapContainer', { static: true }) mapContainer!: ElementRef;
+  @ViewChild('mapContainer', { static: true }) mapContainer!: ElementRef;
 
-    private map?: L.Map;
-    readonly photos = signal<Photo[]>([]);
-    readonly loading = signal(true);
-    readonly hasGpsData = signal(false);
+  private map?: L.Map;
+  readonly photos = signal<Photo[]>([]);
+  readonly loading = signal(true);
+  readonly hasGpsData = signal(false);
 
-    constructor(
-        private readonly photoService: PhotoService,
-        private readonly router: Router
-    ) { }
+  constructor(
+    private readonly photoService: PhotoService,
+    private readonly router: Router
+  ) { }
 
-    ngOnInit(): void {
-        this.fetchPhotos();
+  ngOnInit(): void {
+    this.fetchPhotos();
+  }
+
+  ngOnDestroy(): void {
+    if (this.map) {
+      this.map.remove();
     }
+  }
 
-    ngOnDestroy(): void {
-        if (this.map) {
-            this.map.remove();
-        }
-    }
+  private fetchPhotos(): void {
+    // Fetch a large-ish batch to fill the map
+    this.photoService.getPhotos(1, 100).pipe(first()).subscribe(paged => {
+      const photosWithGps = paged.items.filter(
+        (p) => p.metadata?.lat !== undefined && p.metadata?.lng !== undefined
+      );
+      this.hasGpsData.set(photosWithGps.length > 0);
+      this.photos.set(photosWithGps);
 
-    private fetchPhotos(): void {
-        // Fetch a large-ish batch to fill the map
-        this.photoService.getPhotos(1, 100).pipe(first()).subscribe(paged => {
-            const photosWithGps = paged.items.filter(
-                (p) => p.metadata?.lat !== undefined && p.metadata?.lng !== undefined
-            );
-            this.hasGpsData.set(photosWithGps.length > 0);
-            this.photos.set(photosWithGps);
+      if (photosWithGps.length === 0) {
+        this.loading.set(false);
+        return;
+      }
 
-            if (photosWithGps.length === 0) {
-                this.loading.set(false);
-                return;
-            }
+      this.initMap();
+      this.loading.set(false);
+    });
+  }
 
-            this.initMap();
-            this.loading.set(false);
-        });
-    }
+  private initMap(): void {
+    if (this.map) return;
 
-    private initMap(): void {
-        if (this.map) return;
+    // Default view: Center on Europe/Global
+    this.map = L.map('map', {
+      center: [20, 0],
+      zoom: 3,
+      zoomControl: false,
+      attributionControl: false
+    });
 
-        // Default view: Center on Europe/Global
-        this.map = L.map('map', {
-            center: [20, 0],
-            zoom: 3,
-            zoomControl: false,
-            attributionControl: false
-        });
+    // Dark Mode Tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20
+    }).addTo(this.map);
 
-        // Dark Mode Tiles
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            maxZoom: 20
-        }).addTo(this.map);
+    L.control.zoom({
+      position: 'bottomright'
+    }).addTo(this.map);
 
-        L.control.zoom({
-            position: 'bottomright'
-        }).addTo(this.map);
+    this.addMarkers();
+  }
 
-        this.addMarkers();
-    }
+  private addMarkers(): void {
+    if (!this.map) return;
 
-    private addMarkers(): void {
-        if (!this.map) return;
+    const groups = new Map<string, Photo[]>();
+    this.photos().forEach(photo => {
+      const lat = photo.metadata?.lat;
+      const lng = photo.metadata?.lng;
+      if (lat === undefined || lng === undefined) {
+        return;
+      }
 
-        const groups = new Map<string, Photo[]>();
-        this.photos().forEach(photo => {
-            const lat = photo.metadata?.lat;
-            const lng = photo.metadata?.lng;
-            if (lat === undefined || lng === undefined) {
-                return;
-            }
+      const key = `${lat}_${lng}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(photo);
+    });
 
-            const key = `${lat}_${lng}`;
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key)!.push(photo);
-        });
+    const markerGroup = L.featureGroup();
 
-        const markerGroup = L.featureGroup();
-
-        groups.forEach((groupPhotos) => {
-            const firstPhoto = groupPhotos[0];
-            const lat = firstPhoto.metadata?.lat!;
-            const lng = firstPhoto.metadata?.lng!;
-            const count = groupPhotos.length;
-            const thumbnail = this.photoThumbnail(firstPhoto);
-            const iconHtml = count > 1
-                ? `<div class="cluster-marker">
+    groups.forEach((groupPhotos) => {
+      const firstPhoto = groupPhotos[0];
+      const lat = firstPhoto.metadata?.lat!;
+      const lng = firstPhoto.metadata?.lng!;
+      const count = groupPhotos.length;
+      const thumbnail = this.photoThumbnail(firstPhoto);
+      const iconHtml = count > 1
+        ? `<div class="cluster-marker">
                      <div style="width: 40px; height: 40px; overflow: hidden; border-radius: 50%; border: 2px solid white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                        <img src="${thumbnail}" class="marker-thumbnail" style="width: 100%; height: 100%; object-fit: cover;" />
                      </div>
                      <span class="marker-count">${count}</span>
                    </div>`
-                : `<div style="width: 40px; height: 40px; overflow: hidden; border-radius: 50%; border: 2px solid white;">
+        : `<div style="width: 40px; height: 40px; overflow: hidden; border-radius: 50%; border: 2px solid white;">
                      <img src="${thumbnail}" class="marker-thumbnail" style="width: 100%; height: 100%; object-fit: cover;" />
                    </div>`;
 
-            const customIcon = L.divIcon({
-                className: 'photo-marker',
-                html: iconHtml,
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-            });
+      const customIcon = L.divIcon({
+        className: 'photo-marker',
+        html: iconHtml,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
 
-            const latStr = `${Math.abs(lat).toFixed(4)}deg${lat >= 0 ? 'N' : 'S'}`;
-            const lngStr = `${Math.abs(lng).toFixed(4)}deg${lng >= 0 ? 'E' : 'W'}`;
+      const latStr = `${Math.abs(lat).toFixed(4)}deg${lat >= 0 ? 'N' : 'S'}`;
+      const lngStr = `${Math.abs(lng).toFixed(4)}deg${lng >= 0 ? 'E' : 'W'}`;
 
-            const dates = groupPhotos
-                .map(p => (p.dateTaken ?? p.createdAt)?.valueOf())
-                .filter((value): value is number => value !== undefined)
-                .sort((a, b) => a - b);
-            const minDate = dates.length ? new Date(dates[0]) : null;
-            const maxDate = dates.length ? new Date(dates[dates.length - 1]) : null;
-            const dateStr = minDate
-                ? `${minDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}${count > 1 && maxDate ? ` - ${maxDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
-                : 'Date unknown';
+      const dates = groupPhotos
+        .map(p => (p.dateTaken ?? p.createdAt)?.valueOf())
+        .filter((value): value is number => value !== undefined)
+        .sort((a, b) => a - b);
+      const minDate = dates.length ? new Date(dates[0]) : null;
+      const maxDate = dates.length ? new Date(dates[dates.length - 1]) : null;
+      const dateStr = minDate
+        ? `${minDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}${count > 1 && maxDate ? ` - ${maxDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
+        : 'Date unknown';
 
-            const popupContent = `
+      const popupContent = `
               <div class="map-grid-popup">
                 <div class="map-grid-header">
                   <h3>${count} photo${count > 1 ? 's' : ''}</h3>
@@ -285,37 +284,37 @@ export class MapComponent implements OnInit, OnDestroy {
               </div>
             `;
 
-            const marker = L.marker([lat, lng], { icon: customIcon })
-                .bindPopup(popupContent, {
-                    maxWidth: 320,
-                    closeButton: false
-                });
-
-            marker.on('mouseover', () => marker.openPopup());
-
-            marker.on('popupopen', () => {
-                const gridImages = document.querySelectorAll('.popup-grid-img');
-                gridImages.forEach(img => {
-                    img.addEventListener('click', (e) => {
-                        const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-                        if (id) {
-                            this.router.navigate(['/photo', id]);
-                        }
-                    });
-                });
-            });
-
-            marker.addTo(markerGroup);
+      const marker = L.marker([lat, lng], { icon: customIcon })
+        .bindPopup(popupContent, {
+          maxWidth: 320,
+          closeButton: false
         });
 
-        markerGroup.addTo(this.map);
+      marker.on('mouseover', () => marker.openPopup());
 
-        if (this.photos().length > 0) {
-            this.map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
-        }
-    }
+      marker.on('popupopen', () => {
+        const gridImages = document.querySelectorAll('.popup-grid-img');
+        gridImages.forEach(img => {
+          img.addEventListener('click', (e) => {
+            const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+            if (id) {
+              this.router.navigate(['/photo', id]);
+            }
+          });
+        });
+      });
 
-    private photoThumbnail(photo: Photo): string {
-        return photo.thumbnailPath ?? photo.path ?? '';
+      marker.addTo(markerGroup);
+    });
+
+    markerGroup.addTo(this.map);
+
+    if (this.photos().length > 0) {
+      this.map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
     }
+  }
+
+  private photoThumbnail(photo: Photo): string {
+    return photo.thumbnailPath ?? photo.path ?? '';
+  }
 }

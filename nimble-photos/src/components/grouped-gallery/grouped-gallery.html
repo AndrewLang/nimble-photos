@@ -1,5 +1,11 @@
-<div class="relative flex flex-1 flex-col overflow-hidden h-full">
-    <div class="timeline-ruler">
+<div class="relative flex flex-1 flex-row overflow-hidden h-full bg-[#010409]">
+    <div class="flex-1 relative h-full">
+        <mtx-justified-gallery [showHeader]="false" (timelineLoaded)="onTimelineLoaded($event)"
+            (activeTitleChange)="onActiveTitleChange($event)">
+        </mtx-justified-gallery>
+    </div>
+
+    <div class="timeline-ruler relative z-50 mr-4">
         @for (group of groups(); track group.title) {
         <div class="timeline-item" [class.active]="activeGroupTitle() === group.title"
             (click)="scrollToGroup(group.title)">
@@ -8,45 +14,5 @@
             <div class="timeline-line"></div>
         </div>
         }
-    </div>
-
-    <div class="scroll-container" (scroll)="onScroll($event)">
-        @for (group of groups(); track group.title) {
-        <section class="group-section" [id]="'group-' + group.title">
-            <div class="group-header sticky top-0 z-30 pt-4 pb-2" [id]="'group-header-' + group.title">
-                <h2 class="group-title text-2xl font-bold tracking-tight text-white/90 drop-shadow-md">{{
-                    group.title }}</h2>
-            </div>
-
-            <div class="masonry-grid">
-            @for (photo of group.photos.items; track photo.id) {
-            <article [routerLink]="['/photo', photo.id]" class="photo-card cursor-pointer">
-                <div class="photo-visual">
-                    <img [src]="getImageUrl(photo)" [alt]="photo.name" />
-                </div>
-                <div class="photo-content px-3 pb-4">
-                    <p class="photo-title text-lg leading-tight mb-1">{{ photo.name }}</p>
-                    <div class="photo-meta flex flex-wrap gap-2 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
-                        <span>{{ photo.dateTaken ? (photo.dateTaken | date:'mediumDate') : 'Unknown date' }}</span>
-                        @if (photo.format) {
-                        <span>{{ photo.format.toUpperCase() }}</span>
-                        }
-                        <span>{{ photo.metadata?.location || 'Location unknown' }}</span>
-                    </div>
-                </div>
-            </article>
-            }
-            </div>
-        </section>
-        }
-
-        <div class="gallery-status flex justify-center py-8 text-sm text-slate-500 font-medium tracking-wide">
-            @if (loading()) {
-            <span class="animate-pulse">Loading timeline...</span>
-            }
-            @else if (groups().length === 0) {
-            <span>No photos found.</span>
-            }
-        </div>
     </div>
 </div>

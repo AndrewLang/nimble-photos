@@ -7,7 +7,6 @@ import { DatePipe } from '@angular/common';
 
 @Component({
     selector: 'mtx-albums',
-    standalone: true,
     imports: [RouterModule, DatePipe],
     templateUrl: './albums.component.html',
     host: {

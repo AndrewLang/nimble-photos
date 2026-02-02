@@ -1,7 +1,7 @@
-import { Component, ElementRef, HostListener, OnInit, ViewChild, signal, computed, AfterViewInit } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, signal, computed, AfterViewInit, Output, EventEmitter, Input } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { ScrollingModule } from '@angular/cdk/scrolling';
+import { ScrollingModule, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { first } from 'rxjs';
 
 import { GroupedPhotos, Photo } from '../../models/photo.model';
@@ -18,7 +18,6 @@ type GalleryItem =
 
 @Component({
     selector: 'mtx-justified-gallery',
-    standalone: true,
     imports: [CommonModule, RouterModule, ScrollingModule, DatePipe],
     templateUrl: './justified-gallery.component.html',
     host: {
@@ -27,19 +26,32 @@ type GalleryItem =
 })
 export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     @ViewChild('container') container?: ElementRef<HTMLElement>;
+    @ViewChild(CdkVirtualScrollViewport) viewport?: CdkVirtualScrollViewport;
 
-    readonly timeline = signal<GroupedPhotos[]>([]);
+    @Output() activeTitleChange = new EventEmitter<string>();
+    @Output() timelineLoaded = new EventEmitter<GroupedPhotos[]>();
+
+    @Input() showHeader = true;
+
+    private readonly _timeline = signal<GroupedPhotos[]>([]);
+    @Input() set timeline(value: GroupedPhotos[]) {
+        this._timeline.set(value);
+    }
+    get timeline() {
+        return this._timeline();
+    }
+
     readonly containerWidth = signal<number>(0);
     readonly targetHeight = signal<number>(240);
     readonly gap = signal<number>(6);
     readonly isFetching = signal(false);
     readonly totalPhotos = signal(0);
     readonly loadedPhotosCount = computed(() =>
-        this.timeline().reduce((acc, g) => acc + g.photos.items.length, 0)
+        this._timeline().reduce((acc, g) => acc + g.photos.items.length, 0)
     );
 
     readonly items = computed(() => {
-        const groups = this.timeline();
+        const groups = this._timeline();
         const containerW = this.containerWidth();
         const targetH = this.targetHeight();
         const g = this.gap();
@@ -161,15 +173,34 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
             .pipe(first())
             .subscribe(groups => {
                 console.log('Timeline groups    ', groups);
-                this.timeline.set(groups);
+                this._timeline.set(groups);
                 this.totalPhotos.set(groups.reduce((acc, g) => acc + g.photos.total, 0));
+                this.timelineLoaded.emit(groups);
                 this.isFetching.set(false);
             });
     }
 
     onScroll(index: number) {
+        const currentItems = this.items();
+        if (index >= 0 && index < currentItems.length) {
+            for (let i = index; i >= 0; i--) {
+                const item = currentItems[i];
+                if (item.type === 'header') {
+                    this.activeTitleChange.emit(item.title);
+                    break;
+                }
+            }
+        }
+
         // Timeline as implemented in service might already be complete or support paging
         // For now we just load once as getTimeline() returns all (limited by backend)
+    }
+
+    scrollToTitle(title: string) {
+        const index = this.items().findIndex(item => item.type === 'header' && item.title === title);
+        if (index >= 0 && this.viewport) {
+            this.viewport.scrollToIndex(index, 'smooth');
+        }
     }
 
     getImageUrl(photo: Photo): string {

@@ -5,7 +5,6 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angu
 
 @Component({
     selector: 'mtx-login',
-    standalone: true,
     imports: [CommonModule, RouterModule, FormsModule, ReactiveFormsModule],
     templateUrl: './login.component.html',
     host: {

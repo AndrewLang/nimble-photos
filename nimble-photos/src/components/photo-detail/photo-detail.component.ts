@@ -7,7 +7,6 @@ import { Photo } from '../../models/photo.model';
 
 @Component({
     selector: 'mtx-photo-detail',
-    standalone: true,
     imports: [CommonModule, RouterModule],
     templateUrl: './photo-detail.component.html',
     host: {

@@ -5,7 +5,6 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angu
 
 @Component({
     selector: 'mtx-register',
-    standalone: true,
     imports: [CommonModule, RouterModule, FormsModule, ReactiveFormsModule],
     templateUrl: './register.component.html',
     host: {
