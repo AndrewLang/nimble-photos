@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use serde_json::{json, Value};
-use uuid::Uuid;
 
 use nimble_web::testbot::{AssertResponse, TestBot, TestError, TestResult, TestScenario, TestStep};
 
@@ -51,15 +50,11 @@ impl TestStep for ListAlbumsStep {
     }
 }
 
-struct CreateAlbumStep {
-    id: String,
-}
+struct CreateAlbumStep;
 
 impl CreateAlbumStep {
     fn new() -> Self {
-        Self {
-            id: Uuid::new_v4().to_string(),
-        }
+        Self
     }
 }
 
@@ -76,12 +71,16 @@ impl TestStep for CreateAlbumStep {
     async fn run(&self, bot: &mut TestBot) -> TestResult {
         let now = Utc::now();
         let payload = json!({
-            "id": self.id,
             "name": "TestBot Album",
             "description": "Created by TestBot",
-            "owner_id": json!(null),
-            "created_at": now.to_rfc3339(),
-            "updated_at": now.to_rfc3339(),
+            "category": "testbot",
+            "kind": "manual",
+            "rules_json": "{\"created_by\": \"testbot\"}",
+            "thumbnail_hash": "thumb-testbot",
+            "sort_order": 1,
+            "image_count": 0,
+            "parent_id": json!(null),
+            "create_date": now.to_rfc3339(),
         });
 
         let response = bot.post_auth(self.endpoint(), &payload).await?;
@@ -161,9 +160,18 @@ impl TestStep for UpdateAlbumStep {
             Value::String("Updated by TestBot".to_string()),
         );
         obj.insert(
-            "updated_at".to_string(),
-            Value::String(Utc::now().to_rfc3339()),
+            "category".to_string(),
+            Value::String("updated-category".to_string()),
         );
+        obj.insert(
+            "thumbnail_hash".to_string(),
+            Value::String("updated-thumbnail".to_string()),
+        );
+        obj.insert(
+            "rules_json".to_string(),
+            Value::String("{\"updated\": true}".to_string()),
+        );
+        obj.insert("sort_order".to_string(), Value::from(2));
 
         let response = bot.put_auth(self.endpoint(), &snapshot).await?;
         response.assert_status(200)?;
