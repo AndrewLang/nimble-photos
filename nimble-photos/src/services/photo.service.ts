@@ -60,7 +60,7 @@ export interface PagedAlbums {
 export class PhotoService {
   private readonly apiBase = 'http://localhost:8080/api';
   private timelinePhotoIds: string[] | null = null;
-  private timelineCache: GroupedPhotos[] | null = null;
+  public timelineCache: GroupedPhotos[] | null = null;
 
   // State for gallery scroll position
   lastGalleryScrollIndex = 0;
@@ -144,8 +144,13 @@ export class PhotoService {
           if (page === 1) {
             this.timelineCache = groups;
             this.timelinePhotoIds = groups.flatMap(g => g.photos.items.map(p => p.id));
-          } else if (this.timelinePhotoIds) {
-            this.timelinePhotoIds.push(...groups.flatMap(g => g.photos.items.map(p => p.id)));
+          } else {
+            if (this.timelineCache) {
+              this.timelineCache.push(...groups);
+            }
+            if (this.timelinePhotoIds) {
+              this.timelinePhotoIds.push(...groups.flatMap(g => g.photos.items.map(p => p.id)));
+            }
           }
         }),
         catchError(() => of([]))

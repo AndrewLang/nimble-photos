@@ -140,10 +140,31 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     constructor(private readonly photoService: PhotoService) { }
 
     ngOnInit() {
-        if (this.photoService.lastGalleryScrollIndex > 0) {
-            this.isRestoring = true;
+        const cached = this.photoService.timelineCache;
+        if (cached && cached.length > 0) {
+            console.log('Restoring from cache', cached.length, 'groups');
+            this._timeline.set([...cached]); // Create a copy to trigger signal update
+            this.totalPhotos.set(cached.reduce((acc, g) => acc + g.photos.total, 0));
+            this.timelineLoaded.emit(cached);
+
+            // Calculate current page based on loaded groups
+            this.currentPage = Math.ceil(cached.length / this.pageSize) + 1;
+
+            if (this.photoService.lastGalleryScrollIndex > 0) {
+                this.isRestoring = true;
+                requestAnimationFrame(() => {
+                    this.viewport?.scrollToIndex(this.photoService.lastGalleryScrollIndex);
+                    setTimeout(() => {
+                        this.isRestoring = false;
+                    }, 100);
+                });
+            }
+        } else {
+            if (this.photoService.lastGalleryScrollIndex > 0) {
+                this.isRestoring = true;
+            }
+            this.fetchNextPage();
         }
-        this.fetchNextPage();
     }
 
     ngAfterViewInit() {
