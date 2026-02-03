@@ -26,8 +26,6 @@ export class AuthService {
         return this.http.post<LoginResponse>(`${this.apiBase}/auth/login`, request).pipe(
             tap((response) => {
                 this.setTokens(response.accessToken, response.refreshToken);
-                // In a real app, you might want to fetch user profile after login
-                // For now, we'll simulate setting a user if the backend doesn't return it in login
                 const dummyUser: User = {
                     id: '1',
                     email: request.email,

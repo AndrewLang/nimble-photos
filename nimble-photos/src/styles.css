@@ -3,6 +3,7 @@
 @import "tailwindcss";
 @import './assets/css/gallery.css';
 @import './assets/css/photo.css';
+@import './assets/css/utilities.css';
 @import 'leaflet/dist/leaflet.css';
 
 :root {

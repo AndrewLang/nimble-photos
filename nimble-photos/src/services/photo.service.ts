@@ -62,7 +62,6 @@ export class PhotoService {
   private timelinePhotoIds: string[] | null = null;
   public timelineCache: GroupedPhotos[] | null = null;
 
-  // State for gallery scroll position
   lastGalleryScrollIndex = 0;
   readonly isScrolled = signal(false);
 
@@ -95,8 +94,6 @@ export class PhotoService {
 
   getAdjacentPhotos(id: string, albumId?: string): Observable<{ prevId: string | null; nextId: string | null }> {
     if (albumId) {
-      // If in an album, we currently just fetch the first page. 
-      // TODO: Implement proper album-wide navigation context
       return this.getAlbumPhotos(albumId, 1, 400).pipe(
         map((page) => {
           if (!page) return { prevId: null, nextId: null };
@@ -106,7 +103,6 @@ export class PhotoService {
       );
     }
 
-    // Default: Timeline navigation
     let source$: Observable<string[]>;
     if (this.timelinePhotoIds) {
       source$ = of(this.timelinePhotoIds);
@@ -211,6 +207,12 @@ export class PhotoService {
           items: response.items.map((dto) => this.mapAlbum(dto)),
         }))
       );
+  }
+
+  createAlbum(album: Partial<Album>): Observable<Album> {
+    return this.http.post<AlbumDto>(`${this.apiBase}/albums`, album).pipe(
+      map(dto => this.mapAlbum(dto))
+    );
   }
 
   getAlbumById(id: string): Observable<Album | null> {
