@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SelectionService } from '../../services/selection.service';
 import { PhotoService } from '../../services/photo.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'mtx-header',
@@ -21,8 +22,14 @@ export class HeaderComponent {
 
   constructor(
     public readonly selectionService: SelectionService,
-    public readonly photoService: PhotoService
+    public readonly photoService: PhotoService,
+    public readonly authService: AuthService
   ) { }
+
+  logout() {
+    this.authService.logout();
+    this.closeMenu();
+  }
 
   toggleMenu() {
     this.isMenuOpen.update(v => !v);

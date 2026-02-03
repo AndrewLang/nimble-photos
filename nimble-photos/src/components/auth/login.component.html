@@ -18,6 +18,33 @@
 
         <!-- Form -->
         <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-6">
+            @if (success()) {
+            <div
+                class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl p-4 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                <div class="flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ success() }}</span>
+                </div>
+            </div>
+            }
+
+            @if (error()) {
+            <div
+                class="bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl p-4 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                <div class="flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ error() }}</span>
+                </div>
+            </div>
+            }
             <!-- Email -->
             <div class="space-y-2">
                 <label for="email" class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Email

@@ -2,9 +2,11 @@ import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
     selector: 'mtx-register',
+    standalone: true,
     imports: [CommonModule, RouterModule, FormsModule, ReactiveFormsModule],
     templateUrl: './register.component.html',
     host: {
@@ -14,8 +16,10 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angu
 export class RegisterComponent {
     private readonly fb = inject(FormBuilder);
     private readonly router = inject(Router);
+    private readonly authService = inject(AuthService);
 
     readonly loading = signal(false);
+    readonly error = signal<string | null>(null);
 
     registerForm = this.fb.group({
         displayName: ['', [Validators.required, Validators.minLength(2)]],
@@ -37,11 +41,26 @@ export class RegisterComponent {
     onSubmit(): void {
         if (this.registerForm.valid) {
             this.loading.set(true);
-            // Simulate API call
-            setTimeout(() => {
-                this.loading.set(false);
-                this.router.navigate(['/']);
-            }, 1500);
+            this.error.set(null);
+
+            const { displayName, email, password, confirmPassword } = this.registerForm.value;
+
+            this.authService.register({
+                displayName: displayName!,
+                email: email!,
+                password: password!,
+                confirmPassword: confirmPassword!
+            }).subscribe({
+                next: () => {
+                    this.loading.set(false);
+                    this.router.navigate(['/login'], { queryParams: { registered: true } });
+                },
+                error: (err) => {
+                    this.loading.set(false);
+                    this.error.set(err.error?.message || 'Registration failed. Please try again.');
+                    console.error('Registration error:', err);
+                }
+            });
         }
     }
 }
