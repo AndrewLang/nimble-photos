@@ -156,7 +156,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
             if (this._timeline().length > 0) {
                 this.timelineLoaded.emit(this._timeline());
             }
-            this.hasMore = false; // Disable pagination for now in manual mode
+            this.hasMore = false;
             return;
         }
 

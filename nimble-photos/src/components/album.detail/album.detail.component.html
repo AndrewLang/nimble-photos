@@ -5,7 +5,6 @@
 } @else if (album(); as a) {
 <section class="flex-shrink-0 px-6 pt-10 pb-6 space-y-4">
     <div class="flex items-center gap-6 text-sm text-slate-400">
-        <span class="uppercase tracking-[0.4em] text-xs text-indigo-400">{{ a.kind }}</span>
         <span>Created: {{ a.createDate ? (a.createDate | date:'longDate') : 'n/a' }}</span>
         <span>Images: {{ a.imageCount ?? 'n/a' }}</span>
     </div>
