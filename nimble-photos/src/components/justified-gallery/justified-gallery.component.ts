@@ -140,7 +140,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     });
 
     private currentPage = 1;
-    private readonly pageSize = 10;
+    private readonly pageSize = 30;
     private hasMore = true;
     private isRestoring = false;
 
@@ -229,33 +229,59 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     }
 
     jumpToGroupOffset(offset: number, yearLabel?: string) {
-        if (this.isFetching()) return;
+        if (this.isFetching() || !this.hasMore) return;
 
         // If offset is already within loaded groups, just scroll
         const currentGroupsCount = this._timeline().length;
         if (offset < currentGroupsCount) {
-            const title = yearLabel ? yearLabel : '';
-            const target = this._timeline().find(g => g.title.startsWith(title));
-            if (target) this.scrollToTitle(target.title);
+            this.scrollByYearLabel(yearLabel);
             return;
         }
 
         // Otherwise, fetch more until we reach or pass the offset
         this.isFetching.set(true);
+        this.performJumpRecursive(offset, yearLabel);
+    }
+
+    private performJumpRecursive(offset: number, yearLabel?: string) {
         this.photoService.getTimeline(this.currentPage, this.pageSize)
             .pipe(first())
             .subscribe(groups => {
-                this.isFetching.set(false);
-                if (groups.length < this.pageSize) this.hasMore = false;
+                if (!groups || groups.length === 0) {
+                    this.hasMore = false;
+                    this.isFetching.set(false);
+                    return;
+                }
+
+                if (groups.length < this.pageSize) {
+                    this.hasMore = false;
+                }
 
                 this._timeline.update(current => [...current, ...groups]);
                 this.currentPage++;
                 this.totalPhotos.set(this._timeline().reduce((acc, g) => acc + g.photos.total, 0));
                 this.timelineLoaded.emit(this._timeline());
 
-                // Recursively jump until found
-                this.jumpToGroupOffset(offset, yearLabel);
+                const currentGroupsCount = this._timeline().length;
+                if (offset < currentGroupsCount) {
+                    this.isFetching.set(false);
+                    this.scrollByYearLabel(yearLabel);
+                } else if (this.hasMore) {
+                    // Keep fetching recursively without releasing the lock
+                    this.performJumpRecursive(offset, yearLabel);
+                } else {
+                    this.isFetching.set(false);
+                    this.scrollByYearLabel(yearLabel);
+                }
             });
+    }
+
+    private scrollByYearLabel(yearLabel?: string) {
+        const title = yearLabel ? yearLabel : '';
+        const target = this._timeline().find(g => g.title.startsWith(title));
+        if (target) {
+            this.scrollToTitle(target.title);
+        }
     }
 
     onScroll(index: number) {
@@ -275,7 +301,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
             }
         }
 
-        if (index > currentItems.length - 20 && !this.isFetching() && this.hasMore) {
+        if (index > 0 && index > currentItems.length - 15 && !this.isFetching() && this.hasMore) {
             this.fetchNextPage();
         }
     }

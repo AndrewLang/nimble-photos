@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, OnInit, signal, ViewChild, computed, ElementRef, effect } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { GroupedPhotos, Photo } from '../../models/photo.model';
@@ -15,6 +15,7 @@ import { JustifiedGalleryComponent } from '../justified-gallery/justified-galler
 })
 export class GroupedGallery implements OnInit {
   @ViewChild(JustifiedGalleryComponent) gallery?: JustifiedGalleryComponent;
+  @ViewChild('monthsRuler') monthsRuler?: ElementRef<HTMLElement>;
 
   readonly groups = signal<GroupedPhotos[]>([]);
   readonly years = signal<string[]>([]);
@@ -22,7 +23,15 @@ export class GroupedGallery implements OnInit {
   readonly activeYear = signal('');
   readonly selectedPhotos = signal<Photo[]>([]);
 
-  constructor(private readonly photoService: PhotoService) { }
+  constructor(private readonly photoService: PhotoService) {
+    // Effect to scroll the month ruler when the active year changes
+    effect(() => {
+      const year = this.activeYear();
+      if (year && this.monthsRuler) {
+        this.scrollMonthRulerToYear(year);
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.photoService.getTimelineYears().subscribe(years => {
@@ -68,6 +77,19 @@ export class GroupedGallery implements OnInit {
       });
     }
     this.activeYear.set(year);
+  }
+
+  private scrollMonthRulerToYear(year: string): void {
+    if (!this.monthsRuler) return;
+    const container = this.monthsRuler.nativeElement;
+    const targetItem = container.querySelector(`[data-year="${year}"]`) as HTMLElement;
+
+    if (targetItem) {
+      container.scrollTo({
+        top: targetItem.offsetTop - container.clientHeight / 2 + targetItem.clientHeight / 2,
+        behavior: 'smooth'
+      });
+    }
   }
 
   onTimelineLoaded(groups: GroupedPhotos[]): void {

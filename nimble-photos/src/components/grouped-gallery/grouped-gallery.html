@@ -14,12 +14,19 @@
         }
     </div>
 
-    <div class="timeline-ruler months-ruler z-40">
+    <div #monthsRuler class="timeline-ruler months-ruler z-40">
         @for (group of groups(); track group.title) {
-        <div class="timeline-item" [class.active]="activeGroupTitle() === group.title"
+        @let year = group.title.split('-')[0];
+        @let prevYear = $index > 0 ? groups()[$index-1].title.split('-')[0] : null;
+
+        @if (year !== prevYear) {
+        <div class="month-year-separator">{{ year }}</div>
+        }
+
+        <div class="timeline-item" [class.active]="activeGroupTitle() === group.title" [attr.data-year]="year"
             (click)="scrollToGroup(group.title)" title="{{ group.title }}">
             <span class="timeline-month">{{ getMonthName(group.title.split('-')[1]) }}</span>
-            <span>{{ group.title.split('-')[2] }}</span>
+            <span class="day-label">{{ group.title.split('-')[2] }}</span>
             <div class="timeline-line"></div>
         </div>
         }
