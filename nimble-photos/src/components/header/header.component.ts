@@ -65,4 +65,9 @@ export class HeaderComponent {
       link.click();
     });
   }
+
+  tagPhotos() {
+    const photos = this.selectionService.selectedPhotos();
+    alert(`Coming soon: Tag ${photos.length} photos`);
+  }
 }

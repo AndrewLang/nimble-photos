@@ -55,14 +55,14 @@
             [routerLink]="!isSelectionMode() ? ['/photo', photo.id] : null"
             class="photo-item relative group cursor-pointer overflow-hidden rounded-sm bg-slate-900/50 transition-all duration-300 h-full"
             [style.width.px]="getPhotoWidth(photo, item.row.height)" [class.mr-[6px]]="!lastPhoto"
-            [class.translate-y-[-4px]]="isSelected(photo.id)" [class.z-10]="isSelected(photo.id)">
+            [class.z-10]="isSelected(photo.id)">
 
             <img [src]="getImageUrl(photo)" [alt]="photo.name"
               class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-              [class.scale-105]="isSelected(photo.id)" loading="lazy">
+              [class.translate-y-[-4px]]="isSelected(photo.id)" [class.scale-105]="isSelected(photo.id)" loading="lazy">
 
             @if (isSelected(photo.id)) {
-            <div class="absolute inset-0 ring-4 ring-inset ring-indigo-500 z-40 pointer-events-none rounded-sm"></div>
+            <div class="absolute inset-0 ring-2 ring-inset ring-indigo-500 z-40 pointer-events-none rounded-sm"></div>
             }
 
             @if (selectionEnabled) {
