@@ -19,9 +19,10 @@
       class="photo-card relative group cursor-pointer transition-all duration-300"
       [class.translate-y-[-4px]]="isSelected(photo.id)" [class.z-10]="isSelected(photo.id)">
 
-      <div class="aspect-square overflow-hidden rounded-sm bg-slate-900 border border-white/5">
+      <div class="overflow-hidden rounded-sm bg-slate-900 border border-white/5"
+        [style.aspect-ratio]="photo.width && photo.height ? (photo.width + '/' + photo.height) : 'auto'">
         <img [src]="getImageUrl(photo)" [alt]="photo.name"
-          class="h-full w-full object-cover transition-all duration-700 ease-out group-hover:scale-110"
+          class="w-full h-auto block transition-all duration-700 ease-out group-hover:scale-110"
           [class.scale-105]="isSelected(photo.id)" loading="lazy">
       </div>
 
