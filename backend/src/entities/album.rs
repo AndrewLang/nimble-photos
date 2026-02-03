@@ -35,15 +35,21 @@ impl AlbumKind {
 #[serde(rename_all = "camelCase")]
 pub struct Album {
     pub id: Option<Uuid>,
+    #[serde(alias = "parent_id")]
     pub parent_id: Option<Uuid>,
     pub name: String,
+    #[serde(alias = "create_date")]
     pub create_date: Option<DateTime<Utc>>,
     pub description: Option<String>,
     pub category: Option<String>,
     pub kind: AlbumKind,
+    #[serde(alias = "rules_json")]
     pub rules_json: Option<String>,
+    #[serde(alias = "thumbnail_hash")]
     pub thumbnail_hash: Option<String>,
+    #[serde(alias = "sort_order")]
     pub sort_order: i32,
+    #[serde(alias = "image_count")]
     pub image_count: Option<i64>,
 }
 

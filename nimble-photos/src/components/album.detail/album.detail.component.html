@@ -1,29 +1,25 @@
-<div class="flex flex-col h-full overflow-hidden">
-    @if (loading()) {
-    <div class="flex justify-center py-40">
-        <span class="animate-pulse text-indigo-400 font-medium">Opening album...</span>
-    </div>
-    } @else if (album(); as a) {
-    <section class="flex-shrink-0 px-6 pt-10 pb-6 space-y-4">
-        <div class="flex items-center gap-6 text-sm text-slate-400">
-            <span class="uppercase tracking-[0.4em] text-xs text-indigo-400">{{ a.kind }}</span>
-            <span>Created: {{ a.createDate ? (a.createDate | date:'longDate') : 'n/a' }}</span>
-            <span>Images: {{ a.imageCount ?? 'n/a' }}</span>
-        </div>
-        <h1 class="text-4xl font-bold text-white">{{ a.name }}</h1>
-        <p class="text-lg text-slate-200 leading-relaxed max-w-4xl">
-            {{ a.description || 'This album has no description yet.' }}
-        </p>
-    </section>
-
-    <div class="flex-1 min-h-0 relative">
-        <mtx-gallery [initialPhotos]="albumPhotos()" [autoFetch]="false" [albumId]="a.id" [showHeader]="false"
-            paddingTop="20px"></mtx-gallery>
-    </div>
-    } @else {
-    <div class="flex flex-col items-center justify-center py-40 text-slate-500">
-        <p>Album not found.</p>
-        <a routerLink="/" class="text-indigo-400 font-bold mt-4">Return to albums</a>
-    </div>
-    }
+@if (loading()) {
+<div class="flex justify-center py-40 flex-1">
+    <span class="animate-pulse text-indigo-400 font-medium">Opening album...</span>
 </div>
+} @else if (album(); as a) {
+<section class="flex-shrink-0 px-6 pt-10 pb-6 space-y-4">
+    <div class="flex items-center gap-6 text-sm text-slate-400">
+        <span class="uppercase tracking-[0.4em] text-xs text-indigo-400">{{ a.kind }}</span>
+        <span>Created: {{ a.createDate ? (a.createDate | date:'longDate') : 'n/a' }}</span>
+        <span>Images: {{ a.imageCount ?? 'n/a' }}</span>
+    </div>
+    <h1 class="text-4xl font-bold text-white">{{ a.name }}</h1>
+    <p class="text-lg text-slate-200 leading-relaxed max-w-4xl">
+        {{ a.description || 'This album has no description yet.' }}
+    </p>
+</section>
+
+<mtx-gallery class="flex-1 min-h-0 relative" [initialPhotos]="albumPhotos()" [autoFetch]="true" [albumId]="a.id"
+    [showHeader]="false" paddingTop="20px"></mtx-gallery>
+} @else {
+<div class="flex flex-col items-center justify-center py-40 text-slate-500 flex-1">
+    <p>Album not found.</p>
+    <a routerLink="/" class="text-indigo-400 font-bold mt-4">Return to albums</a>
+</div>
+}

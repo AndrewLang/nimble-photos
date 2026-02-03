@@ -11,7 +11,7 @@ import { GalleryComponent } from '../gallery/gallery.component';
     imports: [CommonModule, RouterModule, DatePipe, GalleryComponent],
     templateUrl: './album.detail.component.html',
     host: {
-        class: 'block flex-1 min-h-0',
+        class: 'flex flex-col flex-1 min-h-0',
     },
 })
 export class AlbumDetailComponent implements OnInit {

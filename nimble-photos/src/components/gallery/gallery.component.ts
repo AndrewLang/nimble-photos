@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 
-import { Photo } from '../../models/photo';
+import { Photo, PagedPhotos } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
 
@@ -12,7 +12,7 @@ import { SelectionService } from '../../services/selection.service';
   imports: [CommonModule, RouterModule],
   templateUrl: './gallery.component.html',
   host: {
-    class: 'block flex-1 min-h-0',
+    class: 'flex flex-col flex-1 min-h-0',
   },
 })
 export class GalleryComponent implements OnInit {
@@ -40,7 +40,7 @@ export class GalleryComponent implements OnInit {
   @Input() paddingTop = '56px';
 
   private currentPage = 1;
-  private readonly pageSize = 50;
+  private readonly pageSize = 56;
   private hasMore = true;
 
   constructor(
@@ -49,7 +49,7 @@ export class GalleryComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    if (this.autoFetch) {
+    if (this.autoFetch && this.photos().length === 0) {
       this.fetchNextPage();
     }
   }
@@ -60,9 +60,19 @@ export class GalleryComponent implements OnInit {
     }
 
     this.isFetching.set(true);
-    this.photoService.getPhotos(this.currentPage, this.pageSize)
+    const fetch$ = this.albumId
+      ? this.photoService.getAlbumPhotos(this.albumId, this.currentPage, this.pageSize)
+      : this.photoService.getPhotos(this.currentPage, this.pageSize);
+
+    fetch$
       .pipe(first())
       .subscribe(pagedPhotos => {
+        if (!pagedPhotos) {
+          this.hasMore = false;
+          this.isFetching.set(false);
+          return;
+        }
+
         if (pagedPhotos.items.length < this.pageSize) {
           this.hasMore = false;
         }

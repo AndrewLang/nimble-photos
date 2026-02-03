@@ -22,17 +22,27 @@ pub struct Photo {
     pub format: Option<String>,
     pub hash: Option<String>,
     pub size: Option<i64>,
+    #[serde(alias = "created_at")]
     pub created_at: Option<DateTime<Utc>>,
+    #[serde(alias = "updated_at")]
     pub updated_at: Option<DateTime<Utc>>,
+    #[serde(alias = "date_imported")]
     pub date_imported: Option<DateTime<Utc>>,
+    #[serde(alias = "date_taken")]
     pub date_taken: Option<DateTime<Utc>>,
+    #[serde(alias = "thumbnail_path")]
     pub thumbnail_path: Option<String>,
+    #[serde(alias = "thumbnail_optimized")]
     pub thumbnail_optimized: Option<bool>,
+    #[serde(alias = "metadata_extracted")]
     pub metadata_extracted: Option<bool>,
+    #[serde(alias = "is_raw")]
     pub is_raw: Option<bool>,
     pub width: Option<u32>,
     pub height: Option<u32>,
+    #[serde(alias = "thumbnail_width")]
     pub thumbnail_width: Option<u32>,
+    #[serde(alias = "thumbnail_height")]
     pub thumbnail_height: Option<u32>,
 }
 
