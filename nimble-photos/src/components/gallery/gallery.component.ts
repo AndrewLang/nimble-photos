@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
@@ -23,6 +23,22 @@ export class GalleryComponent implements OnInit {
   readonly selectedPhotos = computed(() => this.selectionService.selectedPhotos());
   readonly isSelectionMode = computed(() => this.selectionService.hasSelection());
 
+  @Input() set initialPhotos(value: Photo[]) {
+    this.photos.set(value);
+    if (!this.autoFetch) {
+      this.totalPhotos.set(value.length);
+    }
+  }
+
+  @Input() set initialTotal(value: number) {
+    this.totalPhotos.set(value);
+  }
+
+  @Input() autoFetch = true;
+  @Input() albumId?: string | null = null;
+  @Input() showHeader = true;
+  @Input() paddingTop = '56px';
+
   private currentPage = 1;
   private readonly pageSize = 50;
   private hasMore = true;
@@ -33,7 +49,9 @@ export class GalleryComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    this.fetchNextPage();
+    if (this.autoFetch) {
+      this.fetchNextPage();
+    }
   }
 
   fetchNextPage(): void {

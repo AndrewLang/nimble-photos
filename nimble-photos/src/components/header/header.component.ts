@@ -91,8 +91,8 @@ export class HeaderComponent implements OnInit {
         name: albumData.name,
         description: albumData.description,
         kind: 'manual',
-        rulesJson: JSON.stringify({ photoIds: albumData.photoIds }),
-        sortOrder: 0
+        rules_json: JSON.stringify({ photoIds: albumData.photoIds }),
+        sort_order: 0
       }).subscribe({
         next: (album) => {
           this.selectionService.clearSelection();

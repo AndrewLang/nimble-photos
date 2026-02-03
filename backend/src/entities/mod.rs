@@ -11,6 +11,7 @@ use uuid_id::EnsureUuidIdHooks;
 use crate::repositories::photo::PhotoRepository;
 
 pub mod album;
+pub mod album_hooks;
 pub mod exif;
 pub mod photo;
 pub mod user;
@@ -27,7 +28,11 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         EntityOperation::Update,
     ]);
     builder.use_entity_with_hooks(EnsureUuidIdHooks::<Photo>::new(), EntityOperation::all());
-    builder.use_entity_with_hooks(EnsureUuidIdHooks::<Album>::new(), EntityOperation::all());
+    builder.use_entity_with_hooks_and_policy(
+        album_hooks::AlbumHooks::new(),
+        EntityOperation::all(),
+        Policy::Authenticated,
+    );
     builder.use_entity_with_hooks(
         EnsureUuidIdHooks::<ExifModel>::new(),
         &[EntityOperation::Get],
@@ -109,12 +114,32 @@ pub async fn migrate_entities(app: &Application) {
     {
         let _ = app;
     }
+
     #[cfg(feature = "postgres")]
     {
+        let pool = app
+            .services()
+            .resolve::<sqlx::PgPool>()
+            .expect("PgPool not found");
+
         let _ = app.migrate_entity::<User>().await;
         let _ = app.migrate_entity::<UserSettings>().await;
         let _ = app.migrate_entity::<Photo>().await;
         let _ = app.migrate_entity::<Album>().await;
         let _ = app.migrate_entity::<ExifModel>().await;
+
+        log::info!("Creating additional indices for performance...");
+        let sqls = [
+            "CREATE INDEX IF NOT EXISTS idx_photos_date_taken ON photos (date_taken)",
+            "CREATE INDEX IF NOT EXISTS idx_photos_created_at ON photos (created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_photos_sort_date_v2 ON photos ((DATE(COALESCE(date_taken, created_at) AT TIME ZONE 'UTC')))",
+            "CREATE INDEX IF NOT EXISTS idx_exifs_image_id ON exifs (image_id)",
+        ];
+
+        for sql in sqls {
+            if let Err(e) = sqlx::query(sql).execute(&*pool).await {
+                log::error!("Failed to execute SQL {}: {}", sql, e);
+            }
+        }
     }
 }

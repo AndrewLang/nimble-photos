@@ -34,6 +34,8 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
 
     @Input() showHeader = true;
     @Input() selectionEnabled = true;
+    @Input() autoFetch = true;
+    @Input() albumId?: string;
 
     readonly selectedIds = computed(() => this.selectionService.selectedIds());
     readonly selectedPhotos = computed(() => this.selectionService.selectedPhotos());
@@ -150,6 +152,14 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     ) { }
 
     ngOnInit() {
+        if (!this.autoFetch) {
+            if (this._timeline().length > 0) {
+                this.timelineLoaded.emit(this._timeline());
+            }
+            this.hasMore = false; // Disable pagination for now in manual mode
+            return;
+        }
+
         const cached = this.photoService.timelineCache;
         if (cached && cached.length > 0) {
             this._timeline.set([...cached]);
@@ -301,7 +311,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
             }
         }
 
-        if (index > 0 && index > currentItems.length - 15 && !this.isFetching() && this.hasMore) {
+        if (index > 0 && index > currentItems.length - 15 && !this.isFetching() && this.hasMore && this.autoFetch) {
             this.fetchNextPage();
         }
     }

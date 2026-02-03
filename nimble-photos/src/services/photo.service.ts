@@ -3,55 +3,10 @@ import { Injectable, signal } from '@angular/core';
 import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 
 import { Album, GroupedPhotos, PagedPhotos, Photo } from '../models/photo.model';
-
-interface PhotoDto {
-  id: string;
-  path: string;
-  name: string;
-  format?: string | null;
-  hash?: string | null;
-  size?: number | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  date_imported?: string | null;
-  date_taken?: string | null;
-  thumbnail_path?: string | null;
-  thumbnail_optimized?: boolean | null;
-  metadata_extracted?: boolean | null;
-  is_raw?: boolean | null;
-  width?: number | null;
-  height?: number | null;
-  thumbnail_width?: number | null;
-  thumbnail_height?: number | null;
-}
-
-interface AlbumDto {
-  id: string;
-  parent_id?: string | null;
-  name: string;
-  create_date?: string | null;
-  description?: string | null;
-  category?: string | null;
-  kind?: string | null;
-  rules_json?: string | null;
-  thumbnail_hash?: string | null;
-  sort_order?: number | null;
-  image_count?: number | null;
-}
-
-interface PagedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
-export interface PagedAlbums {
-  page: number;
-  pageSize: number;
-  total: number;
-  items: Album[];
-}
+import { PhotoModel } from '../models/photo-model';
+import { AlbumModel } from '../models/album-model';
+import { PagedResponseModel } from '../models/paged-response-model';
+import { PagedAlbumsModel } from '../models/paged-albums-model';
 
 
 @Injectable({
@@ -69,12 +24,12 @@ export class PhotoService {
 
   getPhotos(page = 1, pageSize = 56): Observable<PagedPhotos> {
     return this.http
-      .get<PagedResponse<PhotoDto>>(`${this.apiBase}/photos/${page}/${pageSize}`)
+      .get<PagedResponseModel<PhotoModel>>(`${this.apiBase}/photos/${page}/${pageSize}`)
       .pipe(map((response) => this.mapPhotoPage(response)));
   }
 
   getPhotoById(id: string): Observable<Photo | null> {
-    return this.http.get<PhotoDto>(`${this.apiBase}/photos/${id}`).pipe(
+    return this.http.get<PhotoModel>(`${this.apiBase}/photos/${id}`).pipe(
       map((dto) => this.mapPhoto(dto)),
       catchError(() => of(null))
     );
@@ -133,7 +88,7 @@ export class PhotoService {
     }
 
     return this.http
-      .get<{ title: string; photos: PagedResponse<PhotoDto> }[]>(`${this.apiBase}/photos/timeline/${page}/${pageSize}`)
+      .get<{ title: string; photos: PagedResponseModel<PhotoModel> }[]>(`${this.apiBase}/photos/timeline/${page}/${pageSize}`)
       .pipe(
         map((groups) =>
           groups.map((g) => ({
@@ -196,9 +151,9 @@ export class PhotoService {
     );
   }
 
-  getAlbums(page = 1, pageSize = 12): Observable<PagedAlbums> {
+  getAlbums(page = 1, pageSize = 12): Observable<PagedAlbumsModel> {
     return this.http
-      .get<PagedResponse<AlbumDto>>(`${this.apiBase}/albums/${page}/${pageSize}`)
+      .get<PagedResponseModel<AlbumModel>>(`${this.apiBase}/albums/${page}/${pageSize}`)
       .pipe(
         map((response) => ({
           page: response.page,
@@ -209,31 +164,41 @@ export class PhotoService {
       );
   }
 
-  createAlbum(album: Partial<Album>): Observable<Album> {
-    return this.http.post<AlbumDto>(`${this.apiBase}/albums`, album).pipe(
+  createAlbum(album: Partial<AlbumModel>): Observable<Album> {
+    return this.http.post<AlbumModel>(`${this.apiBase}/albums`, album).pipe(
       map(dto => this.mapAlbum(dto))
     );
   }
 
   getAlbumById(id: string): Observable<Album | null> {
-    return this.http.get<AlbumDto>(`${this.apiBase}/albums/${id}`).pipe(
-      switchMap((dto) =>
-        this.getPhotos(1, 20).pipe(
+    return this.http.get<AlbumModel>(`${this.apiBase}/albums/${id}`).pipe(
+      switchMap((dto) => {
+        console.log('Album: ', dto);
+        const rules = JSON.parse(dto.rules_json || '{ "photoIds": [] }');
+        console.log('Rules: ', rules);
+
+        return this.getAlbumPhotos(id, 1, 100).pipe(
           map((photos) => ({
             ...this.mapAlbum(dto),
-            photos,
+            photos: photos || { page: 1, pageSize: 100, total: 0, items: [] },
           }))
-        )
+        );
+      }
       ),
       catchError(() => of(null))
     );
   }
 
-  getAlbumPhotos(_albumId: string, page = 1, pageSize = 20): Observable<PagedPhotos | null> {
-    return this.getPhotos(page, pageSize);
+  getAlbumPhotos(albumId: string, page = 1, pageSize = 20): Observable<PagedPhotos | null> {
+    return this.http
+      .get<PagedResponseModel<PhotoModel>>(`${this.apiBase}/albums/${albumId}/photos/${page}/${pageSize}`)
+      .pipe(
+        map((response) => this.mapPhotoPage(response)),
+        catchError(() => of(null))
+      );
   }
 
-  private mapPhotoPage(response: PagedResponse<PhotoDto>): PagedPhotos {
+  private mapPhotoPage(response: PagedResponseModel<PhotoModel>): PagedPhotos {
     console.log('Mapping photo page', response);
     return {
       page: response.page,
@@ -243,7 +208,7 @@ export class PhotoService {
     };
   }
 
-  private mapPhoto(dto: PhotoDto): Photo {
+  private mapPhoto(dto: PhotoModel): Photo {
     return {
       id: dto.id,
       path: dto.path,
@@ -266,7 +231,7 @@ export class PhotoService {
     };
   }
 
-  private mapAlbum(dto: AlbumDto): Album {
+  private mapAlbum(dto: AlbumModel): Album {
     return {
       id: dto.id,
       parentId: dto.parent_id ?? undefined,
@@ -291,4 +256,3 @@ export class PhotoService {
     return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   }
 }
-

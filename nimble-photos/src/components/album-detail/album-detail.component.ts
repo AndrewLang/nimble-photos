@@ -1,13 +1,14 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
 import { first } from 'rxjs';
 import { PhotoService } from '../../services/photo.service';
 import { Album, Photo } from '../../models/photo.model';
+import { GalleryComponent } from '../gallery/gallery.component';
 
 @Component({
     selector: 'mtx-album-detail',
-    imports: [CommonModule, RouterModule, DatePipe],
+    imports: [CommonModule, RouterModule, DatePipe, GalleryComponent],
     templateUrl: './album-detail.component.html',
     host: {
         class: 'block flex-1 min-h-0',
@@ -16,6 +17,10 @@ import { Album, Photo } from '../../models/photo.model';
 export class AlbumDetailComponent implements OnInit {
     readonly album = signal<Album | null>(null);
     readonly loading = signal(false);
+
+    readonly albumPhotos = computed<Photo[]>(() => {
+        return this.album()?.photos?.items ?? [];
+    });
 
     constructor(
         private readonly route: ActivatedRoute,
@@ -40,7 +45,7 @@ export class AlbumDetailComponent implements OnInit {
     }
 
     getImageUrl(photo: Photo): string {
-        return photo.thumbnailPath ?? photo.path ?? '';
+        return this.photoService.getThumbnailPath(photo);
     }
 
     getAspectRatio(photo: Photo): string {
