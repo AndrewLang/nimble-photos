@@ -1,5 +1,5 @@
 ﻿import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 
 import { Album, GroupedPhotos, PagedPhotos, Photo } from '../models/photo.model';
@@ -64,6 +64,7 @@ export class PhotoService {
 
   // State for gallery scroll position
   lastGalleryScrollIndex = 0;
+  readonly isScrolled = signal(false);
 
   constructor(private readonly http: HttpClient) { }
 
@@ -86,6 +87,10 @@ export class PhotoService {
     }
 
     return photo.path;
+  }
+
+  getDownloadPath(photo: Photo): string {
+    return `${this.apiBase}/photos/file/${photo.id}`;
   }
 
   getAdjacentPhotos(id: string, albumId?: string): Observable<{ prevId: string | null; nextId: string | null }> {

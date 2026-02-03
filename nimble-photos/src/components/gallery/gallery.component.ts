@@ -1,10 +1,11 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 
 import { Photo } from '../../models/photo.model';
 import { PhotoService } from '../../services/photo.service';
+import { SelectionService } from '../../services/selection.service';
 
 @Component({
   selector: 'mtx-gallery',
@@ -18,71 +19,89 @@ export class GalleryComponent implements OnInit {
   readonly photos = signal<Photo[]>([]);
   readonly totalPhotos = signal(0);
   readonly isFetching = signal(false);
+  readonly selectedIds = computed(() => this.selectionService.selectedIds());
+  readonly selectedPhotos = computed(() => this.selectionService.selectedPhotos());
+  readonly isSelectionMode = computed(() => this.selectionService.hasSelection());
 
-  private currentPage = 0;
-  private readonly pageSize = 56;
-  private readonly preloadThreshold = 28;
+  private currentPage = 1;
+  private readonly pageSize = 50;
+  private hasMore = true;
 
-  constructor(private readonly photoService: PhotoService) { }
+  constructor(
+    private readonly photoService: PhotoService,
+    private readonly selectionService: SelectionService
+  ) { }
 
   ngOnInit(): void {
     this.fetchNextPage();
   }
 
-  onScroll(event: Event): void {
-    const element = event.target as HTMLElement;
-
-    if (element.scrollHeight - element.scrollTop <= element.clientHeight + 1000) {
-      this.fetchNextPage();
-    }
-  }
-
-  private fetchNextPage(): void {
-    if (this.isFetching()) {
+  fetchNextPage(): void {
+    if (this.isFetching() || !this.hasMore) {
       return;
     }
 
-    if (this.totalPhotos() > 0 && this.photos().length >= this.totalPhotos()) {
-      return;
-    }
-
-    const nextPage = this.currentPage + 1;
     this.isFetching.set(true);
-
-    this.photoService
-      .getPhotos(nextPage, this.pageSize)
+    this.photoService.getPhotos(this.currentPage, this.pageSize)
       .pipe(first())
-      .subscribe((page) => {
-        this.photos.update((previous) => [...previous, ...page.items]);
-        this.totalPhotos.set(page.total);
-        this.currentPage = page.page;
+      .subscribe(pagedPhotos => {
+        if (pagedPhotos.items.length < this.pageSize) {
+          this.hasMore = false;
+        }
+
+        if (this.currentPage === 1) {
+          this.photos.set(pagedPhotos.items);
+        } else {
+          this.photos.update(current => [...current, ...pagedPhotos.items]);
+        }
+
+        this.currentPage++;
+        this.totalPhotos.set(pagedPhotos.total);
         this.isFetching.set(false);
       });
+  }
+
+  onScroll(event: any): void {
+    const element = event.target;
+    const scrollPosition = element.scrollTop + element.clientHeight;
+    const threshold = element.scrollHeight - 1000;
+
+    this.photoService.isScrolled.set(element.scrollTop > 20);
+
+    if (scrollPosition >= threshold && !this.isFetching() && this.hasMore) {
+      this.fetchNextPage();
+    }
   }
 
   getImageUrl(photo: Photo): string {
     return this.photoService.getThumbnailPath(photo);
   }
 
-  getAspectRatio(photo: Photo): string {
-    if (photo.width && photo.height) {
-      return `${photo.width} / ${photo.height}`;
+  togglePhotoSelection(photo: Photo, event?: MouseEvent): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
-    return '4 / 3';
+
+    const current = this.selectedPhotos();
+    const index = current.findIndex(p => p.id === photo.id);
+    let next: Photo[];
+
+    if (index >= 0) {
+      next = [...current];
+      next.splice(index, 1);
+    } else {
+      next = [...current, photo];
+    }
+
+    this.selectionService.updateSelection(next);
   }
 
-  formatBytes(size?: number): string {
-    if (!size || size <= 0) {
-      return 'n/a';
-    }
+  isSelected(photoId: string): boolean {
+    return this.selectedIds().has(photoId);
+  }
 
-    const units = ['B', 'KB', 'MB', 'GB'];
-    let value = size;
-    let index = 0;
-    while (value >= 1024 && index < units.length - 1) {
-      value /= 1024;
-      index += 1;
-    }
-    return `${value.toFixed(1)} ${units[index]}`;
+  onClearSelection(): void {
+    this.selectionService.clearSelection();
   }
 }

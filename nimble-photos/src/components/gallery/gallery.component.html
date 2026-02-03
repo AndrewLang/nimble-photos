@@ -1,45 +1,76 @@
 <main class="gallery-panel flex flex-1 flex-col overflow-hidden relative h-full">
   <div class="gallery-viewport flex-1 min-h-0 relative">
-    <div class="scroll-container px-4 py-6" (scroll)="onScroll($event)">
+
+    <div class="scroll-container h-full overflow-y-auto px-4 py-8" (scroll)="onScroll($event)">
       <div class="masonry-grid">
         @for (photo of photos(); track photo.id) {
-        <article [routerLink]="['/photo', photo.id]" class="photo-card cursor-pointer">
-          <div class="photo-visual">
-            <img [src]="getImageUrl(photo)" [alt]="photo.name" />
+        <article (click)="isSelectionMode() ? togglePhotoSelection(photo, $event) : null"
+          [routerLink]="!isSelectionMode() ? ['/photo', photo.id] : null"
+          class="photo-card relative group cursor-pointer transition-all duration-300"
+          [class.translate-y-[-4px]]="isSelected(photo.id)" [class.z-10]="isSelected(photo.id)">
+
+          <div class="aspect-square overflow-hidden rounded-sm bg-slate-900 border border-white/5">
+            <img [src]="getImageUrl(photo)" [alt]="photo.name"
+              class="h-full w-full object-cover transition-all duration-700 ease-out group-hover:scale-110"
+              [class.scale-105]="isSelected(photo.id)" loading="lazy">
           </div>
-          <div class="photo-content px-3 pb-4">
-            <p class="photo-title text-lg leading-tight mb-1">{{ photo.name }}</p>
-            <div class="photo-meta flex flex-wrap gap-2 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium">
-              <span>{{ photo.dateTaken ? (photo.dateTaken | date:'mediumDate') : 'Unknown date' }}</span>
-                @if (photo.format) {
-                <span>{{ photo.format.toUpperCase() }}</span>
-                }
-              <span>{{ formatBytes(photo.size) }}</span>
-            </div>
-            <div class="photo-meta flex flex-wrap gap-2 text-[0.65rem] tracking-wider uppercase text-slate-400 font-medium mt-1">
-                @if (photo.width && photo.height) {
-                <span>{{ photo.width }} x {{ photo.height }}</span>
-                }
-                @if (photo.thumbnailWidth && photo.thumbnailHeight) {
-                <span>{{ photo.thumbnailWidth }} x {{ photo.thumbnailHeight }} thumbnail</span>
-                }
-                @if (photo.metadata?.location) {
-                <span>{{ photo.metadata?.location }}</span>
-                }
-            </div>
+
+          @if (isSelected(photo.id)) {
+          <div class="absolute inset-0 ring-4 ring-inset ring-indigo-500 z-40 pointer-events-none rounded-sm"></div>
+          }
+
+          <div class="absolute top-2 left-2 z-30 transition-opacity duration-200"
+            [class.opacity-0]="!isSelectionMode() && !isSelected(photo.id)" [class.group-hover:opacity-100]="true">
+            <button (click)="togglePhotoSelection(photo, $event)"
+              class="w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center backdrop-blur-md"
+              [class.border-indigo-500]="isSelected(photo.id)" [class.bg-indigo-500]="isSelected(photo.id)"
+              [class.border-white/50]="!isSelected(photo.id)" [class.hover:border-white]="!isSelected(photo.id)"
+              [class.hover:scale-110]="true">
+              @if (isSelected(photo.id)) {
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" viewBox="0 0 20 20"
+                fill="currentColor">
+                <path fill-rule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clip-rule="evenodd" />
+              </svg>
+              }
+            </button>
+          </div>
+
+          <div
+            class="absolute inset-0 ring-2 ring-inset ring-indigo-500/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10 rounded-sm">
           </div>
         </article>
         }
       </div>
 
-      <div class="gallery-status flex justify-center py-8 text-sm text-slate-500 font-medium tracking-wide">
-        @if (isFetching()) {
-        <span class="animate-pulse">Loading more art...</span>
-        }
-        @if (!isFetching() && photos().length > 0) {
-        <span>End of stream</span>
-        }
+      <!-- Loading State -->
+      @if (isFetching()) {
+      <div class="flex flex-col items-center justify-center py-20 gap-4">
+        <div class="flex gap-1.5">
+          <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce"></div>
+          <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+          <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+        </div>
+        <span class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Scanning Library</span>
       </div>
+      }
+
+      <!-- End of Library -->
+      @if (!isFetching() && photos().length >= totalPhotos() && totalPhotos() > 0) {
+      <div class="flex flex-col items-center justify-center py-24 px-4 text-center">
+        <div class="h-px w-24 bg-gradient-to-r from-transparent via-slate-800 to-transparent mb-8"></div>
+        <div class="relative">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-800" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" />
+          </svg>
+        </div>
+        <h3 class="mt-4 text-slate-400 font-medium tracking-tight">End of the line</h3>
+        <p class="mt-1 text-slate-600 text-xs">Your entire collection has been indexed</p>
+      </div>
+      }
     </div>
   </div>
 </main>

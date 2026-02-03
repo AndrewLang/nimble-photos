@@ -1,7 +1,7 @@
 import { Component, OnInit, signal, ViewChild } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { GroupedPhotos } from '../../models/photo.model';
+import { GroupedPhotos, Photo } from '../../models/photo.model';
 import { PhotoService } from '../../services/photo.service';
 import { JustifiedGalleryComponent } from '../justified-gallery/justified-gallery.component';
 
@@ -9,7 +9,6 @@ import { JustifiedGalleryComponent } from '../justified-gallery/justified-galler
   selector: 'mtx-grouped-gallery',
   imports: [CommonModule, RouterModule, DatePipe, JustifiedGalleryComponent],
   templateUrl: './grouped-gallery.html',
-  styleUrls: [],
   host: {
     class: 'block flex-1 min-h-0',
   },
@@ -19,6 +18,7 @@ export class GroupedGallery implements OnInit {
 
   readonly groups = signal<GroupedPhotos[]>([]);
   readonly activeGroupTitle = signal('');
+  readonly selectedPhotos = signal<Photo[]>([]);
 
   constructor(private readonly photoService: PhotoService) { }
 
@@ -40,7 +40,7 @@ export class GroupedGallery implements OnInit {
 
   scrollToGroup(title: string): void {
     if (this.gallery) {
-      this.gallery.scrollToTitle(title);
+      this.gallery?.scrollToTitle(title);
       this.activeGroupTitle.set(title);
     }
   }
@@ -54,5 +54,13 @@ export class GroupedGallery implements OnInit {
 
   onActiveTitleChange(title: string): void {
     this.activeGroupTitle.set(title);
+  }
+
+  onSelectionChange(photos: Photo[]): void {
+    this.selectedPhotos.set(photos);
+  }
+
+  clearSelection(): void {
+    this.gallery?.clearSelection();
   }
 }

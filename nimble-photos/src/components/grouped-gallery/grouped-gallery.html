@@ -1,11 +1,11 @@
-<div class="relative flex flex-1 flex-row overflow-hidden h-full bg-[#010409]">
-    <div class="flex-1 relative h-full">
+<div class="relative flex-1 overflow-hidden h-full bg-[#010409]">
+    <div class="h-full flex flex-col min-w-0 overflow-hidden">
         <mtx-justified-gallery [showHeader]="false" (timelineLoaded)="onTimelineLoaded($event)"
-            (activeTitleChange)="onActiveTitleChange($event)">
+            (activeTitleChange)="onActiveTitleChange($event)" (selectionChange)="onSelectionChange($event)">
         </mtx-justified-gallery>
     </div>
 
-    <div class="timeline-ruler relative z-50 mr-4">
+    <div class="timeline-ruler z-50">
         @for (group of groups(); track group.title) {
         <div class="timeline-item" [class.active]="activeGroupTitle() === group.title"
             (click)="scrollToGroup(group.title)">

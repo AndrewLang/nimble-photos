@@ -6,6 +6,7 @@ import { first } from 'rxjs';
 
 import { GroupedPhotos, Photo } from '../../models/photo.model';
 import { PhotoService } from '../../services/photo.service';
+import { SelectionService } from '../../services/selection.service';
 
 interface PhotoRow {
     photos: Photo[];
@@ -32,6 +33,13 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     @Output() timelineLoaded = new EventEmitter<GroupedPhotos[]>();
 
     @Input() showHeader = true;
+    @Input() selectionEnabled = true;
+
+    readonly selectedIds = computed(() => this.selectionService.selectedIds());
+    readonly selectedPhotos = computed(() => this.selectionService.selectedPhotos());
+    readonly isSelectionMode = computed(() => this.selectionService.hasSelection());
+
+    @Output() selectionChange = new EventEmitter<Photo[]>();
 
     private readonly _timeline = signal<GroupedPhotos[]>([]);
     @Input() set timeline(value: GroupedPhotos[]) {
@@ -126,28 +134,27 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     });
 
     readonly rows = computed(() => {
-        // Redundant with items but kept for compatibility if needed elsewhere
         return this.items()
             .filter(item => item.type === 'row')
             .map(item => (item as any).row as PhotoRow);
     });
 
     private currentPage = 1;
-    private readonly pageSize = 10; // Number of groups per page
+    private readonly pageSize = 10;
     private hasMore = true;
     private isRestoring = false;
 
-    constructor(private readonly photoService: PhotoService) { }
+    constructor(
+        private readonly photoService: PhotoService,
+        private readonly selectionService: SelectionService
+    ) { }
 
     ngOnInit() {
         const cached = this.photoService.timelineCache;
         if (cached && cached.length > 0) {
-            console.log('Restoring from cache', cached.length, 'groups');
-            this._timeline.set([...cached]); // Create a copy to trigger signal update
+            this._timeline.set([...cached]);
             this.totalPhotos.set(cached.reduce((acc, g) => acc + g.photos.total, 0));
             this.timelineLoaded.emit(cached);
-
-            // Calculate current page based on loaded groups
             this.currentPage = Math.ceil(cached.length / this.pageSize) + 1;
 
             if (this.photoService.lastGalleryScrollIndex > 0) {
@@ -160,16 +167,12 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
                 });
             }
         } else {
-            if (this.photoService.lastGalleryScrollIndex > 0) {
-                this.isRestoring = true;
-            }
             this.fetchNextPage();
         }
     }
 
     ngAfterViewInit() {
         this.updateContainerWidth();
-        // Use ResizeObserver for more robust width tracking
         if (this.container) {
             const observer = new ResizeObserver(() => {
                 this.updateContainerWidth();
@@ -215,24 +218,20 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
 
                 if (this.photoService.lastGalleryScrollIndex > 0 && this.currentPage === 2) {
                     this.isRestoring = true;
-                    // Use requestAnimationFrame to execute as soon as the DOM is updated but before paint
                     requestAnimationFrame(() => {
                         this.viewport?.scrollToIndex(this.photoService.lastGalleryScrollIndex);
-                        // Short buffer to ignore resulting scroll events
                         setTimeout(() => {
                             this.isRestoring = false;
                         }, 100);
                     });
-                } else {
-                    this.isRestoring = false;
                 }
             });
     }
 
     onScroll(index: number) {
-        // Save scroll position only if not restoring
         if (!this.isRestoring) {
             this.photoService.lastGalleryScrollIndex = index;
+            this.photoService.isScrolled.set(index > 0);
         }
 
         const currentItems = this.items();
@@ -246,7 +245,6 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
             }
         }
 
-        // Helper to check if we are near the end
         if (index > currentItems.length - 20 && !this.isFetching() && this.hasMore) {
             this.fetchNextPage();
         }
@@ -267,5 +265,66 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
         const isValid = !!(photo.width && photo.height && photo.width > 0 && photo.height > 0);
         const aspectRatio = isValid ? (photo.width! / photo.height!) : (4 / 3);
         return rowHeight * aspectRatio;
+    }
+
+    togglePhotoSelection(photo: Photo, event?: MouseEvent) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        const current = this.selectedPhotos();
+        const index = current.findIndex(p => p.id === photo.id);
+        let next: Photo[];
+
+        if (index >= 0) {
+            next = [...current];
+            next.splice(index, 1);
+        } else {
+            next = [...current, photo];
+        }
+
+        this.selectionService.updateSelection(next);
+        this.selectionChange.emit(next);
+    }
+
+    toggleGroupSelection(groupTitle: string) {
+        const group = this._timeline().find(g => g.title === groupTitle);
+        if (!group) return;
+
+        const groupPhotos = group.photos.items;
+        const current = new Set(this.selectedIds());
+        let next = [...this.selectedPhotos()];
+
+        const allSelected = groupPhotos.every(p => current.has(p.id));
+
+        if (allSelected) {
+            const groupIds = new Set(groupPhotos.map(p => p.id));
+            next = next.filter(p => !groupIds.has(p.id));
+        } else {
+            groupPhotos.forEach(p => {
+                if (!current.has(p.id)) {
+                    next.push(p);
+                }
+            });
+        }
+
+        this.selectionService.updateSelection(next);
+        this.selectionChange.emit(next);
+    }
+
+    clearSelection() {
+        this.selectionService.clearSelection();
+        this.selectionChange.emit([]);
+    }
+
+    isSelected(photoId: string): boolean {
+        return this.selectedIds().has(photoId);
+    }
+
+    isGroupSelected(groupTitle: string): boolean {
+        const group = this._timeline().find(g => g.title === groupTitle);
+        if (!group || group.photos.items.length === 0) return false;
+        return group.photos.items.every(p => this.selectedIds().has(p.id));
     }
 }
