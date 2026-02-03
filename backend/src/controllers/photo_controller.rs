@@ -19,7 +19,7 @@ impl Controller for PhotoController {
     fn routes() -> Vec<EndpointRoute> {
         vec![
             EndpointRoute::get("/api/photos/thumbnail/{hash}", ThumbnailHandler).build(),
-            EndpointRoute::get("/api/photos/timeline", TimelineHandler).build(),
+            EndpointRoute::get("/api/photos/timeline/{page}/{pageSize}", TimelineHandler).build(),
             EndpointRoute::post("/api/photos/scan", ScanPhotoHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
@@ -91,8 +91,23 @@ impl HttpHandler for TimelineHandler {
             .resolve::<Box<dyn PhotoRepository>>()
             .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
 
+        let route_params = context.route().map(|r| r.params());
+
+        let page: u32 = route_params
+            .and_then(|p| p.get("page"))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1);
+
+        let page_size: u32 = route_params
+            .and_then(|p| p.get("pageSize"))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(10);
+
+        let limit = page_size;
+        let offset = if page > 0 { (page - 1) * limit } else { 0 };
+
         let timeline = repository
-            .get_timeline(10)
+            .get_timeline(limit, offset)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 

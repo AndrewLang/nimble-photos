@@ -8,7 +8,7 @@ use sqlx::PgPool;
 
 #[async_trait]
 pub trait PhotoRepository: Send + Sync {
-    async fn get_timeline(&self, limit: u32) -> DataResult<Vec<TimelineGroup>>;
+    async fn get_timeline(&self, limit: u32, offset: u32) -> DataResult<Vec<TimelineGroup>>;
 }
 
 pub struct PostgresPhotoRepository {
@@ -23,7 +23,7 @@ impl PostgresPhotoRepository {
 
 #[async_trait]
 impl PhotoRepository for PostgresPhotoRepository {
-    async fn get_timeline(&self, limit: u32) -> DataResult<Vec<TimelineGroup>> {
+    async fn get_timeline(&self, limit: u32, offset: u32) -> DataResult<Vec<TimelineGroup>> {
         // Group by day (YYYY-MM-DD)
         // We use COALESCE to fallback to created_at if date_taken is NULL
         // We order by day descending and take the first `limit` groups.
@@ -57,11 +57,12 @@ impl PhotoRepository for PostgresPhotoRepository {
             FROM photo_data pd
             GROUP BY day
             ORDER BY day DESC
-            LIMIT $1
+            LIMIT $1 OFFSET $2
         "#;
 
         let rows = sqlx::query(sql)
             .bind(limit as i32)
+            .bind(offset as i32)
             .fetch_all(&self.pool)
             .await
             .map_err(|e| DataError::Provider(e.to_string()))?;

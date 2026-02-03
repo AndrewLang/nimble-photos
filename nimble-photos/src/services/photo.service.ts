@@ -46,6 +46,14 @@ interface PagedResponse<T> {
   page_size: number;
 }
 
+export interface PagedAlbums {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: Album[];
+}
+
+
 @Injectable({
   providedIn: 'root',
 })
@@ -118,13 +126,13 @@ export class PhotoService {
     return { prevId, nextId };
   }
 
-  getTimeline(): Observable<GroupedPhotos[]> {
-    if (this.timelineCache) {
+  getTimeline(page: number = 1, pageSize: number = 10): Observable<GroupedPhotos[]> {
+    if (page === 1 && this.timelineCache) {
       return of(this.timelineCache);
     }
 
     return this.http
-      .get<{ title: string; photos: PagedResponse<PhotoDto> }[]>(`${this.apiBase}/photos/timeline`)
+      .get<{ title: string; photos: PagedResponse<PhotoDto> }[]>(`${this.apiBase}/photos/timeline/${page}/${pageSize}`)
       .pipe(
         map((groups) =>
           groups.map((g) => ({
@@ -133,8 +141,12 @@ export class PhotoService {
           }))
         ),
         tap(groups => {
-          this.timelineCache = groups;
-          this.timelinePhotoIds = groups.flatMap(g => g.photos.items.map(p => p.id));
+          if (page === 1) {
+            this.timelineCache = groups;
+            this.timelinePhotoIds = groups.flatMap(g => g.photos.items.map(p => p.id));
+          } else if (this.timelinePhotoIds) {
+            this.timelinePhotoIds.push(...groups.flatMap(g => g.photos.items.map(p => p.id)));
+          }
         }),
         catchError(() => of([]))
       );
@@ -256,9 +268,3 @@ export class PhotoService {
   }
 }
 
-export interface PagedAlbums {
-  page: number;
-  pageSize: number;
-  total: number;
-  items: Album[];
-}

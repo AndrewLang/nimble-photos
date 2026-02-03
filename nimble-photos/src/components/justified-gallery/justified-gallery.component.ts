@@ -132,8 +132,9 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
             .map(item => (item as any).row as PhotoRow);
     });
 
-    private currentPage = 0;
-    private readonly pageSize = 100;
+    private currentPage = 1;
+    private readonly pageSize = 10; // Number of groups per page
+    private hasMore = true;
     private isRestoring = false;
 
     constructor(private readonly photoService: PhotoService) { }
@@ -168,19 +169,30 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     }
 
     fetchNextPage() {
-        if (this.isFetching()) {
+        if (this.isFetching() || !this.hasMore) {
             return;
         }
 
         this.isFetching.set(true);
-        this.photoService.getTimeline()
+        this.photoService.getTimeline(this.currentPage, this.pageSize)
             .pipe(first())
             .subscribe(groups => {
-                console.log('Timeline groups    ', groups);
-                this._timeline.set(groups);
-                this.totalPhotos.set(groups.reduce((acc, g) => acc + g.photos.total, 0));
-                this.timelineLoaded.emit(groups);
-                if (this.photoService.lastGalleryScrollIndex > 0) {
+                if (groups.length < this.pageSize) {
+                    this.hasMore = false;
+                }
+
+                if (this.currentPage === 1) {
+                    this._timeline.set(groups);
+                } else {
+                    this._timeline.update(current => [...current, ...groups]);
+                }
+
+                this.currentPage++;
+                this.totalPhotos.set(this._timeline().reduce((acc, g) => acc + g.photos.total, 0));
+                this.timelineLoaded.emit(this._timeline());
+                this.isFetching.set(false);
+
+                if (this.photoService.lastGalleryScrollIndex > 0 && this.currentPage === 2) {
                     this.isRestoring = true;
                     // Use requestAnimationFrame to execute as soon as the DOM is updated but before paint
                     requestAnimationFrame(() => {
@@ -213,8 +225,10 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
             }
         }
 
-        // Timeline as implemented in service might already be complete or support paging
-        // For now we just load once as getTimeline() returns all (limited by backend)
+        // Helper to check if we are near the end
+        if (index > currentItems.length - 20 && !this.isFetching() && this.hasMore) {
+            this.fetchNextPage();
+        }
     }
 
     scrollToTitle(title: string) {
