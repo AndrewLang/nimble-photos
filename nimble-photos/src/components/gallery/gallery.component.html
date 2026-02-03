@@ -1,7 +1,7 @@
 <main class="gallery-panel flex flex-1 flex-col overflow-hidden relative h-full">
   <div class="gallery-viewport flex-1 min-h-0 relative">
 
-    <div class="scroll-container h-full overflow-y-auto px-4 py-8" (scroll)="onScroll($event)">
+    <div class="scroll-container h-full overflow-y-auto px-4 pt-[56px] pb-8" (scroll)="onScroll($event)">
       <div class="masonry-grid">
         @for (photo of photos(); track photo.id) {
         <article (click)="isSelectionMode() ? togglePhotoSelection(photo, $event) : null"
