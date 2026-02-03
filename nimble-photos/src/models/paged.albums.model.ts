@@ -1,4 +1,4 @@
-import { Album } from './photo.model';
+import { Album } from './photo';
 
 export interface PagedAlbumsModel {
     page: number;

@@ -1,5 +1,5 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { Photo } from '../models/photo.model';
+import { Photo } from '../models/photo';
 
 @Injectable({
     providedIn: 'root',

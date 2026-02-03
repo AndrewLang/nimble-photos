@@ -1,63 +1,20 @@
-export interface PhotoMetadata {
-  location?: string;
-  camera?: string;
-  aperture?: string;
-  shutterSpeed?: string;
-  iso?: number;
-  focalLength?: string;
-  aspectRatio?: string;
-  dateCreated?: string;
-  lat?: number;
-  lng?: number;
-}
-
-export interface Photo {
-  id: string;
-  path: string;
-  thumbnailPath?: string;
-  name: string;
-  format?: string;
-  hash?: string;
-  size?: number;
-  createdAt?: Date;
-  updatedAt?: Date;
-  dateImported?: Date;
-  dateTaken?: Date;
-  thumbnailOptimized?: boolean;
-  metadataExtracted?: boolean;
-  isRaw?: boolean;
-  width?: number;
-  height?: number;
-  thumbnailWidth?: number;
-  thumbnailHeight?: number;
-  metadata?: PhotoMetadata;
-}
-
-export interface PagedPhotos {
-  page: number;
-  pageSize: number;
-  total: number;
-  items: Photo[];
-}
-
-export interface GroupedPhotos {
-  title: string;
-  photos: PagedPhotos;
-}
-
-export type AlbumKind = 'manual' | 'smart';
-
-export interface Album {
-  id: string;
-  parentId?: string;
-  name: string;
-  createDate?: Date;
-  description?: string;
-  category?: string;
-  kind: AlbumKind;
-  rulesJson?: string;
-  thumbnailHash?: string;
-  sortOrder: number;
-  imageCount?: number;
-  photos?: PagedPhotos;
+export interface PhotoModel {
+    id: string;
+    path: string;
+    name: string;
+    format?: string | null;
+    hash?: string | null;
+    size?: number | null;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+    dateImported?: string | null;
+    dateTaken?: string | null;
+    thumbnailPath?: string | null;
+    thumbnailOptimized?: boolean | null;
+    metadataExtracted?: boolean | null;
+    isRaw?: boolean | null;
+    width?: number | null;
+    height?: number | null;
+    thumbnailWidth?: number | null;
+    thumbnailHeight?: number | null;
 }

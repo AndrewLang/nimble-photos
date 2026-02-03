@@ -2,11 +2,11 @@
 import { Injectable, signal } from '@angular/core';
 import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 
-import { Album, GroupedPhotos, PagedPhotos, Photo } from '../models/photo.model';
-import { PhotoModel } from '../models/photo-model';
-import { AlbumModel } from '../models/album-model';
-import { PagedResponseModel } from '../models/paged-response-model';
-import { PagedAlbumsModel } from '../models/paged-albums-model';
+import { Album, GroupedPhotos, PagedPhotos, Photo } from '../models/photo';
+import { PhotoModel } from '../models/photo.model';
+import { AlbumModel } from '../models/album.model';
+import { PagedResponseModel } from '../models/paged.response.model';
+import { PagedAlbumsModel } from '../models/paged.albums.model';
 
 
 @Injectable({
@@ -157,7 +157,7 @@ export class PhotoService {
       .pipe(
         map((response) => ({
           page: response.page,
-          pageSize: response.page_size,
+          pageSize: response.pageSize,
           total: response.total,
           items: response.items.map((dto) => this.mapAlbum(dto)),
         }))
@@ -174,7 +174,7 @@ export class PhotoService {
     return this.http.get<AlbumModel>(`${this.apiBase}/albums/${id}`).pipe(
       switchMap((dto) => {
         console.log('Album: ', dto);
-        const rules = JSON.parse(dto.rules_json || '{ "photoIds": [] }');
+        const rules = JSON.parse(dto.rulesJson || '{ "photoIds": [] }');
         console.log('Rules: ', rules);
 
         return this.getAlbumPhotos(id, 1, 100).pipe(
@@ -202,7 +202,7 @@ export class PhotoService {
     console.log('Mapping photo page', response);
     return {
       page: response.page,
-      pageSize: response.page_size,
+      pageSize: response.pageSize,
       total: response.total,
       items: response.items.map((dto) => this.mapPhoto(dto)),
     };
@@ -216,34 +216,34 @@ export class PhotoService {
       format: dto.format ?? undefined,
       hash: dto.hash ?? undefined,
       size: dto.size ?? undefined,
-      createdAt: this.toDate(dto.created_at),
-      updatedAt: this.toDate(dto.updated_at),
-      dateImported: this.toDate(dto.date_imported),
-      dateTaken: this.toDate(dto.date_taken),
-      thumbnailPath: dto.thumbnail_path ?? undefined,
-      thumbnailOptimized: dto.thumbnail_optimized ?? undefined,
-      metadataExtracted: dto.metadata_extracted ?? undefined,
-      isRaw: dto.is_raw ?? undefined,
+      createdAt: this.toDate(dto.createdAt),
+      updatedAt: this.toDate(dto.updatedAt),
+      dateImported: this.toDate(dto.dateImported),
+      dateTaken: this.toDate(dto.dateTaken),
+      thumbnailPath: dto.thumbnailPath ?? undefined,
+      thumbnailOptimized: dto.thumbnailOptimized ?? undefined,
+      metadataExtracted: dto.metadataExtracted ?? undefined,
+      isRaw: dto.isRaw ?? undefined,
       width: dto.width ?? undefined,
       height: dto.height ?? undefined,
-      thumbnailWidth: dto.thumbnail_width ?? undefined,
-      thumbnailHeight: dto.thumbnail_height ?? undefined,
+      thumbnailWidth: dto.thumbnailWidth ?? undefined,
+      thumbnailHeight: dto.thumbnailHeight ?? undefined,
     };
   }
 
   private mapAlbum(dto: AlbumModel): Album {
     return {
       id: dto.id,
-      parentId: dto.parent_id ?? undefined,
+      parentId: dto.parentId ?? undefined,
       name: dto.name,
-      createDate: this.toDate(dto.create_date),
+      createDate: this.toDate(dto.createDate),
       description: dto.description ?? undefined,
       category: dto.category ?? undefined,
       kind: (dto.kind === 'smart' ? 'smart' : 'manual') as Album['kind'],
-      rulesJson: dto.rules_json ?? undefined,
-      thumbnailHash: dto.thumbnail_hash ?? undefined,
-      sortOrder: dto.sort_order ?? 0,
-      imageCount: dto.image_count ?? undefined,
+      rulesJson: dto.rulesJson ?? undefined,
+      thumbnailHash: dto.thumbnailHash ?? undefined,
+      sortOrder: dto.sortOrder ?? 0,
+      imageCount: dto.imageCount ?? undefined,
     };
   }
 

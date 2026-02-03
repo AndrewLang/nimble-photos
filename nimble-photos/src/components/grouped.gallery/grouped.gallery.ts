@@ -1,14 +1,14 @@
 import { Component, OnInit, signal, ViewChild, computed, ElementRef, effect } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { GroupedPhotos, Photo } from '../../models/photo.model';
+import { GroupedPhotos, Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
-import { JustifiedGalleryComponent } from '../justified-gallery/justified-gallery.component';
+import { JustifiedGalleryComponent } from '../justified.gallery/justified.gallery.component';
 
 @Component({
   selector: 'mtx-grouped-gallery',
   imports: [CommonModule, RouterModule, DatePipe, JustifiedGalleryComponent],
-  templateUrl: './grouped-gallery.html',
+  templateUrl: './grouped.gallery.html',
   host: {
     class: 'block flex-1 min-h-0',
   },

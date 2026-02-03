@@ -3,12 +3,12 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { first } from 'rxjs';
 import { PhotoService } from '../../services/photo.service';
-import { Photo } from '../../models/photo.model';
+import { Photo } from '../../models/photo';
 
 @Component({
     selector: 'mtx-photo-detail',
     imports: [CommonModule, RouterModule],
-    templateUrl: './photo-detail.component.html',
+    templateUrl: './photo.detail.component.html',
     host: {
         class: 'fixed inset-0 z-[100] bg-slate-950 flex flex-col',
     }

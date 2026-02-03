@@ -6,7 +6,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angu
 @Component({
     selector: 'mtx-forgot-password',
     imports: [CommonModule, RouterModule, FormsModule, ReactiveFormsModule],
-    templateUrl: './forgot-password.component.html',
+    templateUrl: './forgot.password.component.html',
     host: {
         class: 'flex flex-1 items-center justify-center p-6 bg-slate-950/40 relative overflow-hidden'
     }

@@ -32,6 +32,7 @@ impl AlbumKind {
 
 #[cfg_attr(feature = "postgres", derive(FromRow))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Album {
     pub id: Option<Uuid>,
     pub parent_id: Option<Uuid>,

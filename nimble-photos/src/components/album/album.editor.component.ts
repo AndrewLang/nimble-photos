@@ -1,14 +1,14 @@
 import { Component, Input, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Photo } from '../../models/photo.model';
+import { Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 
 @Component({
   selector: 'mtx-album-editor',
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule],
-  templateUrl: './album-editor.component.html'
+  templateUrl: './album.editor.component.html'
 })
 export class AlbumEditorComponent implements OnInit {
   @Input() photos: Photo[] = [];

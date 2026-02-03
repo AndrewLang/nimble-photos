@@ -3,13 +3,13 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
 import { first } from 'rxjs';
 import { PhotoService } from '../../services/photo.service';
-import { Album, Photo } from '../../models/photo.model';
+import { Album, Photo } from '../../models/photo';
 import { GalleryComponent } from '../gallery/gallery.component';
 
 @Component({
     selector: 'mtx-album-detail',
     imports: [CommonModule, RouterModule, DatePipe, GalleryComponent],
-    templateUrl: './album-detail.component.html',
+    templateUrl: './album.detail.component.html',
     host: {
         class: 'block flex-1 min-h-0',
     },

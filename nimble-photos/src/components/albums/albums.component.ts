@@ -2,7 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 import { PhotoService } from '../../services/photo.service';
-import { Album } from '../../models/photo.model';
+import { Album } from '../../models/photo';
 import { DatePipe } from '@angular/common';
 
 @Component({
@@ -29,5 +29,10 @@ export class AlbumsComponent implements OnInit {
             this.albums.set(result.items);
             this.loading.set(false);
         });
+    }
+
+    getThumbnailUrl(album: Album): string | null {
+        if (!album.thumbnailHash) return null;
+        return `${(this.photoService as any).apiBase}/photos/thumbnail/${album.thumbnailHash}`;
     }
 }

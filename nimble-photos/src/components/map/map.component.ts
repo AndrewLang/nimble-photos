@@ -4,7 +4,7 @@ import { RouterModule, Router } from '@angular/router';
 import { first } from 'rxjs';
 import * as L from 'leaflet';
 import { PhotoService } from '../../services/photo.service';
-import { Photo } from '../../models/photo.model';
+import { Photo } from '../../models/photo';
 
 @Component({
   selector: 'mtx-map',

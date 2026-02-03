@@ -4,7 +4,7 @@ import { RouterModule } from '@angular/router';
 import { ScrollingModule, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { first } from 'rxjs';
 
-import { GroupedPhotos, Photo } from '../../models/photo.model';
+import { GroupedPhotos, Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
 
@@ -20,7 +20,7 @@ type GalleryItem =
 @Component({
     selector: 'mtx-justified-gallery',
     imports: [CommonModule, RouterModule, ScrollingModule, DatePipe],
-    templateUrl: './justified-gallery.component.html',
+    templateUrl: './justified.gallery.component.html',
     host: {
         class: 'block h-full w-full overflow-hidden'
     }

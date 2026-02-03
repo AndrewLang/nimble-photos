@@ -6,8 +6,8 @@ import { SelectionService } from '../../services/selection.service';
 import { PhotoService } from '../../services/photo.service';
 import { AuthService } from '../../services/auth.service';
 import { DialogService } from '../../services/dialog.service';
-import { InfoDialog } from '../dialog/info-dialog.component';
-import { AlbumEditorComponent } from '../album/album-editor.component';
+import { InfoDialog } from '../dialog/info.dialog.component';
+import { AlbumEditorComponent } from '../album/album.editor.component';
 
 @Component({
   selector: 'mtx-header',
@@ -91,8 +91,8 @@ export class HeaderComponent implements OnInit {
         name: albumData.name,
         description: albumData.description,
         kind: 'manual',
-        rules_json: JSON.stringify({ photoIds: albumData.photoIds }),
-        sort_order: 0
+        rulesJson: JSON.stringify({ photoIds: albumData.photoIds }),
+        sortOrder: 0
       }).subscribe({
         next: (album) => {
           this.selectionService.clearSelection();

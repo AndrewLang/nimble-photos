@@ -14,6 +14,7 @@ use {
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Photo {
     pub id: Option<Uuid>,
     pub path: String,

@@ -13,6 +13,8 @@ use nimble_web::result::into_response::ResponseValue;
 use serde::Deserialize;
 use uuid::Uuid;
 
+use sqlx::PgPool;
+
 pub struct AlbumController;
 
 impl Controller for AlbumController {
@@ -23,6 +25,7 @@ impl Controller for AlbumController {
                 AlbumPhotosHandler,
             )
             .build(),
+            EndpointRoute::get("/api/albums/{page}/{pageSize}", ListAlbumsHandler).build(),
         ]
     }
 }
@@ -97,6 +100,54 @@ impl HttpHandler for AlbumPhotosHandler {
             "page_size": page_size,
             "total": total,
             "items": photos
+        });
+
+        Ok(ResponseValue::new(Json(response)))
+    }
+}
+
+struct ListAlbumsHandler;
+
+#[async_trait]
+impl HttpHandler for ListAlbumsHandler {
+    async fn invoke(
+        &self,
+        context: &mut HttpContext,
+    ) -> std::result::Result<ResponseValue, PipelineError> {
+        let pool = context.service::<PgPool>()?;
+        let route_params = context.route().map(|r| r.params());
+
+        let page: u32 = route_params
+            .and_then(|p| p.get("page"))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1);
+
+        let page_size: u32 = route_params
+            .and_then(|p| p.get("pageSize"))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(20);
+
+        let offset = if page > 0 { (page - 1) * page_size } else { 0 };
+
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM albums")
+            .fetch_one(&*pool)
+            .await
+            .map_err(|e| PipelineError::message(&format!("Failed to count albums: {:?}", e)))?;
+
+        let albums = sqlx::query_as::<_, Album>(
+            "SELECT * FROM albums ORDER BY create_date DESC LIMIT $1 OFFSET $2",
+        )
+        .bind(page_size as i64)
+        .bind(offset as i64)
+        .fetch_all(&*pool)
+        .await
+        .map_err(|e| PipelineError::message(&format!("Failed to fetch albums: {:?}", e)))?;
+
+        let response = serde_json::json!({
+            "page": page,
+            "pageSize": page_size,
+            "total": total,
+            "items": albums
         });
 
         Ok(ResponseValue::new(Json(response)))
