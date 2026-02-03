@@ -9,6 +9,8 @@ use sqlx::PgPool;
 #[async_trait]
 pub trait PhotoRepository: Send + Sync {
     async fn get_timeline(&self, limit: u32, offset: u32) -> DataResult<Vec<TimelineGroup>>;
+    async fn get_years(&self) -> DataResult<Vec<String>>;
+    async fn get_year_offset(&self, year: &str) -> DataResult<u32>;
 }
 
 pub struct PostgresPhotoRepository {
@@ -92,5 +94,54 @@ impl PhotoRepository for PostgresPhotoRepository {
         }
 
         Ok(timeline)
+    }
+
+    async fn get_years(&self) -> DataResult<Vec<String>> {
+        let sql = r#"
+            SELECT DISTINCT to_char(COALESCE(date_taken, created_at), 'YYYY') as year
+            FROM photos
+            ORDER BY year DESC
+        "#;
+
+        let rows = sqlx::query(sql)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DataError::Provider(e.to_string()))?;
+
+        let mut years = Vec::new();
+        for row in rows {
+            use sqlx::Row;
+            let year: String = row.try_get("year").unwrap_or_else(|_| "xxxx".to_string());
+            years.push(year);
+        }
+
+        Ok(years)
+    }
+
+    async fn get_year_offset(&self, year: &str) -> DataResult<u32> {
+        let sql = r#"
+            WITH day_groups AS (
+                SELECT DISTINCT to_char(COALESCE(date_taken, created_at), 'YYYY-MM-DD') as day
+                FROM photos
+            )
+            SELECT count(*) as offset
+            FROM day_groups
+            WHERE day > $1
+        "#;
+
+        let search_start = format!("{}-12-31", year); // We want items BEFORE this year (which are > in desc order)
+        // Wait, timeline is DESC. So years 2024, 2023, 2022.
+        // If I want 2022, I need to skip all 2024 and 2023.
+        // Those are days > '2022-12-31'.
+
+        let row = sqlx::query(sql)
+            .bind(search_start)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| DataError::Provider(e.to_string()))?;
+
+        use sqlx::Row;
+        let offset: i64 = row.try_get("offset").unwrap_or(0);
+        Ok(offset as u32)
     }
 }

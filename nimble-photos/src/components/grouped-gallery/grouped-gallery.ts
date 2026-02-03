@@ -17,13 +17,20 @@ export class GroupedGallery implements OnInit {
   @ViewChild(JustifiedGalleryComponent) gallery?: JustifiedGalleryComponent;
 
   readonly groups = signal<GroupedPhotos[]>([]);
+  readonly years = signal<string[]>([]);
   readonly activeGroupTitle = signal('');
+  readonly activeYear = signal('');
   readonly selectedPhotos = signal<Photo[]>([]);
 
   constructor(private readonly photoService: PhotoService) { }
 
   ngOnInit(): void {
-
+    this.photoService.getTimelineYears().subscribe(years => {
+      this.years.set(years);
+      if (years.length > 0 && !this.activeYear()) {
+        this.activeYear.set(years[0]);
+      }
+    });
   }
 
   getMonthName(monthStr: string): string {
@@ -42,7 +49,25 @@ export class GroupedGallery implements OnInit {
     if (this.gallery) {
       this.gallery?.scrollToTitle(title);
       this.activeGroupTitle.set(title);
+      const year = title.split('-')[0];
+      if (year) this.activeYear.set(year);
     }
+  }
+
+  scrollToYear(year: string): void {
+    const targetGroup = this.groups().find(g => g.title.startsWith(year));
+    if (targetGroup) {
+      this.scrollToGroup(targetGroup.title);
+    } else {
+      // Fetch the offset and jump
+      this.photoService.getTimelineYearOffset(year).subscribe(offset => {
+        if (this.gallery) {
+          // Tell the gallery to load specifically the page containing this offset
+          this.gallery.jumpToGroupOffset(offset, year);
+        }
+      });
+    }
+    this.activeYear.set(year);
   }
 
   onTimelineLoaded(groups: GroupedPhotos[]): void {
@@ -54,6 +79,8 @@ export class GroupedGallery implements OnInit {
 
   onActiveTitleChange(title: string): void {
     this.activeGroupTitle.set(title);
+    const year = title.split('-')[0];
+    if (year) this.activeYear.set(year);
   }
 
   onSelectionChange(photos: Photo[]): void {

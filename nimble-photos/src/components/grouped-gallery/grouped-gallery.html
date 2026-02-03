@@ -5,12 +5,21 @@
         </mtx-justified-gallery>
     </div>
 
-    <div class="timeline-ruler z-50">
+    <div class="timeline-ruler years-ruler z-50">
+        @for (year of years(); track year) {
+        <div class="timeline-year-item" [class.active]="activeYear() === year" (click)="scrollToYear(year)">
+            <span class="year-label">{{ year }}</span>
+            <div class="year-dot"></div>
+        </div>
+        }
+    </div>
+
+    <div class="timeline-ruler months-ruler z-40">
         @for (group of groups(); track group.title) {
         <div class="timeline-item" [class.active]="activeGroupTitle() === group.title"
-            (click)="scrollToGroup(group.title)">
-            <span class="timeline-year">{{ group.title.split('-')[0] }}</span>
+            (click)="scrollToGroup(group.title)" title="{{ group.title }}">
             <span class="timeline-month">{{ getMonthName(group.title.split('-')[1]) }}</span>
+            <span>{{ group.title.split('-')[2] }}</span>
             <div class="timeline-line"></div>
         </div>
         }

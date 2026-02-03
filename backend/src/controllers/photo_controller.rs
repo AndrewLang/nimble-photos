@@ -20,6 +20,9 @@ impl Controller for PhotoController {
         vec![
             EndpointRoute::get("/api/photos/thumbnail/{hash}", ThumbnailHandler).build(),
             EndpointRoute::get("/api/photos/timeline/{page}/{pageSize}", TimelineHandler).build(),
+            EndpointRoute::get("/api/photos/timeline/years", TimelineYearsHandler).build(),
+            EndpointRoute::get("/api/photos/timeline/year-offset/{year}", YearOffsetHandler)
+                .build(),
             EndpointRoute::post("/api/photos/scan", ScanPhotoHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
@@ -112,5 +115,54 @@ impl HttpHandler for TimelineHandler {
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::new(Json(timeline)))
+    }
+}
+
+struct TimelineYearsHandler;
+
+#[async_trait]
+impl HttpHandler for TimelineYearsHandler {
+    async fn invoke(
+        &self,
+        context: &mut HttpContext,
+    ) -> std::result::Result<ResponseValue, PipelineError> {
+        let repository = context
+            .services()
+            .resolve::<Box<dyn PhotoRepository>>()
+            .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
+
+        let years = repository
+            .get_years()
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(years)))
+    }
+}
+
+struct YearOffsetHandler;
+
+#[async_trait]
+impl HttpHandler for YearOffsetHandler {
+    async fn invoke(
+        &self,
+        context: &mut HttpContext,
+    ) -> std::result::Result<ResponseValue, PipelineError> {
+        let repository = context
+            .services()
+            .resolve::<Box<dyn PhotoRepository>>()
+            .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
+
+        let year = context
+            .route()
+            .and_then(|route| route.params().get("year"))
+            .ok_or_else(|| PipelineError::message("year parameter missing"))?;
+
+        let offset = repository
+            .get_year_offset(year)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(offset)))
     }
 }

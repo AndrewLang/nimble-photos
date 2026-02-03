@@ -162,6 +162,18 @@ export class PhotoService {
       );
   }
 
+  getTimelineYears(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiBase}/photos/timeline/years`).pipe(
+      catchError(() => of([]))
+    );
+  }
+
+  getTimelineYearOffset(year: string): Observable<number> {
+    return this.http.get<number>(`${this.apiBase}/photos/timeline/year-offset/${year}`).pipe(
+      catchError(() => of(0))
+    );
+  }
+
   getGroupedPhotos(
     groupIndex: number,
     pageInGroup: number = 1,

@@ -50,7 +50,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     }
 
     readonly containerWidth = signal<number>(0);
-    readonly targetHeight = signal<number>(240);
+    readonly targetHeight = signal<number>(180);
     readonly gap = signal<number>(6);
     readonly isFetching = signal(false);
     readonly totalPhotos = signal(0);
@@ -225,6 +225,36 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
                         }, 100);
                     });
                 }
+            });
+    }
+
+    jumpToGroupOffset(offset: number, yearLabel?: string) {
+        if (this.isFetching()) return;
+
+        // If offset is already within loaded groups, just scroll
+        const currentGroupsCount = this._timeline().length;
+        if (offset < currentGroupsCount) {
+            const title = yearLabel ? yearLabel : '';
+            const target = this._timeline().find(g => g.title.startsWith(title));
+            if (target) this.scrollToTitle(target.title);
+            return;
+        }
+
+        // Otherwise, fetch more until we reach or pass the offset
+        this.isFetching.set(true);
+        this.photoService.getTimeline(this.currentPage, this.pageSize)
+            .pipe(first())
+            .subscribe(groups => {
+                this.isFetching.set(false);
+                if (groups.length < this.pageSize) this.hasMore = false;
+
+                this._timeline.update(current => [...current, ...groups]);
+                this.currentPage++;
+                this.totalPhotos.set(this._timeline().reduce((acc, g) => acc + g.photos.total, 0));
+                this.timelineLoaded.emit(this._timeline());
+
+                // Recursively jump until found
+                this.jumpToGroupOffset(offset, yearLabel);
             });
     }
 
