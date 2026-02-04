@@ -16,6 +16,7 @@
     @for (photo of photos(); track photo.id) {
     <article (click)="isSelectionMode() ? togglePhotoSelection(photo, $event) : null"
       [routerLink]="!isSelectionMode() ? (albumId ? ['/album', albumId, 'photo', photo.id] : ['/photo', photo.id]) : null"
+      [state]="!isSelectionMode() ? { returnUrl: router.url } : undefined"
       class="photo-card relative group cursor-pointer transition-all duration-300"
       [class.translate-y-[-4px]]="isSelected(photo.id)" [class.z-10]="isSelected(photo.id)">
 

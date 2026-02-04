@@ -1,6 +1,6 @@
 import { Component, OnInit, signal, computed, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 
 import { Photo, PagedPhotos } from '../../models/photo';
@@ -48,7 +48,8 @@ export class GalleryComponent implements OnInit {
 
   constructor(
     private readonly photoService: PhotoService,
-    private readonly selectionService: SelectionService
+    private readonly selectionService: SelectionService,
+    public readonly router: Router
   ) { }
 
   ngOnInit(): void {

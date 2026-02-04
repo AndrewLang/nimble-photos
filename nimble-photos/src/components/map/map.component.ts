@@ -188,9 +188,9 @@ export class MapComponent implements OnInit, OnDestroy {
         gridImages.forEach(img => {
           img.addEventListener('click', (e) => {
             const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-            if (id) {
-              this.router.navigate(['/photo', id]);
-            }
+              if (id) {
+                this.router.navigate(['/photo', id], { state: { returnUrl: this.router.url } });
+              }
           });
         });
       });

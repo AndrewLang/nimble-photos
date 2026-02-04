@@ -1,4 +1,4 @@
-import { CommonModule, Location } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
@@ -26,15 +26,20 @@ export class PhotoDetailComponent implements OnInit {
     ]);
 
     private albumId: string | null = null;
+    private returnUrl = '/';
 
     constructor(
         private readonly route: ActivatedRoute,
         private readonly router: Router,
-        private readonly location: Location,
         private readonly photoService: PhotoService
     ) { }
 
     ngOnInit(): void {
+        const initialAlbumId = this.route.snapshot.paramMap.get('albumId');
+        this.albumId = initialAlbumId;
+        const navigationState = this.router.getCurrentNavigation()?.extras.state as { returnUrl?: string } | undefined;
+        this.returnUrl = navigationState?.returnUrl ?? this.buildDefaultReturnUrl(initialAlbumId);
+
         this.route.paramMap.subscribe(params => {
             const id = params.get('id');
             this.albumId = params.get('albumId');
@@ -97,21 +102,16 @@ export class PhotoDetailComponent implements OnInit {
         const commands = this.albumId
             ? ['/album', this.albumId, 'photo', id]
             : ['/photo', id];
-        this.router.navigate(commands);
+        this.router.navigate(commands, { state: { returnUrl: this.returnUrl } });
     }
 
     close(): void {
-        const canGoBack = typeof window !== 'undefined' && window.history.length > 1;
-        if (canGoBack) {
-            this.location.back();
-            return;
-        }
+        const target = this.returnUrl ?? this.buildDefaultReturnUrl(this.albumId);
+        this.router.navigateByUrl(target);
+    }
 
-        if (this.albumId) {
-            this.router.navigate(['/album', this.albumId]);
-        } else {
-            this.router.navigate(['/']);
-        }
+    private buildDefaultReturnUrl(albumId: string | null): string {
+        return albumId ? `/album/${albumId}` : '/';
     }
 
     formatBytes(size?: number): string {

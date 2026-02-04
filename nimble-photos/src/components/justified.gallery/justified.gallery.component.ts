@@ -1,6 +1,6 @@
 import { Component, ElementRef, HostListener, OnInit, ViewChild, signal, computed, AfterViewInit, Output, EventEmitter, Input } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { ScrollingModule, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { first } from 'rxjs';
 
@@ -149,7 +149,8 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
 
     constructor(
         private readonly photoService: PhotoService,
-        private readonly selectionService: SelectionService
+        private readonly selectionService: SelectionService,
+        public readonly router: Router
     ) { }
 
     ngOnInit() {

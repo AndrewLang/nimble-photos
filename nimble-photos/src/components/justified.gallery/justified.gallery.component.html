@@ -53,6 +53,7 @@
           @for (photo of item.row.photos; track photo.id; let lastPhoto = $last) {
           <article (click)="isSelectionMode() ? togglePhotoSelection(photo, $event) : null"
             [routerLink]="!isSelectionMode() ? (albumId ? ['/album', albumId, 'photo', photo.id] : ['/photo', photo.id]) : null"
+            [state]="!isSelectionMode() ? { returnUrl: router.url } : undefined"
             class="photo-item relative group cursor-pointer overflow-hidden rounded-sm bg-slate-900/50 transition-all duration-300 h-full"
             [style.width.px]="getPhotoWidth(photo, item.row.height)" [class.mr-[6px]]="!lastPhoto"
             [class.z-10]="isSelected(photo.id)">
