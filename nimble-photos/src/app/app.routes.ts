@@ -10,5 +10,6 @@ export const routes: Routes = [
     { path: 'register', loadComponent: () => import('../components/auth/register.component').then(m => m.RegisterComponent) },
     { path: 'forgot-password', loadComponent: () => import('../components/auth/forgot.password.component').then(m => m.ForgotPasswordComponent) },
     { path: 'map', loadComponent: () => import('../components/map/map.component').then(m => m.MapComponent) },
+    { path: 'dashboard', loadComponent: () => import('../components/dashboard/dashboard.component').then(m => m.DashboardComponent) },
     { path: 'all', loadComponent: () => import('../components/gallery/gallery.component').then(m => m.GalleryComponent) },
 ];

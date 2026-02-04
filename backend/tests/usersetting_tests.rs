@@ -19,6 +19,7 @@ fn user_settings_and_profile_dto_conversion() {
         reset_token_expires_at: None,
         verification_token: None,
         email_verified: false,
+        roles: None,
     };
 
     let settings = UserSettings {

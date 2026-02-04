@@ -189,7 +189,7 @@ async fn refresh_with_valid_token_returns_new_tokens() {
         .await
         .unwrap();
 
-    let result = service.refresh(&register_response.refresh_token);
+    let result = service.refresh(&register_response.refresh_token).await;
 
     assert!(result.is_ok());
     let response = result.unwrap();
@@ -201,7 +201,7 @@ async fn refresh_with_valid_token_returns_new_tokens() {
 async fn refresh_with_invalid_token_returns_error() {
     let service = create_auth_service();
 
-    let result = service.refresh("invalid-token");
+    let result = service.refresh("invalid-token").await;
 
     assert!(result.is_err());
 }
@@ -235,6 +235,7 @@ async fn me_returns_user_for_valid_user_id() {
         reset_token_expires_at: None,
         verification_token: None,
         email_verified: false,
+        roles: None,
     };
 
     repo.insert(user.clone()).await.unwrap();

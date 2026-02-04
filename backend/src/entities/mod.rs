@@ -6,6 +6,7 @@ use nimble_web::data::memory_repository::MemoryRepository;
 use nimble_web::*;
 use photo::Photo;
 use photo_comment::PhotoComment;
+use setting::Setting;
 use user::User;
 use user_settings::UserSettings;
 use uuid_id::EnsureUuidIdHooks;
@@ -18,6 +19,7 @@ pub mod album_hooks;
 pub mod exif;
 pub mod photo;
 pub mod photo_comment;
+pub mod setting;
 pub mod user;
 pub mod user_settings;
 pub mod uuid_id;
@@ -95,6 +97,10 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let provider = MemoryRepository::<PhotoComment>::new();
             Repository::<PhotoComment>::new(Box::new(provider))
         });
+        builder.register_singleton(|_| {
+            let provider = MemoryRepository::<Setting>::new();
+            Repository::<Setting>::new(Box::new(provider))
+        });
     }
 
     #[cfg(feature = "postgres")]
@@ -149,6 +155,11 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let provider = PostgresProvider::<AlbumComment>::new((*pool).clone());
             Repository::<AlbumComment>::new(Box::new(provider))
         });
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<Setting>::new((*pool).clone());
+            Repository::<Setting>::new(Box::new(provider))
+        });
     }
 
     builder
@@ -174,6 +185,7 @@ pub async fn migrate_entities(app: &Application) {
         let _ = app.migrate_entity::<ExifModel>().await;
         let _ = app.migrate_entity::<PhotoComment>().await;
         let _ = app.migrate_entity::<AlbumComment>().await;
+        let _ = app.migrate_entity::<Setting>().await;
 
         log::info!("Creating additional indices for performance...");
         let sqls = [

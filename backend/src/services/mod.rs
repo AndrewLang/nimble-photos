@@ -2,15 +2,17 @@ pub mod auth_service;
 pub mod encrypt_service;
 pub mod id_generation_service;
 pub mod photo_service;
+pub mod setting_service;
 
 pub use auth_service::AuthService;
 pub use encrypt_service::EncryptService;
 pub use id_generation_service::IdGenerationService;
 pub use photo_service::PhotoService;
+pub use setting_service::SettingService;
 
 use std::sync::Arc;
 
-use crate::entities::{user::User, user_settings::UserSettings};
+use crate::entities::{setting::Setting, user::User, user_settings::UserSettings};
 use nimble_web::AppBuilder;
 use nimble_web::config::Configuration;
 use nimble_web::data::repository::Repository;
@@ -51,6 +53,11 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
             (*encrypt).clone(),
             tokens.as_ref().clone(),
         )
+    });
+
+    builder.register_singleton(|provider| {
+        let settings_repo = provider.get::<Repository<Setting>>();
+        SettingService::new(settings_repo)
     });
 
     builder
