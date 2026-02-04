@@ -2,10 +2,10 @@
 import { Injectable, signal } from '@angular/core';
 import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 
-import { Album, GroupedPhotos, PagedPhotos, Photo, PhotoComment, PhotoLoc, PhotoMetadata } from '../models/photo';
 import { AlbumModel } from '../models/album.model';
-import { PagedResponseModel } from '../models/paged.response.model';
 import { PagedAlbumsModel } from '../models/paged.albums.model';
+import { PagedModel } from '../models/paged.response.model';
+import { Album, AlbumComment, GroupedPhotos, PagedPhotos, Photo, PhotoComment, PhotoLoc, PhotoMetadata } from '../models/photo';
 
 
 type DateFieldKey = 'createdAt' | 'updatedAt' | 'dateImported' | 'dateTaken';
@@ -37,7 +37,7 @@ export class PhotoService {
 
   getPhotos(page = 1, pageSize = 56): Observable<PagedPhotos> {
     return this.http
-      .get<PagedResponseModel<PhotoResponse>>(`${this.apiBase}/photos/${page}/${pageSize}`)
+      .get<PagedModel<PhotoResponse>>(`${this.apiBase}/photos/${page}/${pageSize}`)
       .pipe(map((response) => this.mapPhotoPage(response)));
   }
 
@@ -52,6 +52,32 @@ export class PhotoService {
     return this.http
       .get<PhotoMetadata | null>(`${this.apiBase}/photos/${id}/metadata`)
       .pipe(catchError(() => of(null)));
+  }
+
+  getAlbumComments(albumId: string): Observable<PagedModel<AlbumComment>> {
+    return this.http
+      .get<PagedModel<AlbumComment>>(`${this.apiBase}/albums/${albumId}/comments`)
+      .pipe(
+        catchError(() =>
+          of({
+            page: 1,
+            pageSize: 0,
+            total: 0,
+            items: [],
+          }),
+        ),
+      );
+  }
+
+  createAlbumComment(albumId: string, comment: string): Observable<AlbumComment> {
+    return this.http.post<AlbumComment>(`${this.apiBase}/albums/${albumId}/comments`, { comment });
+  }
+
+  updateAlbumCommentVisibility(albumId: string, commentId: string, hidden: boolean): Observable<AlbumComment> {
+    return this.http.patch<AlbumComment>(
+      `${this.apiBase}/albums/${albumId}/comments/${commentId}/visibility`,
+      { hidden },
+    );
   }
 
   getPhotoComments(photoId: string): Observable<PhotoComment[]> {
@@ -125,7 +151,7 @@ export class PhotoService {
     }
 
     return this.http
-      .get<{ title: string; photos: PagedResponseModel<PhotoResponse> }[]>(`${this.apiBase}/photos/timeline/${page}/${pageSize}`)
+      .get<{ title: string; photos: PagedModel<PhotoResponse> }[]>(`${this.apiBase}/photos/timeline/${page}/${pageSize}`)
       .pipe(
         map((groups) =>
           groups.map((g) => ({
@@ -190,7 +216,7 @@ export class PhotoService {
 
   getAlbums(page = 1, pageSize = 12): Observable<PagedAlbumsModel> {
     return this.http
-      .get<PagedResponseModel<AlbumModel>>(`${this.apiBase}/albums/${page}/${pageSize}`)
+      .get<PagedModel<AlbumModel>>(`${this.apiBase}/albums/${page}/${pageSize}`)
       .pipe(
         map((response) => ({
           page: response.page,
@@ -238,14 +264,14 @@ export class PhotoService {
 
   getAlbumPhotos(albumId: string, page = 1, pageSize = 20): Observable<PagedPhotos | null> {
     return this.http
-      .get<PagedResponseModel<PhotoResponse>>(`${this.apiBase}/albums/${albumId}/photos/${page}/${pageSize}`)
+      .get<PagedModel<PhotoResponse>>(`${this.apiBase}/albums/${albumId}/photos/${page}/${pageSize}`)
       .pipe(
         map((response) => this.mapPhotoPage(response)),
         catchError(() => of(null))
       );
   }
 
-  private mapPhotoPage(response: PagedResponseModel<PhotoResponse>): PagedPhotos {
+  private mapPhotoPage(response: PagedModel<PhotoResponse>): PagedPhotos {
     return {
       page: response.page,
       pageSize: response.pageSize,
@@ -296,7 +322,7 @@ export class PhotoService {
 
   getPhotosWithGps(page = 1, pageSize = 100): Observable<{ page: number, pageSize: number, total: number, items: PhotoLoc[] }> {
     return this.http
-      .get<PagedResponseModel<PhotoLocResponse>>(`${this.apiBase}/photos/with-gps/${page}/${pageSize}`)
+      .get<PagedModel<PhotoLocResponse>>(`${this.apiBase}/photos/with-gps/${page}/${pageSize}`)
       .pipe(
         map((response) => ({
           page: response.page,

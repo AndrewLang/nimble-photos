@@ -1,10 +1,11 @@
 use album::Album;
+use album_comment::AlbumComment;
 use exif::ExifModel;
-use photo_comment::PhotoComment;
 #[cfg(not(feature = "postgres"))]
 use nimble_web::data::memory_repository::MemoryRepository;
 use nimble_web::*;
 use photo::Photo;
+use photo_comment::PhotoComment;
 use user::User;
 use user_settings::UserSettings;
 use uuid_id::EnsureUuidIdHooks;
@@ -12,6 +13,7 @@ use uuid_id::EnsureUuidIdHooks;
 use crate::repositories::photo::PhotoRepository;
 
 pub mod album;
+pub mod album_comment;
 pub mod album_hooks;
 pub mod exif;
 pub mod photo;
@@ -55,6 +57,15 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             EntityOperation::List,
             EntityOperation::Get,
             EntityOperation::Create,
+        ],
+    );
+    builder.use_entity_with_hooks(
+        EnsureUuidIdHooks::<AlbumComment>::new(),
+        &[
+            EntityOperation::List,
+            EntityOperation::Get,
+            EntityOperation::Create,
+            EntityOperation::Update,
         ],
     );
 
@@ -133,6 +144,11 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let provider = PostgresProvider::<PhotoComment>::new((*pool).clone());
             Repository::<PhotoComment>::new(Box::new(provider))
         });
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<AlbumComment>::new((*pool).clone());
+            Repository::<AlbumComment>::new(Box::new(provider))
+        });
     }
 
     builder
@@ -157,6 +173,7 @@ pub async fn migrate_entities(app: &Application) {
         let _ = app.migrate_entity::<Album>().await;
         let _ = app.migrate_entity::<ExifModel>().await;
         let _ = app.migrate_entity::<PhotoComment>().await;
+        let _ = app.migrate_entity::<AlbumComment>().await;
 
         log::info!("Creating additional indices for performance...");
         let sqls = [
@@ -165,6 +182,7 @@ pub async fn migrate_entities(app: &Application) {
             "CREATE INDEX IF NOT EXISTS idx_photos_sort_date_v2 ON photos ((DATE(COALESCE(date_taken, created_at) AT TIME ZONE 'UTC')))",
             "CREATE INDEX IF NOT EXISTS idx_exifs_image_id ON exifs (image_id)",
             "CREATE INDEX IF NOT EXISTS idx_photo_comments_photo_id ON photo_comments (photo_id)",
+            "CREATE INDEX IF NOT EXISTS idx_album_comments_album_id ON album_comments (album_id)",
         ];
 
         for sql in sqls {

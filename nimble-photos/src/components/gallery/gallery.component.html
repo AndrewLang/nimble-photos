@@ -2,8 +2,7 @@
   (scroll)="onScroll($event)">
   @if (showHeader) {
   <header class="mb-12 px-2">
-    <h1
-      class="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+    <h1 class="text-4xl font-bold tracking-tight bg-linear-to-r from-white to-slate-400 bg-clip-text text-transparent">
       Library
     </h1>
     <p class="text-slate-500 text-sm mt-1 uppercase tracking-widest font-medium">
@@ -55,7 +54,6 @@
     }
   </div>
 
-  <!-- Loading State -->
   @if (isFetching()) {
   <div class="flex flex-col items-center justify-center py-20 gap-4">
     <div class="flex gap-1.5">
@@ -67,10 +65,9 @@
   </div>
   }
 
-  <!-- End of Library -->
   @if (!isFetching() && photos().length >= totalPhotos() && totalPhotos() > 0) {
   <div class="flex flex-col items-center justify-center py-24 px-4 text-center">
-    <div class="h-px w-24 bg-gradient-to-r from-transparent via-slate-800 to-transparent mb-8"></div>
+    <div class="h-px w-24 bg-linear-to-r from-transparent via-slate-800 to-transparent mb-8"></div>
     <div class="relative">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-800" fill="none" viewBox="0 0 24 24"
         stroke="currentColor">

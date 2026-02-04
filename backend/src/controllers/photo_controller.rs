@@ -14,9 +14,7 @@ use crate::repositories::photo::PhotoRepository;
 use nimble_web::DataProvider;
 use nimble_web::Repository;
 use nimble_web::controller::controller::Controller;
-use nimble_web::data::query::{
-    Filter, FilterOperator, Query, Sort, SortDirection, Value,
-};
+use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection, Value};
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
@@ -246,7 +244,9 @@ impl HttpHandler for PhotoCommentsHandler {
             direction: SortDirection::Desc,
         });
 
-        let comments_page = repository.query(query).await
+        let comments_page = repository
+            .query(query)
+            .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
         let comments = comments_page
             .items
@@ -288,8 +288,8 @@ impl HttpHandler for CreatePhotoCommentHandler {
         let identity = context
             .get::<IdentityContext>()
             .ok_or_else(|| PipelineError::message("identity not found"))?;
-        let user_id =
-            Uuid::parse_str(identity.identity().subject()).map_err(|_| PipelineError::message("invalid identity"))?;
+        let user_id = Uuid::parse_str(identity.identity().subject())
+            .map_err(|_| PipelineError::message("invalid identity"))?;
 
         let settings_repo = context.service::<Repository<UserSettings>>()?;
         let display_name = settings_repo

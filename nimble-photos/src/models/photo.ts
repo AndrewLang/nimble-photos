@@ -123,6 +123,16 @@ export interface PhotoComment {
   createdAt: string;
 }
 
+export interface AlbumComment {
+  id: string;
+  albumId: string;
+  userId: string;
+  userDisplayName?: string;
+  body: string;
+  createdAt: string;
+  hidden: boolean;
+}
+
 export interface PagedPhotos {
   page: number;
   pageSize: number;

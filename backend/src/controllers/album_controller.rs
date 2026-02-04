@@ -1,21 +1,30 @@
+use crate::dtos::album_comment_dto::AlbumCommentDto;
 use crate::entities::album::Album;
+use crate::entities::album_comment::AlbumComment;
+use crate::entities::user_settings::UserSettings;
 use crate::repositories::photo::PhotoRepository;
 use async_trait::async_trait;
+use chrono::Utc;
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
+use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection, Value};
 use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
+use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
+use nimble_web::security::policy::Policy;
 use serde::Deserialize;
+use serde_json::json;
+use sqlx::PgPool;
 use uuid::Uuid;
 
-use sqlx::PgPool;
-
 pub struct AlbumController;
+
+const MAX_COMMENT_LENGTH: usize = 1024;
 
 impl Controller for AlbumController {
     fn routes() -> Vec<EndpointRoute> {
@@ -26,6 +35,16 @@ impl Controller for AlbumController {
             )
             .build(),
             EndpointRoute::get("/api/albums/{page}/{pageSize}", ListAlbumsHandler).build(),
+            EndpointRoute::get("/api/albums/{id}/comments", AlbumCommentsHandler).build(),
+            EndpointRoute::post("/api/albums/{id}/comments", CreateAlbumCommentHandler)
+                .with_policy(Policy::Authenticated)
+                .build(),
+            EndpointRoute::put(
+                "/api/albums/{albumId}/comments/{commentId}/visibility",
+                UpdateAlbumCommentVisibilityHandler,
+            )
+            .with_policy(Policy::InRole("admin".to_string()))
+            .build(),
         ]
     }
 }
@@ -151,5 +170,191 @@ impl HttpHandler for ListAlbumsHandler {
         });
 
         Ok(ResponseValue::new(Json(response)))
+    }
+}
+
+struct AlbumCommentsHandler;
+
+#[async_trait]
+impl HttpHandler for AlbumCommentsHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let album_id_param = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        let album_id = Uuid::parse_str(album_id_param)
+            .map_err(|_| PipelineError::message("invalid album id"))?;
+
+        let repository = context.service::<Repository<AlbumComment>>()?;
+
+        let mut query = Query::<AlbumComment>::new();
+        query.filters.push(Filter {
+            field: "album_id".to_string(),
+            operator: FilterOperator::Eq,
+            value: Value::Uuid(album_id),
+        });
+        query.sorting.push(Sort {
+            field: "created_at".to_string(),
+            direction: SortDirection::Desc,
+        });
+
+        let comments_page = repository
+            .query(query)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        let identity_context = context.get::<IdentityContext>();
+        let is_admin = identity_context
+            .as_ref()
+            .map(|ctx| ctx.identity().claims().roles().contains("admin"))
+            .unwrap_or(false);
+        let current_user_id = identity_context
+            .as_ref()
+            .and_then(|ctx| Uuid::parse_str(ctx.identity().subject()).ok());
+
+        let visible_comments = comments_page
+            .items
+            .into_iter()
+            .filter(|comment| {
+                if !comment.hidden {
+                    return true;
+                }
+                if is_admin {
+                    return true;
+                }
+                if let Some(user_id) = current_user_id {
+                    return comment.user_id == Some(user_id);
+                }
+                false
+            })
+            .collect::<Vec<_>>();
+
+        let total = visible_comments.len();
+        let response = json!({
+            "page": 1,
+            "pageSize": total,
+            "total": total,
+            "items": visible_comments.into_iter().map(AlbumCommentDto::from).collect::<Vec<_>>(),
+        });
+
+        Ok(ResponseValue::new(Json(response)))
+    }
+}
+
+#[derive(Deserialize)]
+struct CreateAlbumCommentPayload {
+    comment: String,
+}
+
+struct CreateAlbumCommentHandler;
+
+#[async_trait]
+impl HttpHandler for CreateAlbumCommentHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload = context
+            .read_json::<CreateAlbumCommentPayload>()
+            .map_err(|e| PipelineError::message(e.message()))?;
+
+        let trimmed = payload.comment.trim();
+        if trimmed.is_empty() {
+            return Err(PipelineError::message("Comment cannot be empty"));
+        }
+        if trimmed.chars().count() > MAX_COMMENT_LENGTH {
+            return Err(PipelineError::message(&format!(
+                "Comment must be {} characters or fewer",
+                MAX_COMMENT_LENGTH
+            )));
+        }
+
+        let album_id_param = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        let album_id = Uuid::parse_str(album_id_param)
+            .map_err(|e| PipelineError::message(&format!("invalid album id: {}", e)))?;
+
+        let identity = context
+            .get::<IdentityContext>()
+            .ok_or_else(|| PipelineError::message("identity not found"))?;
+        let user_id = Uuid::parse_str(identity.identity().subject())
+            .map_err(|_| PipelineError::message("invalid identity"))?;
+
+        let settings_repo = context.service::<Repository<UserSettings>>()?;
+        let display_name = settings_repo
+            .get(&user_id.to_string())
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
+            .map(|settings| settings.display_name)
+            .unwrap_or_else(|| "Anonymous".to_string());
+
+        let mut new_comment = AlbumComment::default();
+        new_comment.id = Some(Uuid::new_v4());
+        new_comment.album_id = Some(album_id);
+        new_comment.user_id = Some(user_id);
+        new_comment.user_display_name = Some(display_name);
+        new_comment.body = Some(trimmed.to_string());
+        new_comment.created_at = Some(Utc::now());
+        new_comment.hidden = false;
+
+        let repository = context.service::<Repository<AlbumComment>>()?;
+        let saved = repository
+            .insert(new_comment)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(AlbumCommentDto::from(saved))))
+    }
+}
+
+#[derive(Deserialize)]
+struct UpdateAlbumCommentVisibilityPayload {
+    hidden: bool,
+}
+
+struct UpdateAlbumCommentVisibilityHandler;
+
+#[async_trait]
+impl HttpHandler for UpdateAlbumCommentVisibilityHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let route_params = context.route().map(|route| route.params());
+
+        let album_id_param = route_params
+            .as_ref()
+            .and_then(|params| params.get("albumId"))
+            .ok_or_else(|| PipelineError::message("albumId parameter missing"))?;
+        let album_id = Uuid::parse_str(album_id_param)
+            .map_err(|_| PipelineError::message("invalid album id"))?;
+
+        let comment_id_param = route_params
+            .and_then(|params| params.get("commentId"))
+            .ok_or_else(|| PipelineError::message("commentId parameter missing"))?;
+        let comment_id = Uuid::parse_str(comment_id_param)
+            .map_err(|_| PipelineError::message("invalid comment id"))?;
+
+        let payload = context
+            .read_json::<UpdateAlbumCommentVisibilityPayload>()
+            .map_err(|e| PipelineError::message(e.message()))?;
+
+        let repository = context.service::<Repository<AlbumComment>>()?;
+        let mut comment = repository
+            .get(&comment_id)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
+            .ok_or_else(|| PipelineError::message("Comment not found"))?;
+
+        if comment.album_id != Some(album_id) {
+            return Err(PipelineError::message(
+                "Comment does not belong to the supplied album",
+            ));
+        }
+
+        comment.hidden = payload.hidden;
+
+        let saved = repository
+            .update(comment)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(AlbumCommentDto::from(saved))))
     }
 }

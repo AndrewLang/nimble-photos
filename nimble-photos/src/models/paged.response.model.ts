@@ -1,4 +1,4 @@
-export interface PagedResponseModel<T> {
+export interface PagedModel<T> {
     items: T[];
     total: number;
     page: number;

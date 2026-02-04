@@ -1,14 +1,17 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
-import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
-import { PhotoService } from '../../services/photo.service';
+import { PagedModel } from '../../models/paged.response.model';
+import { Album, AlbumComment, Photo } from '../../models/photo';
 import { AuthService } from '../../services/auth.service';
 import { DialogService } from '../../services/dialog.service';
-import { Album, Photo } from '../../models/photo';
-import { GalleryComponent } from '../gallery/gallery.component';
+import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
+import { GalleryComponent } from '../gallery/gallery.component';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm-dialog.component';
+
+const MAX_COMMENT_LENGTH = 1024;
 
 @Component({
     selector: 'mtx-album-detail',
@@ -30,16 +33,28 @@ export class AlbumDetailComponent implements OnInit {
     readonly loading = signal(false);
     readonly isDeleting = signal(false);
     readonly isEditMode = signal(false);
-
     readonly selectedCount = computed(() => this.selectionService.selectedCount());
-
     readonly isAdmin = computed(() => this.authService.isAdmin());
-
     readonly albumPhotos = computed<Photo[]>(() => {
         return this.album()?.photos?.items ?? [];
     });
 
+    readonly albumComments = signal<PagedModel<AlbumComment> | null>(null);
+    readonly commentsLoading = signal(false);
+    readonly commentsError = signal<string | null>(null);
+    readonly commentDraft = signal('');
+    readonly commentSaving = signal(false);
+    readonly commentError = signal<string | null>(null);
+    readonly commentEditorVisible = signal(false);
+    readonly maxCommentLength = MAX_COMMENT_LENGTH;
+    readonly isAuthenticated = computed(() => this.authService.isAuthenticated());
+    readonly sidebarOpen = signal(false);
+
     constructor() { }
+
+    get albumCommentsList(): AlbumComment[] {
+        return this.albumComments()?.items ?? [];
+    }
 
     ngOnInit(): void {
         this.route.paramMap.subscribe(params => {
@@ -49,7 +64,6 @@ export class AlbumDetailComponent implements OnInit {
             }
         });
 
-        // Clear selection when entering album detail
         this.selectionService.clearSelection();
     }
 
@@ -57,6 +71,12 @@ export class AlbumDetailComponent implements OnInit {
         this.loading.set(true);
         this.photoService.getAlbumById(id).pipe(first()).subscribe(result => {
             this.album.set(result);
+            if (result?.id) {
+                this.loadAlbumComments(result.id);
+            } else {
+                this.albumComments.set(null);
+            }
+            this.commentEditorVisible.set(false);
             this.loading.set(false);
         });
     }
@@ -75,6 +95,104 @@ export class AlbumDetailComponent implements OnInit {
             return `${photo.width} / ${photo.height}`;
         }
         return '4 / 3';
+    }
+
+    handleCommentInput(event: Event): void {
+        const target = event.target as HTMLTextAreaElement;
+        this.commentDraft.set(target.value.slice(0, MAX_COMMENT_LENGTH));
+    }
+
+    saveAlbumComment(): void {
+        const album = this.album();
+        if (!album || !this.authService.isAuthenticated()) {
+            return;
+        }
+
+        const trimmed = this.commentDraft().trim();
+        if (trimmed.length === 0 || trimmed.length > MAX_COMMENT_LENGTH) {
+            this.commentError.set(`Comment must be between 1 and ${MAX_COMMENT_LENGTH} characters.`);
+            return;
+        }
+
+        this.commentSaving.set(true);
+        this.commentError.set(null);
+
+        this.photoService.createAlbumComment(album.id, trimmed)
+            .pipe(first())
+            .subscribe({
+                next: () => {
+                    this.commentSaving.set(false);
+                    this.commentDraft.set('');
+                    this.commentEditorVisible.set(false);
+                    this.loadAlbumComments(album.id);
+                },
+                error: () => {
+                    this.commentSaving.set(false);
+                    this.commentError.set('Unable to save your comment.');
+                }
+            });
+    }
+
+    toggleCommentEditor(): void {
+        if (!this.authService.isAuthenticated()) {
+            return;
+        }
+        this.commentEditorVisible.update(value => !value);
+    }
+
+    toggleSidebar(): void {
+        this.sidebarOpen.update(value => !value);
+    }
+
+    private loadAlbumComments(albumId: string): void {
+        this.commentsLoading.set(true);
+        this.commentsError.set(null);
+        this.photoService.getAlbumComments(albumId)
+            .pipe(first())
+            .subscribe({
+                next: comments => {
+                    console.log('Loaded comments for album', albumId, comments);
+                    this.albumComments.set(comments);
+                    this.commentsLoading.set(false);
+                    const hasComments = (comments?.items.length ?? 0) > 0;
+                    this.sidebarOpen.set(hasComments);
+                },
+                error: () => {
+                    this.albumComments.set(null);
+                    this.commentsLoading.set(false);
+                    this.commentsError.set('Failed to load comments.');
+                    this.sidebarOpen.set(false);
+                }
+            });
+    }
+
+    hideAlbumComment(comment: AlbumComment): void {
+        const album = this.album();
+        if (!album) {
+            return;
+        }
+
+        this.photoService.updateAlbumCommentVisibility(album.id, comment.id, !comment.hidden)
+            .pipe(first())
+            .subscribe({
+                next: () => this.loadAlbumComments(album.id),
+                error: () => console.error('Failed to update comment visibility'),
+            });
+    }
+
+    formatCommentDate(value?: string): string {
+        if (!value) {
+            return '';
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return value;
+        }
+        return parsed.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+        });
     }
 
     removeSelectedPhotos(): void {
