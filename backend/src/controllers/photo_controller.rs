@@ -1,10 +1,15 @@
 use async_trait::async_trait;
 use std::path::Path;
 use std::result::Result;
+use uuid::Uuid;
 
+use crate::entities::exif::ExifModel;
 use crate::repositories::photo::PhotoRepository;
 
+use nimble_web::DataProvider;
+use nimble_web::Repository;
 use nimble_web::controller::controller::Controller;
+use nimble_web::data::query::Value;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
@@ -25,6 +30,7 @@ impl Controller for PhotoController {
             EndpointRoute::get("/api/photos/timeline/year-offset/{year}", YearOffsetHandler)
                 .build(),
             EndpointRoute::get("/api/photos/with-gps/{page}/{pageSize}", MapPhotosHandler).build(),
+            EndpointRoute::get("/api/photos/{id}/metadata", PhotoMetadataHandler).build(),
             EndpointRoute::post("/api/photos/scan", ScanPhotoHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
@@ -191,5 +197,31 @@ impl HttpHandler for MapPhotosHandler {
         });
 
         Ok(ResponseValue::new(Json(response)))
+    }
+}
+
+struct PhotoMetadataHandler;
+
+#[async_trait]
+impl HttpHandler for PhotoMetadataHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let repository = context
+            .services()
+            .resolve::<Repository<ExifModel>>()
+            .ok_or_else(|| PipelineError::message("Exif repository not found"))?;
+
+        let photo_id_param = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        let photo_id = Uuid::parse_str(photo_id_param)
+            .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
+
+        let metadata = repository
+            .get_by("image_id", Value::Uuid(photo_id))
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(metadata)))
     }
 }

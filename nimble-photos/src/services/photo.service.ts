@@ -2,7 +2,7 @@
 import { Injectable, signal } from '@angular/core';
 import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 
-import { Album, GroupedPhotos, PagedPhotos, Photo, PhotoLoc } from '../models/photo';
+import { Album, GroupedPhotos, PagedPhotos, Photo, PhotoLoc, PhotoMetadata } from '../models/photo';
 import { AlbumModel } from '../models/album.model';
 import { PagedResponseModel } from '../models/paged.response.model';
 import { PagedAlbumsModel } from '../models/paged.albums.model';
@@ -46,6 +46,12 @@ export class PhotoService {
       map((dto) => this.mapPhoto(dto)),
       catchError(() => of(null))
     );
+  }
+
+  getPhotoMetadata(id: string): Observable<PhotoMetadata | null> {
+    return this.http
+      .get<PhotoMetadata | null>(`${this.apiBase}/photos/${id}/metadata`)
+      .pipe(catchError(() => of(null)));
   }
 
   getThumbnailPath(photo: Photo): string {

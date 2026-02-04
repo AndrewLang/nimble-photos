@@ -1,20 +1,19 @@
 <div class="relative flex flex-col lg:flex-row h-full overflow-hidden bg-[#010409]">
 
+    @if (photo(); as p) {
+    <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <img [src]="getPhotoPath()" class="w-full h-full object-cover blur-2xl opacity-30 scale-110">
+        <div class="absolute inset-0 bg-black/10"></div>
+    </div>
+    }
+
     <div class="relative flex-1 flex flex-col items-center justify-center bg-black/40 overflow-hidden z-10">
-
-        @if (photo(); as p) {
-        <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-            <img [src]="getPhotoPath()" class="w-full h-full object-cover blur-2xl opacity-30 scale-110">
-            <div class="absolute inset-0 bg-black/10"></div>
-        </div>
-        }
-
         <div class="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-20 pointer-events-none">
             <div></div>
 
             <div class="flex gap-2 pointer-events-auto">
                 <button
-                    class="p-3 text-white/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
+                    class="p-2.5 text-white/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -22,7 +21,7 @@
                     </svg>
                 </button>
                 <button (click)="close()"
-                    class="p-3 text-white/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-md border border-white/10 shadow-lg"
+                    class="p-2.5 text-white/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-md border border-white/10 shadow-lg"
                     title="Close">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
@@ -35,8 +34,8 @@
 
         @if (adjacents().prevId) {
         <button (click)="navigateToPhoto(adjacents().prevId!)"
-            class="absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 z-20 p-4 transition-all bg-white/5 hover:bg-white/20 hover:scale-110 rounded-full backdrop-blur-xl border border-white/10 text-white/50 hover:text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 lg:h-8 lg:w-8" fill="none" viewBox="0 0 24 24"
+            class="absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 z-20 p-2.5 transition-all bg-white/5 hover:bg-white/20 hover:scale-110 rounded-full backdrop-blur-xl border border-white/10 text-white/50 hover:text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 lg:h-6 lg:w-6" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
             </svg>
@@ -45,8 +44,8 @@
 
         @if (adjacents().nextId) {
         <button (click)="navigateToPhoto(adjacents().nextId!)"
-            class="absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 z-20 p-4 transition-all bg-white/5 hover:bg-white/20 hover:scale-110 rounded-full backdrop-blur-xl border border-white/10 text-white/50 hover:text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 lg:h-8 lg:w-8" fill="none" viewBox="0 0 24 24"
+            class="absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 z-20 p-2.5 transition-all bg-white/5 hover:bg-white/20 hover:scale-110 rounded-full backdrop-blur-xl border border-white/10 text-white/50 hover:text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 lg:h-6 lg:w-6" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
             </svg>
@@ -71,7 +70,7 @@
 
     @if (photo(); as p) {
     <aside
-        class="w-full lg:w-[400px] xl:w-[450px] flex flex-col h-[40vh] lg:h-full bg-slate-950/80 border-t lg:border-t-0 lg:border-l border-white/5 overflow-y-auto z-20">
+        class="w-full lg:w-72 xl:w-96 flex flex-col h-[40vh] lg:h-full bg-slate-900/10 border-t lg:border-t-0 lg:border-l border-white/10 overflow-y-auto z-20 backdrop-blur-3xl">
         <div class="p-6 md:p-8 flex flex-col gap-8">
 
             <div class="grid grid-cols-2 gap-4">
@@ -124,33 +123,33 @@
                 </div>
 
                 @if (p.metadata) {
-                <div>
+                <div class="space-y-6">
                     <h3
                         class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 border-b border-white/5 pb-2">
                         EXIF Data</h3>
                     <div class="grid grid-cols-2 gap-4 text-sm">
-                        @if (p.metadata.camera) {
+                        @if (formatCamera(p.metadata)) {
                         <div class="col-span-2">
                             <p class="text-[0.65rem] uppercase text-slate-500 mb-0.5">Camera</p>
-                            <p class="text-slate-200">{{ p.metadata.camera }}</p>
+                            <p class="text-slate-200">{{ formatCamera(p.metadata) }}</p>
                         </div>
                         }
 
-                        @if (p.metadata.aperture) {
+                        @if (formatAperture(p.metadata)) {
                         <div>
                             <p class="text-[0.65rem] uppercase text-slate-500 mb-0.5">Aperture</p>
-                            <p class="text-slate-200 font-mono">{{ p.metadata.aperture }}</p>
+                            <p class="text-slate-200 font-mono">{{ formatAperture(p.metadata) }}</p>
                         </div>
                         }
 
-                        @if (p.metadata.shutterSpeed) {
+                        @if (formatShutterSpeed(p.metadata)) {
                         <div>
                             <p class="text-[0.65rem] uppercase text-slate-500 mb-0.5">Shutter</p>
-                            <p class="text-slate-200 font-mono">{{ p.metadata.shutterSpeed }}</p>
+                            <p class="text-slate-200 font-mono">{{ formatShutterSpeed(p.metadata) }}</p>
                         </div>
                         }
 
-                        @if (p.metadata.location) {
+                        @if (formatCoordinates(p.metadata)) {
                         <div class="col-span-2">
                             <p class="text-[0.65rem] uppercase text-slate-500 mb-0.5">Location</p>
                             <p class="text-slate-200 flex items-center gap-1">
@@ -160,7 +159,7 @@
                                         d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
                                         clip-rule="evenodd" />
                                 </svg>
-                                {{ p.metadata.location }}
+                                {{ formatCoordinates(p.metadata) }}
                             </p>
                         </div>
                         }
@@ -168,14 +167,26 @@
                 </div>
                 }
 
-                <div>
-                    <h3
-                        class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 border-b border-white/5 pb-2">
-                        File Info</h3>
-                    <div class="bg-black/20 p-3 rounded text-xs font-mono text-slate-400 break-all select-all">
-                        {{ p.hash || 'No hash' }}
+                @if (metadataSections(p.metadata).length) {
+                <div class="space-y-6">
+                    @for (section of metadataSections(p.metadata); track section.title) {
+                    <div>
+                        <h4
+                            class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 border-b border-white/5 pb-2">
+                            {{ section.title }}</h4>
+                        <ul class="space-y-3 text-sm text-slate-300">
+                            @for (field of section.fields; track field.label) {
+                            <li class="flex justify-between">
+                                <span class="text-slate-500">{{ field.label }}</span>
+                                <span class="font-mono text-slate-200">{{ field.value }}</span>
+                            </li>
+                            }
+                        </ul>
                     </div>
+                    }
                 </div>
+                }
+
             </div>
 
         </div>

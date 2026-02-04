@@ -199,24 +199,6 @@ const EXIF_UPDATE_COLUMNS: &[&str] = &[
     "interop_version",
 ];
 
-#[cfg(feature = "postgres")]
-fn optional_i32_as_u32(row: &PgRow, column: &str) -> sqlx::Result<Option<u32>> {
-    row.try_get::<Option<i32>, _>(column)
-        .map(|opt| opt.map(|value| value as u32))
-}
-
-#[cfg(feature = "postgres")]
-fn optional_i32_as_u16(row: &PgRow, column: &str) -> sqlx::Result<Option<u16>> {
-    row.try_get::<Option<i32>, _>(column)
-        .map(|opt| opt.map(|value| value as u16))
-}
-
-#[cfg(feature = "postgres")]
-fn optional_i32_as_u8(row: &PgRow, column: &str) -> sqlx::Result<Option<u8>> {
-    row.try_get::<Option<i32>, _>(column)
-        .map(|opt| opt.map(|value| value as u8))
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExifModel {
     pub id: Option<Uuid>,
@@ -369,9 +351,11 @@ impl<'r> FromRow<'r, PgRow> for ExifModel {
             max_aperture_value: row.try_get("max_aperture_value")?,
             brightness_value: row.try_get("brightness_value")?,
             shutter_speed_value: row.try_get("shutter_speed_value")?,
-            iso: optional_i32_as_u32(row, "iso")?,
+            iso: row.try_get::<Option<i32>, _>("iso")?
+                .map(|value| value as u32),
             sensitivity_type: row.try_get("sensitivity_type")?,
-            recommended_exposure_index: optional_i32_as_u32(row, "recommended_exposure_index")?,
+            recommended_exposure_index: row.try_get::<Option<i32>, _>("recommended_exposure_index")?
+                .map(|value| value as u32),
             metering_mode: row.try_get("metering_mode")?,
             light_source: row.try_get("light_source")?,
             flash: row.try_get("flash")?,
@@ -379,18 +363,22 @@ impl<'r> FromRow<'r, PgRow> for ExifModel {
             gain_control: row.try_get("gain_control")?,
             subject_distance: row.try_get("subject_distance")?,
             focal_length: row.try_get("focal_length")?,
-            focal_length_in_35mm_film: optional_i32_as_u32(row, "focal_length_in_35mm_film")?,
+            focal_length_in_35mm_film: row.try_get::<Option<i32>, _>("focal_length_in_35mm_film")?
+                .map(|value| value as u32),
             color_space: row.try_get("color_space")?,
             bits_per_sample: row.try_get("bits_per_sample")?,
-            image_width: optional_i32_as_u32(row, "image_width")?,
-            image_length: optional_i32_as_u32(row, "image_length")?,
-            pixel_x_dimension: optional_i32_as_u32(row, "pixel_x_dimension")?,
-            pixel_y_dimension: optional_i32_as_u32(row, "pixel_y_dimension")?,
+            image_width: row.try_get::<Option<i32>, _>("image_width")?.map(|value| value as u32),
+            image_length: row.try_get::<Option<i32>, _>("image_length")?
+                .map(|value| value as u32),
+            pixel_x_dimension: row.try_get::<Option<i32>, _>("pixel_x_dimension")?
+                .map(|value| value as u32),
+            pixel_y_dimension: row.try_get::<Option<i32>, _>("pixel_y_dimension")?
+                .map(|value| value as u32),
             x_resolution: row.try_get("x_resolution")?,
             y_resolution: row.try_get("y_resolution")?,
             resolution_unit: row.try_get("resolution_unit")?,
             compression: row.try_get("compression")?,
-            orientation: optional_i32_as_u16(row, "orientation")?,
+            orientation: row.try_get::<Option<i32>, _>("orientation")?.map(|value| value as u16),
             digital_zoom_ratio: row.try_get("digital_zoom_ratio")?,
             white_balance: row.try_get("white_balance")?,
             contrast: row.try_get("contrast")?,
@@ -400,9 +388,11 @@ impl<'r> FromRow<'r, PgRow> for ExifModel {
             scene_capture_type: row.try_get("scene_capture_type")?,
             scene_type: row.try_get("scene_type")?,
             subject_distance_range: row.try_get("subject_distance_range")?,
-            rating: optional_i32_as_u8(row, "rating")?,
+            rating: row.try_get::<Option<i32>, _>("rating")?.map(|value| value as u8),
             label: row.try_get("label")?,
-            flagged: row.try_get("flagged")?,
+            flagged: row
+                .try_get::<Option<i32>, _>("flagged")?
+                .map(|value| value as i8),
             white_point: row.try_get("white_point")?,
             primary_chromaticities: row.try_get("primary_chromaticities")?,
             transfer_function: row.try_get("transfer_function")?,
@@ -438,7 +428,8 @@ impl<'r> FromRow<'r, PgRow> for ExifModel {
             file_source: row.try_get("file_source")?,
             sensing_method: row.try_get("sensing_method")?,
             cfa_pattern: row.try_get("cfa_pattern")?,
-            photographic_sensitivity: optional_i32_as_u32(row, "photographic_sensitivity")?,
+            photographic_sensitivity: row.try_get::<Option<i32>, _>("photographic_sensitivity")?
+                .map(|value| value as u32),
             interop_index: row.try_get("interop_index")?,
             interop_version: row.try_get("interop_version")?,
         })
