@@ -23,7 +23,7 @@ export class GalleryComponent implements OnInit {
   readonly isFetching = signal(false);
   readonly selectedIds = computed(() => this.selectionService.selectedIds());
   readonly selectedPhotos = computed(() => this.selectionService.selectedPhotos());
-  readonly isSelectionMode = computed(() => this.selectionService.hasSelection());
+  readonly isSelectionMode = computed(() => this.selectionEnabled || this.selectionService.hasSelection());
 
   @Input() set initialPhotos(value: Photo[]) {
     this.photos.set(value);
@@ -40,6 +40,7 @@ export class GalleryComponent implements OnInit {
   @Input() albumId?: string | null = null;
   @Input() showHeader = true;
   @Input() paddingTop = '56px';
+  @Input() selectionEnabled = false;
 
   private currentPage = 1;
   private readonly pageSize = 56;
