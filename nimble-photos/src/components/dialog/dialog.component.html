@@ -1,0 +1,33 @@
+<div class="relative bg-slate-900 border border-white/5 shadow-2xl rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
+    [style.width]="config().width || '450px'" [style.max-width]="config().maxWidth || '95vw'">
+
+    @if (config().title) {
+    <div class="px-6 py-4 flex items-center justify-between border-b border-white/5 shrink-0">
+        <h3 class="text-sm font-bold uppercase tracking-widest text-slate-100">{{ config().title }}</h3>
+
+        @if (config().showCloseButton !== false) {
+        <button (click)="close()"
+            class="p-1.5 hover:bg-white/5 rounded-full text-slate-400 hover:text-white transition-all cursor-pointer border-none bg-transparent">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        }
+    </div>
+    }
+
+    <div class="px-6 py-6 flex-1 overflow-y-auto custom-scrollbar min-h-0">
+        <ng-container #contentContainer></ng-container>
+    </div>
+
+    @if (config().actions && config().actions!.length > 0) {
+    <div class="px-6 py-4 bg-slate-950/30 flex items-center justify-end gap-3 border-t border-white/5 shrink-0">
+        @for (action of config().actions; track $index) {
+        <button (click)="onAction(action)" [class]="getActionClasses(action)">
+            {{ action.label }}
+        </button>
+        }
+    </div>
+    }
+</div>

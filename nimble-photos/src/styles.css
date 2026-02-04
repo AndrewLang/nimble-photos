@@ -1,7 +1,23 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import "tailwindcss";
+@import '@angular/cdk/overlay-prebuilt.css';
 @import './assets/css/gallery.css';
+
+/* Force CDK Dialog to center */
+.cdk-global-overlay-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.cdk-overlay-pane {
+  /* Override JS calculated positioning to allow flexbox centering */
+  position: static !important;
+  margin: auto !important;
+  max-width: 95vw !important;
+}
+
 @import './assets/css/photo.css';
 @import './assets/css/utilities.css';
 @import 'leaflet/dist/leaflet.css';

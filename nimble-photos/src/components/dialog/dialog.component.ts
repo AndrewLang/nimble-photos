@@ -1,87 +1,43 @@
-import { Component, Type, ViewChild, ViewContainerRef, ViewEncapsulation, signal, inject, AfterViewInit } from '@angular/core';
+import { Component, Type, ViewChild, ViewContainerRef, ViewEncapsulation, signal, inject, AfterViewInit, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { DialogAction, DialogConfig } from '../../models/dialog.model';
 
 @Component({
   selector: 'mtx-dialog',
-  standalone: true,
   imports: [CommonModule],
-  template: `
-    <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div 
-        class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300"
-        (click)="onBackdropClick()">
-      </div>
-
-      <div 
-        [style.width]="config().width || '450px'"
-        [style.max-width]="config().maxWidth || '95vw'"
-        class="relative bg-slate-900 border border-white/5 shadow-2xl rounded-3xl overflow-hidden flex flex-col animate-in zoom-in-95 fade-in duration-300">
-        
-        @if (config().title) {
-        <div class="px-6 py-4 flex items-center justify-between border-b border-white/5">
-          <h3 class="text-sm font-bold uppercase tracking-widest text-slate-100">{{ config().title }}</h3>
-          
-          @if (config().showCloseButton !== false) {
-          <button 
-            (click)="close()"
-            class="p-1.5 hover:bg-white/5 rounded-full text-slate-400 hover:text-white transition-all cursor-pointer border-none bg-transparent">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          }
-        </div>
-        }
-
-        <div class="px-6 py-6 flex-1 max-h-[70vh] overflow-y-auto custom-scrollbar">
-          <ng-container #contentContainer></ng-container>
-        </div>
-
-        @if (config().actions && config().actions!.length > 0) {
-        <div class="px-6 py-4 bg-slate-950/30 flex items-center justify-end gap-3 border-t border-white/5">
-          @for (action of config().actions; track $index) {
-          <button 
-            (click)="onAction(action)"
-            [class]="getActionClasses(action)">
-            {{ action.label }}
-          </button>
-          }
-        </div>
-        }
-      </div>
-    </div>
-  `,
+  templateUrl: './dialog.component.html',
   encapsulation: ViewEncapsulation.None
 })
-export class DialogComponent implements AfterViewInit {
+export class DialogComponent implements AfterViewInit, OnInit {
   @ViewChild('contentContainer', { read: ViewContainerRef })
   contentContainer!: ViewContainerRef;
 
-  readonly config = signal<DialogConfig>({});
+  private readonly dialogRef = inject(DialogRef);
+  private readonly data = inject<{ component: Type<any>, config: DialogConfig }>(DIALOG_DATA);
 
-  contentComponent!: Type<any>;
-  onClose!: (result?: any) => void;
+  readonly config = signal<DialogConfig>({});
   readonly componentInstance = signal<any>(null);
+
+  ngOnInit() {
+    this.config.set(this.data.config || {});
+  }
 
   ngAfterViewInit() {
     setTimeout(() => {
-      const componentRef = this.contentContainer.createComponent(this.contentComponent);
-      this.componentInstance.set(componentRef.instance);
-      if (this.config().data) {
-        Object.assign(componentRef.instance, this.config().data);
+      if (this.data.component) {
+        const componentRef = this.contentContainer.createComponent(this.data.component);
+        this.componentInstance.set(componentRef.instance);
+
+        if (this.config().data) {
+          Object.assign(componentRef.instance, this.config().data);
+        }
       }
     });
   }
 
   close(result?: any) {
-    this.onClose(result);
-  }
-
-  onBackdropClick() {
-    if (this.config().closeOnBackdropClick !== false) {
-      this.close();
-    }
+    this.dialogRef.close(result);
   }
 
   onAction(action: DialogAction) {

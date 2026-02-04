@@ -30,8 +30,18 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.use_entity_with_hooks(EnsureUuidIdHooks::<Photo>::new(), EntityOperation::all());
     builder.use_entity_with_hooks_and_policy(
         album_hooks::AlbumHooks::new(),
-        EntityOperation::all(),
+        &[
+            EntityOperation::List,
+            EntityOperation::Get,
+            EntityOperation::Create,
+            EntityOperation::Update,
+        ],
         Policy::Authenticated,
+    );
+    builder.use_entity_with_hooks_and_policy(
+        album_hooks::AlbumHooks::new(),
+        &[EntityOperation::Delete],
+        Policy::InRole("admin".to_string()),
     );
     builder.use_entity_with_hooks(
         EnsureUuidIdHooks::<ExifModel>::new(),

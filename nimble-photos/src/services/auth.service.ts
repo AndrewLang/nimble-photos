@@ -1,14 +1,24 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, switchMap, map, of, catchError } from 'rxjs';
+import { jwtDecode } from 'jwt-decode';
 import { LoginRequest, LoginResponse, RegisterRequest } from '../models/auth.model';
 import { User } from '../models/user.model';
+
+interface JwtClaims {
+    sub: string;
+    roles?: string[];
+    exp: number;
+}
 
 @Injectable({
     providedIn: 'root',
 })
 export class AuthService {
+    private readonly http = inject(HttpClient);
+    private readonly router = inject(Router);
+
     private readonly apiBase = 'http://localhost:8080/api';
     private readonly TOKEN_KEY = 'mtx_access_token';
     private readonly REFRESH_TOKEN_KEY = 'mtx_refresh_token';
@@ -16,24 +26,51 @@ export class AuthService {
 
     readonly currentUser = signal<User | null>(this.getStoredUser());
     readonly isAuthenticated = computed(() => !!this.currentUser());
+    readonly isAdmin = computed(() => {
+        const user = this.currentUser();
+        return user?.roles?.includes('admin') ?? false;
+    });
 
-    constructor(
-        private readonly http: HttpClient,
-        private readonly router: Router
-    ) { }
+    constructor() { }
 
-    login(request: LoginRequest): Observable<LoginResponse> {
+    login(request: LoginRequest): Observable<User> {
         return this.http.post<LoginResponse>(`${this.apiBase}/auth/login`, request).pipe(
             tap((response) => {
                 this.setTokens(response.accessToken, response.refreshToken);
-                const dummyUser: User = {
-                    id: '1',
-                    email: request.email,
-                    displayName: request.email.split('@')[0],
+            }),
+            switchMap(() => this.getProfile()),
+            tap((user) => {
+                this.setUser(user);
+            })
+        );
+    }
+
+    getProfile(): Observable<User> {
+        return this.http.get<any>(`${this.apiBase}/auth/me`).pipe(
+            map(profile => {
+                const token = this.getAccessToken();
+                let roles: string[] = [];
+
+                if (token) {
+                    try {
+                        const decoded = jwtDecode<JwtClaims>(token);
+                        if (decoded.roles) {
+                            roles = decoded.roles;
+                        }
+                    } catch (e) {
+                        // console.error('Failed to decode token', e);
+                    }
+                }
+
+                const user: User = {
+                    id: profile.id,
+                    email: profile.email,
+                    displayName: profile.displayName,
                     createdAt: new Date().toISOString(),
-                    emailVerified: true
+                    emailVerified: true,
+                    roles: roles
                 };
-                this.setUser(dummyUser);
+                return user;
             })
         );
     }

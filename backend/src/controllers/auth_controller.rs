@@ -134,7 +134,7 @@ impl HttpHandler for RefreshHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload: RefreshTokenRequest = context.json()?;
         let auth_service = context.service::<AuthService>()?;
-        let response = auth_service.refresh(&payload.refresh_token)?;
+        let response = auth_service.refresh(&payload.refresh_token).await?;
 
         Ok(ResponseValue::json(response))
     }

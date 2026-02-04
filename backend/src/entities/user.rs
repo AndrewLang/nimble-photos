@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 #[cfg(feature = "postgres")]
 use {
-    nimble_web::data::postgres::PostgresEntity,
+    nimble_web::data::postgres::{PostgresEntity, value_builder::PostgresValueBuilder},
     nimble_web::data::query::Value,
     nimble_web::data::schema::{ColumnDef, ColumnType},
     sqlx::FromRow,
@@ -24,6 +24,7 @@ pub struct User {
     pub verification_token: Option<String>,
     #[serde(default)]
     pub email_verified: bool,
+    pub roles: Option<String>,
 }
 
 impl Entity for User {
@@ -59,6 +60,7 @@ impl PostgresEntity for User {
             "reset_token_expires_at",
             "verification_token",
             "email_verified",
+            "roles",
         ]
     }
 
@@ -69,19 +71,11 @@ impl PostgresEntity for User {
             Value::String(self.display_name.clone()),
             Value::String(self.password_hash.clone()),
             Value::DateTime(self.created_at),
-            match &self.reset_token {
-                Some(v) => Value::String(v.clone()),
-                None => Value::Null,
-            },
-            match self.reset_token_expires_at {
-                Some(v) => Value::DateTime(v),
-                None => Value::Null,
-            },
-            match &self.verification_token {
-                Some(v) => Value::String(v.clone()),
-                None => Value::Null,
-            },
+            PostgresValueBuilder::optional_string(&self.reset_token),
+            PostgresValueBuilder::optional_datetime(&self.reset_token_expires_at),
+            PostgresValueBuilder::optional_string(&self.verification_token),
             Value::Bool(self.email_verified),
+            PostgresValueBuilder::optional_string(&self.roles),
         ]
     }
 
@@ -94,6 +88,7 @@ impl PostgresEntity for User {
             "reset_token_expires_at",
             "verification_token",
             "email_verified",
+            "roles",
         ]
     }
 
@@ -102,19 +97,11 @@ impl PostgresEntity for User {
             Value::String(self.email.clone()),
             Value::String(self.display_name.clone()),
             Value::String(self.password_hash.clone()),
-            match &self.reset_token {
-                Some(v) => Value::String(v.clone()),
-                None => Value::Null,
-            },
-            match self.reset_token_expires_at {
-                Some(v) => Value::DateTime(v),
-                None => Value::Null,
-            },
-            match &self.verification_token {
-                Some(v) => Value::String(v.clone()),
-                None => Value::Null,
-            },
+            PostgresValueBuilder::optional_string(&self.reset_token),
+            PostgresValueBuilder::optional_datetime(&self.reset_token_expires_at),
+            PostgresValueBuilder::optional_string(&self.verification_token),
             Value::Bool(self.email_verified),
+            PostgresValueBuilder::optional_string(&self.roles),
         ]
     }
 
@@ -135,6 +122,7 @@ impl PostgresEntity for User {
             ColumnDef::new("email_verified", ColumnType::Boolean)
                 .not_null()
                 .default("false"),
+            ColumnDef::new("roles", ColumnType::Text),
         ]
     }
 }

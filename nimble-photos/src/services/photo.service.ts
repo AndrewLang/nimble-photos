@@ -170,6 +170,10 @@ export class PhotoService {
     );
   }
 
+  deleteAlbum(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBase}/albums/${id}`);
+  }
+
   getAlbumById(id: string): Observable<Album | null> {
     return this.http.get<AlbumModel>(`${this.apiBase}/albums/${id}`).pipe(
       switchMap((dto) => {

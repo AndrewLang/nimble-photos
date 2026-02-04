@@ -58,11 +58,6 @@ impl AuthService {
         }
 
         let display_name_value = display_name.to_string();
-        log::info!(
-            "Registering new user with email: {}, display_name: {}",
-            email_string,
-            display_name_value
-        );
 
         let user = User {
             id: Uuid::new_v4(),
@@ -74,6 +69,7 @@ impl AuthService {
             reset_token_expires_at: None,
             verification_token: Some(Uuid::new_v4().to_string()),
             email_verified: false,
+            roles: None,
         };
 
         let user_id = user.id;
@@ -98,7 +94,7 @@ impl AuthService {
             PipelineError::message("Failed to create user settings")
         })?;
 
-        self.issue_tokens(user_id)
+        self.issue_tokens(user_id).await
     }
 
     pub async fn login(&self, email: &str, password: &str) -> Result<LoginResponse, PipelineError> {
@@ -119,17 +115,17 @@ impl AuthService {
             return Err(PipelineError::message("invalid credentials"));
         }
 
-        self.issue_tokens(user.id)
+        self.issue_tokens(user.id).await
     }
 
-    pub fn refresh(&self, refresh_token: &str) -> Result<LoginResponse, PipelineError> {
+    pub async fn refresh(&self, refresh_token: &str) -> Result<LoginResponse, PipelineError> {
         let user_id = self
             .tokens
             .validate_refresh_token(refresh_token)
             .map_err(|e| PipelineError::message(&e.to_string()))?;
         let user_id = Uuid::parse_str(&user_id)
             .map_err(|_| PipelineError::message("invalid refresh token subject"))?;
-        self.issue_tokens(user_id)
+        self.issue_tokens(user_id).await
     }
 
     pub fn logout(&self, refresh_token: &str) -> Result<(), PipelineError> {
@@ -271,9 +267,27 @@ impl AuthService {
             .ok_or_else(|| PipelineError::message("verification token missing"))
     }
 
-    fn issue_tokens(&self, user_id: Uuid) -> Result<LoginResponse, PipelineError> {
+    async fn issue_tokens(&self, user_id: Uuid) -> Result<LoginResponse, PipelineError> {
+        let user = self
+            .repo
+            .get(&user_id)
+            .await
+            .map_err(|_| PipelineError::message("data error"))?
+            .ok_or_else(|| PipelineError::message("user not found"))?;
+
         let user_id_str = user_id.to_string();
-        let identity = UserIdentity::new(user_id_str.clone(), Claims::new());
+        let mut claims = Claims::new();
+
+        if let Some(roles_str) = user.roles {
+            for role in roles_str.split(',') {
+                let role = role.trim();
+                if !role.is_empty() {
+                    claims = claims.add_role(role);
+                }
+            }
+        }
+
+        let identity = UserIdentity::new(user_id_str.clone(), claims);
 
         Ok(LoginResponse {
             access_token: self

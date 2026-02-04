@@ -4,6 +4,7 @@ export interface User {
     displayName: string;
     createdAt: string;
     emailVerified: boolean;
+    roles?: string[];
     resetToken?: string;
     resetTokenExpiresAt?: string;
     verificationToken?: string;

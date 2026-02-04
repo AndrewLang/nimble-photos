@@ -22,3 +22,11 @@ export interface DialogRef<T = any> {
     afterClosed(): Promise<T | undefined>;
     componentInstance?: any;
 }
+
+export interface ConfirmDialogData {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    type?: 'danger' | 'info' | 'warning';
+}
