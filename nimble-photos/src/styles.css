@@ -3,6 +3,9 @@
 @import "tailwindcss";
 @import '@angular/cdk/overlay-prebuilt.css';
 @import './assets/css/gallery.css';
+@import './assets/css/photo.css';
+@import './assets/css/utilities.css';
+@import './assets/css/map.css';
 
 /* Force CDK Dialog to center */
 .cdk-global-overlay-wrapper {
@@ -17,10 +20,6 @@
   margin: auto !important;
   max-width: 95vw !important;
 }
-
-@import './assets/css/photo.css';
-@import './assets/css/utilities.css';
-@import 'leaflet/dist/leaflet.css';
 
 :root {
   font-family: 'Inter', 'Space Grotesk', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;

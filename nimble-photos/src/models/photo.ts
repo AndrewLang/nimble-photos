@@ -61,3 +61,8 @@ export interface Album {
   imageCount?: number;
   photos?: PagedPhotos;
 }
+
+export interface PhotoLoc extends Photo {
+  lat: number;
+  lon: number;
+}

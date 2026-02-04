@@ -2,12 +2,25 @@
 import { Injectable, signal } from '@angular/core';
 import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 
-import { Album, GroupedPhotos, PagedPhotos, Photo } from '../models/photo';
-import { PhotoModel } from '../models/photo.model';
+import { Album, GroupedPhotos, PagedPhotos, Photo, PhotoLoc } from '../models/photo';
 import { AlbumModel } from '../models/album.model';
 import { PagedResponseModel } from '../models/paged.response.model';
 import { PagedAlbumsModel } from '../models/paged.albums.model';
 
+
+type DateFieldKey = 'createdAt' | 'updatedAt' | 'dateImported' | 'dateTaken';
+
+type PhotoResponse = Omit<Photo, DateFieldKey> & {
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  dateImported?: string | null;
+  dateTaken?: string | null;
+};
+
+type PhotoLocResponse = PhotoResponse & {
+  lat: number;
+  lon: number;
+};
 
 @Injectable({
   providedIn: 'root',
@@ -24,12 +37,12 @@ export class PhotoService {
 
   getPhotos(page = 1, pageSize = 56): Observable<PagedPhotos> {
     return this.http
-      .get<PagedResponseModel<PhotoModel>>(`${this.apiBase}/photos/${page}/${pageSize}`)
+      .get<PagedResponseModel<PhotoResponse>>(`${this.apiBase}/photos/${page}/${pageSize}`)
       .pipe(map((response) => this.mapPhotoPage(response)));
   }
 
   getPhotoById(id: string): Observable<Photo | null> {
-    return this.http.get<PhotoModel>(`${this.apiBase}/photos/${id}`).pipe(
+    return this.http.get<PhotoResponse>(`${this.apiBase}/photos/${id}`).pipe(
       map((dto) => this.mapPhoto(dto)),
       catchError(() => of(null))
     );
@@ -88,7 +101,7 @@ export class PhotoService {
     }
 
     return this.http
-      .get<{ title: string; photos: PagedResponseModel<PhotoModel> }[]>(`${this.apiBase}/photos/timeline/${page}/${pageSize}`)
+      .get<{ title: string; photos: PagedResponseModel<PhotoResponse> }[]>(`${this.apiBase}/photos/timeline/${page}/${pageSize}`)
       .pipe(
         map((groups) =>
           groups.map((g) => ({
@@ -201,14 +214,14 @@ export class PhotoService {
 
   getAlbumPhotos(albumId: string, page = 1, pageSize = 20): Observable<PagedPhotos | null> {
     return this.http
-      .get<PagedResponseModel<PhotoModel>>(`${this.apiBase}/albums/${albumId}/photos/${page}/${pageSize}`)
+      .get<PagedResponseModel<PhotoResponse>>(`${this.apiBase}/albums/${albumId}/photos/${page}/${pageSize}`)
       .pipe(
         map((response) => this.mapPhotoPage(response)),
         catchError(() => of(null))
       );
   }
 
-  private mapPhotoPage(response: PagedResponseModel<PhotoModel>): PagedPhotos {
+  private mapPhotoPage(response: PagedResponseModel<PhotoResponse>): PagedPhotos {
     return {
       page: response.page,
       pageSize: response.pageSize,
@@ -217,7 +230,7 @@ export class PhotoService {
     };
   }
 
-  private mapPhoto(dto: PhotoModel): Photo {
+  private mapPhoto(dto: PhotoResponse): Photo {
     return {
       id: dto.id,
       path: dto.path,
@@ -256,6 +269,28 @@ export class PhotoService {
     };
   }
 
+
+  getPhotosWithGps(page = 1, pageSize = 100): Observable<{ page: number, pageSize: number, total: number, items: PhotoLoc[] }> {
+    return this.http
+      .get<PagedResponseModel<PhotoLocResponse>>(`${this.apiBase}/photos/with-gps/${page}/${pageSize}`)
+      .pipe(
+        map((response) => ({
+          page: response.page,
+          pageSize: response.pageSize,
+          total: response.total ?? 0,
+          items: response.items.map((dto) => this.mapPhotoLoc(dto)),
+        }))
+      );
+  }
+
+  private mapPhotoLoc(dto: PhotoLocResponse): PhotoLoc {
+    const photo = this.mapPhoto(dto);
+    return {
+      ...photo,
+      lat: dto.lat,
+      lon: dto.lon
+    };
+  }
 
   private toDate(value?: string | null): Date | undefined {
     if (!value) {

@@ -1,141 +1,16 @@
-import { Component, OnInit, signal, effect, ElementRef, ViewChild, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
-import { first } from 'rxjs';
+import { Component, ElementRef, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { Router, RouterModule } from '@angular/router';
 import * as L from 'leaflet';
+import { first } from 'rxjs';
+import { Photo, PhotoLoc } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
-import { Photo } from '../../models/photo';
 
 @Component({
   selector: 'mtx-map',
+  standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './map.component.html',
-  styles: [`
-    :host {
-      display: block;
-      height: 100%;
-      width: 100%;
-    }
-    #map {
-      height: 100%;
-      width: 100%;
-      z-index: 10;
-      background: #020617;
-    }
-    .photo-marker {
-      background: none;
-      border: none;
-    }
-    .marker-thumbnail {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 2px solid white;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-      object-fit: cover;
-      display: block;
-      transition: transform 0.2s;
-    }
-    .cluster-marker {
-      position: relative;
-    }
-    .marker-count {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      background: #4f46e5;
-      color: white;
-      font-size: 10px;
-      font-weight: 800;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 2px solid #0f172a;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-      z-index: 30;
-    }
-    .marker-thumbnail:hover {
-      transform: scale(1.1);
-      z-index: 1000;
-      border-color: #6366f1;
-    }
-    ::ng-deep .leaflet-popup-content-wrapper {
-      background: #0f172a !important;
-      color: white !important;
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 1.5rem !important;
-      padding: 0 !important;
-      overflow: hidden;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
-    }
-    ::ng-deep .leaflet-popup-content {
-      margin: 0 !important;
-      width: 320px !important;
-    }
-    ::ng-deep .leaflet-popup-tip {
-      background: #0f172a !important;
-    }
-    ::ng-deep .map-grid-popup {
-      padding: 1.5rem;
-    }
-    ::ng-deep .map-grid-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 1rem;
-    }
-    ::ng-deep .map-grid-header h3 {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: white;
-      margin: 0;
-    }
-    ::ng-deep .map-grid-header span {
-      font-size: 0.75rem;
-      color: rgba(255, 255, 255, 0.5);
-      font-weight: 500;
-    }
-    ::ng-deep .map-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-    }
-    ::ng-deep .map-grid img {
-      width: 100%;
-      aspect-ratio: 1;
-      object-fit: cover;
-      border-radius: 0.75rem;
-      background: rgba(255, 255, 255, 0.05);
-      transition: all 0.2s;
-      cursor: pointer;
-    }
-    ::ng-deep .map-grid img:hover {
-      transform: scale(1.05);
-      filter: brightness(1.2);
-    }
-    ::ng-deep .map-footer {
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      padding-top: 1rem;
-    }
-    ::ng-deep .footer-row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.5rem;
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 0.75rem;
-    }
-    ::ng-deep .footer-row svg {
-      width: 14px;
-      height: 14px;
-      opacity: 0.5;
-    }
-  `],
   host: {
     class: 'block flex-1 min-h-0',
   }
@@ -144,7 +19,7 @@ export class MapComponent implements OnInit, OnDestroy {
   @ViewChild('mapContainer', { static: true }) mapContainer!: ElementRef;
 
   private map?: L.Map;
-  readonly photos = signal<Photo[]>([]);
+  readonly photos = signal<PhotoLoc[]>([]);
   readonly loading = signal(true);
   readonly hasGpsData = signal(false);
 
@@ -154,7 +29,15 @@ export class MapComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+
     this.fetchPhotos();
+    // this.loading.set(false);
   }
 
   ngOnDestroy(): void {
@@ -164,57 +47,65 @@ export class MapComponent implements OnInit, OnDestroy {
   }
 
   private fetchPhotos(): void {
-    // Fetch a large-ish batch to fill the map
-    this.photoService.getPhotos(1, 100).pipe(first()).subscribe(paged => {
-      const photosWithGps = paged.items.filter(
-        (p) => p.metadata?.lat !== undefined && p.metadata?.lng !== undefined
-      );
-      this.hasGpsData.set(photosWithGps.length > 0);
-      this.photos.set(photosWithGps);
+    this.photoService.getPhotosWithGps(1, 1000).pipe(first()).subscribe({
+      next: (paged) => {
+        const photosWithGps = paged.items;
+        this.hasGpsData.set(photosWithGps.length > 0);
+        this.photos.set(photosWithGps);
 
-      if (photosWithGps.length === 0) {
+        this.initMap();
         this.loading.set(false);
-        return;
+      },
+      error: (error) => {
+        console.error('MapComponent: Failed to load GPS photos', error);
+        this.initMap();
+        this.loading.set(false);
       }
-
-      this.initMap();
-      this.loading.set(false);
     });
   }
 
   private initMap(): void {
-    if (this.map) return;
+    if (this.map) {
+      return;
+    }
 
-    // Default view: Center on Europe/Global
-    this.map = L.map('map', {
-      center: [20, 0],
-      zoom: 3,
-      zoomControl: false,
-      attributionControl: false
-    });
+    try {
+      this.map = L.map(this.mapContainer.nativeElement, {
+        center: [20, 0],
+        zoom: 3,
+        zoomControl: false,
+        attributionControl: false
+      });
 
-    // Dark Mode Tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 20
-    }).addTo(this.map);
 
-    L.control.zoom({
-      position: 'bottomright'
-    }).addTo(this.map);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20
+      }).addTo(this.map);
 
-    this.addMarkers();
+
+      L.control.zoom({
+        position: 'bottomright'
+      }).addTo(this.map);
+
+      this.addMarkers();
+
+      setTimeout(() => {
+        if (this.map) {
+          this.map.invalidateSize();
+        }
+      }, 100);
+    } catch (error) {
+      console.error('MapComponent: Error initializing map', error);
+    }
   }
 
   private addMarkers(): void {
     if (!this.map) return;
 
-    const groups = new Map<string, Photo[]>();
+    const groups = new Map<string, PhotoLoc[]>();
     this.photos().forEach(photo => {
-      const lat = photo.metadata?.lat;
-      const lng = photo.metadata?.lng;
-      if (lat === undefined || lng === undefined) {
-        return;
-      }
+      const lat = photo.lat;
+      const lng = photo.lon;
 
       const key = `${lat}_${lng}`;
       if (!groups.has(key)) groups.set(key, []);
@@ -225,8 +116,8 @@ export class MapComponent implements OnInit, OnDestroy {
 
     groups.forEach((groupPhotos) => {
       const firstPhoto = groupPhotos[0];
-      const lat = firstPhoto.metadata?.lat!;
-      const lng = firstPhoto.metadata?.lng!;
+      const lat = firstPhoto.lat;
+      const lng = firstPhoto.lon;
       const count = groupPhotos.length;
       const thumbnail = this.photoThumbnail(firstPhoto);
       const iconHtml = count > 1
@@ -315,6 +206,6 @@ export class MapComponent implements OnInit, OnDestroy {
   }
 
   private photoThumbnail(photo: Photo): string {
-    return photo.thumbnailPath ?? photo.path ?? '';
+    return this.photoService.getThumbnailPath(photo);
   }
 }

@@ -1,4 +1,4 @@
-use crate::dtos::photo_dtos::TimelineGroup;
+use crate::dtos::photo_dtos::{PhotoLoc, TimelineGroup};
 use crate::entities::photo::Photo;
 use async_trait::async_trait;
 use nimble_web::data::paging::Page;
@@ -13,6 +13,7 @@ pub trait PhotoRepository: Send + Sync {
     async fn get_years(&self) -> DataResult<Vec<String>>;
     async fn get_year_offset(&self, year: &str) -> DataResult<u32>;
     async fn get_by_ids(&self, ids: &[Uuid]) -> DataResult<Vec<Photo>>;
+    async fn get_with_gps(&self, limit: u32, offset: u32) -> DataResult<Vec<PhotoLoc>>;
 }
 
 pub struct PostgresPhotoRepository {
@@ -28,10 +29,6 @@ impl PostgresPhotoRepository {
 #[async_trait]
 impl PhotoRepository for PostgresPhotoRepository {
     async fn get_timeline(&self, limit: u32, offset: u32) -> DataResult<Vec<TimelineGroup>> {
-        // Group by day (YYYY-MM-DD)
-        // We use COALESCE to fallback to created_at if date_taken is NULL
-        // We order by day descending and take the first `limit` groups.
-
         let sql = r#"
             WITH target_days AS (
                 SELECT DISTINCT DATE(COALESCE(date_taken, created_at) AT TIME ZONE 'UTC') as day_date
@@ -39,13 +36,13 @@ impl PhotoRepository for PostgresPhotoRepository {
                 ORDER BY day_date DESC NULLS LAST
                 LIMIT $1 OFFSET $2
             )
-            SELECT 
+            SELECT
                 COALESCE(to_char(td.day_date, 'YYYY-MM-DD'), 'xxxx') as day,
                 p_agg.total_count,
                 p_agg.photos_json
             FROM target_days td
             LEFT JOIN LATERAL (
-                SELECT 
+                SELECT
                     count(*) as total_count,
                     json_agg(json_build_object(
                         'id', pd.id,
@@ -68,17 +65,17 @@ impl PhotoRepository for PostgresPhotoRepository {
                         'thumbnail_height', pd.thumbnail_height
                     ) ORDER BY pd.sort_date DESC) as photos_json
                 FROM (
-                    SELECT 
-                        p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at, 
-                        p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized, 
+                    SELECT
+                        p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
+                        p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
                         p.metadata_extracted, p.is_raw,
-                        CASE 
+                        CASE
                             WHEN e.orientation IN (5, 6, 7, 8) THEN
                                 COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
                             ELSE
                                 COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
                         END as width,
-                        CASE 
+                        CASE
                             WHEN e.orientation IN (5, 6, 7, 8) THEN
                                 COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
                             ELSE
@@ -161,11 +158,7 @@ impl PhotoRepository for PostgresPhotoRepository {
             WHERE day > $1
         "#;
 
-        let search_start = format!("{}-12-31", year); // We want items BEFORE this year (which are > in desc order)
-        // Wait, timeline is DESC. So years 2024, 2023, 2022.
-        // If I want 2022, I need to skip all 2024 and 2023.
-        // Those are days > '2022-12-31'.
-
+        let search_start = format!("{}-12-31", year);
         let row = sqlx::query(sql)
             .bind(search_start)
             .fetch_one(&self.pool)
@@ -183,17 +176,17 @@ impl PhotoRepository for PostgresPhotoRepository {
         }
 
         let sql = r#"
-            SELECT 
-                p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at, 
-                p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized, 
+            SELECT
+                p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
+                p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
                 p.metadata_extracted, p.is_raw,
-                CASE 
+                CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
                     ELSE
                         COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
                 END as width,
-                CASE 
+                CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
                         COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
                     ELSE
@@ -208,6 +201,56 @@ impl PhotoRepository for PostgresPhotoRepository {
 
         let photos = sqlx::query_as::<_, Photo>(sql)
             .bind(ids)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DataError::Provider(e.to_string()))?;
+
+        Ok(photos)
+    }
+
+    async fn get_with_gps(&self, limit: u32, offset: u32) -> DataResult<Vec<PhotoLoc>> {
+        let sql = r#"
+            SELECT
+                p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
+                p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
+                p.metadata_extracted, p.is_raw,
+
+                CASE
+                    WHEN e.orientation IN (5, 6, 7, 8) THEN
+                        COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
+                    ELSE
+                        COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
+                END as width,
+
+                CASE
+                    WHEN e.orientation IN (5, 6, 7, 8) THEN
+                        COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
+                    ELSE
+                        COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
+                END as height,
+
+                p.thumbnail_width,
+                p.thumbnail_height,
+
+                e.gps_latitude as lat,
+                e.gps_longitude as lon
+
+            FROM photos p
+            JOIN exifs e ON p.id = e.image_id
+
+            WHERE
+                e.gps_latitude IS NOT NULL
+                AND e.gps_longitude IS NOT NULL
+                AND e.gps_latitude <> 0
+                AND e.gps_longitude <> 0
+
+            ORDER BY COALESCE(p.date_taken, p.created_at) DESC
+            LIMIT $1 OFFSET $2
+        "#;
+
+        let photos = sqlx::query_as::<_, PhotoLoc>(sql)
+            .bind(limit as i32)
+            .bind(offset as i32)
             .fetch_all(&self.pool)
             .await
             .map_err(|e| DataError::Provider(e.to_string()))?;

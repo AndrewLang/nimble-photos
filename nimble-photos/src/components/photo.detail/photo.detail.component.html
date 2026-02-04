@@ -129,28 +129,28 @@
                         class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 border-b border-white/5 pb-2">
                         EXIF Data</h3>
                     <div class="grid grid-cols-2 gap-4 text-sm">
-                        @if (p.metadata?.camera) {
+                        @if (p.metadata.camera) {
                         <div class="col-span-2">
                             <p class="text-[0.65rem] uppercase text-slate-500 mb-0.5">Camera</p>
                             <p class="text-slate-200">{{ p.metadata.camera }}</p>
                         </div>
                         }
 
-                        @if (p.metadata?.aperture) {
+                        @if (p.metadata.aperture) {
                         <div>
                             <p class="text-[0.65rem] uppercase text-slate-500 mb-0.5">Aperture</p>
                             <p class="text-slate-200 font-mono">{{ p.metadata.aperture }}</p>
                         </div>
                         }
 
-                        @if (p.metadata?.shutterSpeed) {
+                        @if (p.metadata.shutterSpeed) {
                         <div>
                             <p class="text-[0.65rem] uppercase text-slate-500 mb-0.5">Shutter</p>
                             <p class="text-slate-200 font-mono">{{ p.metadata.shutterSpeed }}</p>
                         </div>
                         }
 
-                        @if (p.metadata?.location) {
+                        @if (p.metadata.location) {
                         <div class="col-span-2">
                             <p class="text-[0.65rem] uppercase text-slate-500 mb-0.5">Location</p>
                             <p class="text-slate-200 flex items-center gap-1">

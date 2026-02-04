@@ -4,6 +4,9 @@
 - **No Comments**: Do not generate comments (single-line or multi-line) in the code unless they are technically required for the language or framework to function.
 - **Clean Code**: Code should be self-documenting through clear naming of variables, functions, and classes.
 - **Dry Code**: Aim for reusability and avoid duplication.
+- **Name Rule**: Use complete words for variable names, functions, and classes. Avoid abbreviations unless they are widely known.
+- **No Magic Numbers**: Do not use magic numbers in the code. Use constants instead.
+- **No Magic Strings**: Do not use magic strings in the code. Use constants instead.
 
 ## Frontend (Angular)
 - **Modern DI**: Use the `inject()` function for Dependency Injection instead of constructor injection.

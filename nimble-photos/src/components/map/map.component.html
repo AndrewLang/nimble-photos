@@ -1,49 +1,43 @@
-<div class="relative w-full h-full flex flex-col bg-slate-950 overflow-hidden">
+<div #mapContainer class="map-container"></div>
 
-    <!-- Map Search/Header Overlay -->
-    <div class="absolute top-20 left-6 right-6 z-20 pointer-events-none">
-        <div class="max-w-md pointer-events-auto">
-            <div class="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-                <h1 class="text-2xl font-bold text-white mb-1">Globetrotter</h1>
-                <p class="text-slate-400 text-xs uppercase tracking-[0.2em] font-medium mb-6">Discover stories across
-                    the world</p>
+<div class="absolute top-6 left-6 right-6 z-20 pointer-events-none">
+    <div class="max-w-md pointer-events-auto">
+        <div class="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 shadow-2xl">
+            <h1 class="text-2xl font-bold text-white mb-1">Globetrotter</h1>
+            <p class="text-slate-400 text-xs uppercase tracking-[0.2em] font-medium mb-6">Discover stories across
+                the world</p>
 
-                <div class="flex items-center gap-4 bg-white/5 border border-white/5 rounded-xl px-4 py-3">
-                    <div class="h-8 w-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-[0.6rem] uppercase tracking-widest text-slate-500 font-bold">Photos Found</p>
-                        <p class="text-base font-bold text-white">{{ photos().length }} Locations Mapped</p>
-                    </div>
+            <div class="flex items-center gap-4 bg-white/5 border border-white/5 rounded-xl px-4 py-3">
+                <div class="h-8 w-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-[0.6rem] uppercase tracking-widest text-slate-500 font-bold">Photos Found</p>
+                    <p class="text-base font-bold text-white">{{ photos().length }} Locations Mapped</p>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Loading Overlay -->
-    @if (loading()) {
-    <div class="absolute inset-0 z-[30] bg-slate-950 flex flex-col items-center justify-center">
-        <div class="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-        <p class="text-indigo-400 text-xs font-bold uppercase tracking-widest animate-pulse">Scanning the globe...</p>
-    </div>
-    }
-
-    <!-- Main Map Container -->
-    <div id="map" #mapContainer class="flex-1"></div>
-
-    @if (!hasGpsData() && !loading()) {
-    <div class="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-        <div class="bg-slate-900/70 border border-white/10 px-6 py-4 rounded-2xl text-center text-slate-300">
-            <p class="text-sm">Location metadata is not available yet. Upload images with GPS information to populate the map.</p>
-        </div>
-    </div>
-    }
-
 </div>
+
+@if (loading()) {
+<div class="absolute inset-0 z-30 bg-slate-950 flex flex-col items-center justify-center">
+    <div class="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+    <p class="text-indigo-400 text-xs font-bold uppercase tracking-widest animate-pulse">Scanning the globe...</p>
+</div>
+}
+
+@if (!hasGpsData() && !loading()) {
+<div class="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+    <div class="bg-slate-900/70 border border-white/10 px-6 py-4 rounded-2xl text-center text-slate-300">
+        <p class="text-sm">Location metadata is not available yet. Upload images with GPS information to populate
+            the map.</p>
+    </div>
+</div>
+}

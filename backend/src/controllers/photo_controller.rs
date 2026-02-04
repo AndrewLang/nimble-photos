@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::path::Path;
+use std::result::Result;
 
 use crate::repositories::photo::PhotoRepository;
 
@@ -23,6 +24,7 @@ impl Controller for PhotoController {
             EndpointRoute::get("/api/photos/timeline/years", TimelineYearsHandler).build(),
             EndpointRoute::get("/api/photos/timeline/year-offset/{year}", YearOffsetHandler)
                 .build(),
+            EndpointRoute::get("/api/photos/with-gps/{page}/{pageSize}", MapPhotosHandler).build(),
             EndpointRoute::post("/api/photos/scan", ScanPhotoHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
@@ -34,10 +36,7 @@ struct ScanPhotoHandler;
 
 #[async_trait]
 impl HttpHandler for ScanPhotoHandler {
-    async fn invoke(
-        &self,
-        _context: &mut HttpContext,
-    ) -> std::result::Result<ResponseValue, PipelineError> {
+    async fn invoke(&self, _context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         Ok(ResponseValue::empty())
     }
 }
@@ -46,10 +45,7 @@ struct ThumbnailHandler;
 
 #[async_trait]
 impl HttpHandler for ThumbnailHandler {
-    async fn invoke(
-        &self,
-        context: &mut HttpContext,
-    ) -> std::result::Result<ResponseValue, PipelineError> {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let hash = context
             .route()
             .and_then(|route| route.params().get("hash"))
@@ -85,10 +81,7 @@ struct TimelineHandler;
 
 #[async_trait]
 impl HttpHandler for TimelineHandler {
-    async fn invoke(
-        &self,
-        context: &mut HttpContext,
-    ) -> std::result::Result<ResponseValue, PipelineError> {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context
             .services()
             .resolve::<Box<dyn PhotoRepository>>()
@@ -122,10 +115,7 @@ struct TimelineYearsHandler;
 
 #[async_trait]
 impl HttpHandler for TimelineYearsHandler {
-    async fn invoke(
-        &self,
-        context: &mut HttpContext,
-    ) -> std::result::Result<ResponseValue, PipelineError> {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context
             .services()
             .resolve::<Box<dyn PhotoRepository>>()
@@ -144,10 +134,7 @@ struct YearOffsetHandler;
 
 #[async_trait]
 impl HttpHandler for YearOffsetHandler {
-    async fn invoke(
-        &self,
-        context: &mut HttpContext,
-    ) -> std::result::Result<ResponseValue, PipelineError> {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context
             .services()
             .resolve::<Box<dyn PhotoRepository>>()
@@ -164,5 +151,45 @@ impl HttpHandler for YearOffsetHandler {
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::new(Json(offset)))
+    }
+}
+
+struct MapPhotosHandler;
+
+#[async_trait]
+impl HttpHandler for MapPhotosHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let repository = context
+            .services()
+            .resolve::<Box<dyn PhotoRepository>>()
+            .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
+
+        let route_params = context.route().map(|r| r.params());
+
+        let page: u32 = route_params
+            .and_then(|p| p.get("page"))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1);
+
+        let page_size: u32 = route_params
+            .and_then(|p| p.get("pageSize"))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(100);
+
+        let limit = page_size;
+        let offset = if page > 0 { (page - 1) * limit } else { 0 };
+
+        let photos = repository
+            .get_with_gps(limit, offset)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        let response = serde_json::json!({
+            "page": page,
+            "pageSize": page_size,
+            "items": photos
+        });
+
+        Ok(ResponseValue::new(Json(response)))
     }
 }
