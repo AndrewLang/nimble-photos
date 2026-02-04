@@ -199,7 +199,7 @@ const EXIF_UPDATE_COLUMNS: &[&str] = &[
     "interop_version",
 ];
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ExifModel {
     pub id: Option<Uuid>,

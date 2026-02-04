@@ -2,8 +2,11 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
-import { Photo } from '../../models/photo';
+import { Photo, PhotoComment } from '../../models/photo';
+import { AuthService } from '../../services/auth.service';
 import { PhotoService } from '../../services/photo.service';
+
+const MAX_COMMENT_LENGTH = 1024;
 
 @Component({
     selector: 'mtx-photo-detail',
@@ -25,12 +28,23 @@ export class PhotoDetailComponent implements OnInit {
         { emoji: '✨', count: 4, selected: false },
     ]);
 
+    readonly commentDraft = signal('');
+    readonly commentSaving = signal(false);
+    readonly commentError = signal<string | null>(null);
+    readonly maxCommentLength = MAX_COMMENT_LENGTH;
+    readonly comments = signal<PhotoComment[]>([]);
+    readonly commentsLoading = signal(false);
+    readonly commentsError = signal<string | null>(null);
+    readonly metadataExpanded = signal(false);
+    readonly commentEditorVisible = signal(false);
+
     private albumId: string | null = null;
     private returnUrl = '/';
 
     constructor(
         private readonly route: ActivatedRoute,
         private readonly router: Router,
+        public readonly authService: AuthService,
         private readonly photoService: PhotoService
     ) { }
 
@@ -67,6 +81,7 @@ export class PhotoDetailComponent implements OnInit {
             if (result) {
                 this.fetchAdjacents(result.id);
                 this.loadPhotoMetadata(result.id);
+                this.loadComments(result.id);
             }
             this.loading.set(false);
         });
@@ -85,8 +100,55 @@ export class PhotoDetailComponent implements OnInit {
                 this.photo.update(current =>
                     current ? { ...current, metadata: metadata ?? undefined } : current
                 );
+                this.metadataExpanded.set(false);
                 console.log('Loaded metadata for photo', photoId, metadata);
             });
+    }
+
+    handleCommentInput(event: Event): void {
+        const target = event.target as HTMLTextAreaElement;
+        this.commentDraft.set(target.value.slice(0, MAX_COMMENT_LENGTH));
+    }
+
+    saveComment(): void {
+        const photo = this.photo();
+        if (!photo || !this.authService.isAuthenticated()) {
+            return;
+        }
+
+        const trimmed = this.commentDraft().trim();
+        if (trimmed.length === 0 || trimmed.length > MAX_COMMENT_LENGTH) {
+            this.commentError.set(`Comment must be between 1 and ${MAX_COMMENT_LENGTH} characters.`);
+            return;
+        }
+
+        this.commentSaving.set(true);
+        this.commentError.set(null);
+
+        this.photoService.createPhotoComment(photo.id, trimmed)
+            .pipe(first())
+            .subscribe({
+                next: (comment: PhotoComment) => {
+                    this.commentSaving.set(false);
+                    this.comments.update(current => [comment, ...current]);
+                    this.commentDraft.set('');
+                },
+                error: () => {
+                    this.commentSaving.set(false);
+                    this.commentError.set('Unable to save your comment.');
+                }
+            });
+    }
+
+    toggleCommentEditor(): void {
+        if (!this.authService.isAuthenticated()) {
+            return;
+        }
+        this.commentEditorVisible.update(value => !value);
+    }
+
+    toggleMetadata(): void {
+        this.metadataExpanded.update(value => !value);
     }
 
     addReaction(emoji: string): void {
@@ -112,6 +174,40 @@ export class PhotoDetailComponent implements OnInit {
 
     private buildDefaultReturnUrl(albumId: string | null): string {
         return albumId ? `/album/${albumId}` : '/';
+    }
+
+    private loadComments(photoId: string): void {
+        this.commentsLoading.set(true);
+        this.commentsError.set(null);
+        this.photoService.getPhotoComments(photoId)
+            .pipe(first())
+            .subscribe({
+                next: (comments: PhotoComment[]) => {
+                    console.log('Loaded comments for photo', photoId, comments);
+                    this.comments.set(comments);
+                    this.commentsLoading.set(false);
+                },
+                error: () => {
+                    this.comments.set([]);
+                    this.commentsLoading.set(false);
+                    this.commentsError.set('Failed to load comments.');
+                }
+            });
+    }
+
+    formatCommentDate(value?: string): string {
+        if (!value) {
+            return '';
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return value;
+        }
+        return parsed.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+        });
     }
 
     formatBytes(size?: number): string {

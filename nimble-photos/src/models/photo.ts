@@ -114,6 +114,15 @@ export interface Photo {
   metadata?: PhotoMetadata;
 }
 
+export interface PhotoComment {
+  id: string;
+  photoId: string;
+  userId: string;
+  userDisplayName?: string;
+  body: string;
+  createdAt: string;
+}
+
 export interface PagedPhotos {
   page: number;
   pageSize: number;

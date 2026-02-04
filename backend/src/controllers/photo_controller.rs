@@ -1,23 +1,33 @@
 use async_trait::async_trait;
+use chrono::Utc;
+use serde::Deserialize;
 use std::path::Path;
 use std::result::Result;
 use uuid::Uuid;
 
+use crate::dtos::photo_comment_dto::PhotoCommentDto;
 use crate::entities::exif::ExifModel;
+use crate::entities::photo_comment::PhotoComment;
+use crate::entities::user_settings::UserSettings;
 use crate::repositories::photo::PhotoRepository;
 
 use nimble_web::DataProvider;
 use nimble_web::Repository;
 use nimble_web::controller::controller::Controller;
-use nimble_web::data::query::Value;
+use nimble_web::data::query::{
+    Filter, FilterOperator, Query, Sort, SortDirection, Value,
+};
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
+use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::FileResponse;
 use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
+
+const MAX_COMMENT_LENGTH: usize = 1024;
 
 pub struct PhotoController;
 
@@ -31,6 +41,10 @@ impl Controller for PhotoController {
                 .build(),
             EndpointRoute::get("/api/photos/with-gps/{page}/{pageSize}", MapPhotosHandler).build(),
             EndpointRoute::get("/api/photos/{id}/metadata", PhotoMetadataHandler).build(),
+            EndpointRoute::get("/api/photos/{id}/comments", PhotoCommentsHandler).build(),
+            EndpointRoute::post("/api/photos/{id}/comments", CreatePhotoCommentHandler)
+                .with_policy(Policy::Authenticated)
+                .build(),
             EndpointRoute::post("/api/photos/scan", ScanPhotoHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
@@ -197,6 +211,109 @@ impl HttpHandler for MapPhotosHandler {
         });
 
         Ok(ResponseValue::new(Json(response)))
+    }
+}
+
+#[derive(Deserialize)]
+struct CreatePhotoCommentPayload {
+    comment: String,
+}
+
+struct PhotoCommentsHandler;
+
+#[async_trait]
+impl HttpHandler for PhotoCommentsHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let photo_id_param = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        let photo_id = Uuid::parse_str(photo_id_param)
+            .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
+
+        let repository = context
+            .service::<Repository<PhotoComment>>()
+            .map_err(|_| PipelineError::message("PhotoComment repository not found"))?;
+
+        let mut query = Query::<PhotoComment>::new();
+        query.filters.push(Filter {
+            field: "photo_id".to_string(),
+            operator: FilterOperator::Eq,
+            value: Value::Uuid(photo_id),
+        });
+        query.sorting.push(Sort {
+            field: "created_at".to_string(),
+            direction: SortDirection::Desc,
+        });
+
+        let comments_page = repository.query(query).await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let comments = comments_page
+            .items
+            .into_iter()
+            .map(PhotoCommentDto::from)
+            .collect::<Vec<_>>();
+
+        Ok(ResponseValue::new(Json(comments)))
+    }
+}
+
+struct CreatePhotoCommentHandler;
+
+#[async_trait]
+impl HttpHandler for CreatePhotoCommentHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload = context
+            .read_json::<CreatePhotoCommentPayload>()
+            .map_err(|e| PipelineError::message(e.message()))?;
+
+        let body = payload.comment.trim();
+        if body.is_empty() {
+            return Err(PipelineError::message("Comment cannot be empty"));
+        }
+        if body.chars().count() > MAX_COMMENT_LENGTH {
+            return Err(PipelineError::message(&format!(
+                "Comment must be {} characters or fewer",
+                MAX_COMMENT_LENGTH
+            )));
+        }
+
+        let photo_id_param = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        let photo_id = Uuid::parse_str(photo_id_param)
+            .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
+
+        let identity = context
+            .get::<IdentityContext>()
+            .ok_or_else(|| PipelineError::message("identity not found"))?;
+        let user_id =
+            Uuid::parse_str(identity.identity().subject()).map_err(|_| PipelineError::message("invalid identity"))?;
+
+        let settings_repo = context.service::<Repository<UserSettings>>()?;
+        let display_name = settings_repo
+            .get(&user_id.to_string())
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
+            .map(|settings| settings.display_name)
+            .unwrap_or_else(|| "Anonymous".to_string());
+
+        let mut new_comment = PhotoComment::default();
+        new_comment.id = Some(Uuid::new_v4());
+        new_comment.photo_id = Some(photo_id);
+        new_comment.user_id = Some(user_id);
+        new_comment.user_display_name = Some(display_name);
+        new_comment.body = Some(body.to_string());
+        new_comment.created_at = Some(Utc::now());
+
+        let repository = context.service::<Repository<PhotoComment>>()?;
+        let saved = repository
+            .insert(new_comment)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(PhotoCommentDto::from(saved))))
     }
 }
 

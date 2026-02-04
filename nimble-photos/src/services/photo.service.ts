@@ -2,7 +2,7 @@
 import { Injectable, signal } from '@angular/core';
 import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 
-import { Album, GroupedPhotos, PagedPhotos, Photo, PhotoLoc, PhotoMetadata } from '../models/photo';
+import { Album, GroupedPhotos, PagedPhotos, Photo, PhotoComment, PhotoLoc, PhotoMetadata } from '../models/photo';
 import { AlbumModel } from '../models/album.model';
 import { PagedResponseModel } from '../models/paged.response.model';
 import { PagedAlbumsModel } from '../models/paged.albums.model';
@@ -52,6 +52,24 @@ export class PhotoService {
     return this.http
       .get<PhotoMetadata | null>(`${this.apiBase}/photos/${id}/metadata`)
       .pipe(catchError(() => of(null)));
+  }
+
+  getPhotoComments(photoId: string): Observable<PhotoComment[]> {
+    return this.http
+      .get<PhotoComment[]>(`${this.apiBase}/photos/${photoId}/comments`)
+      .pipe(catchError(() => of([])));
+  }
+
+  createPhotoComment(photoId: string, comment: string): Observable<PhotoComment> {
+    return this.http.post<PhotoComment>(`${this.apiBase}/photos/${photoId}/comments`, { comment });
+  }
+
+  updatePhotoComment(photoId: string, comment: string | null): Observable<PhotoMetadata | null> {
+    return this.http
+      .patch<PhotoMetadata | null>(`${this.apiBase}/photos/${photoId}/metadata/comment`, { comment })
+      .pipe(
+        catchError(() => of(null))
+      );
   }
 
   getThumbnailPath(photo: Photo): string {

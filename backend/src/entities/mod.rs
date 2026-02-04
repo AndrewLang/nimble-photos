@@ -1,5 +1,6 @@
 use album::Album;
 use exif::ExifModel;
+use photo_comment::PhotoComment;
 #[cfg(not(feature = "postgres"))]
 use nimble_web::data::memory_repository::MemoryRepository;
 use nimble_web::*;
@@ -14,6 +15,7 @@ pub mod album;
 pub mod album_hooks;
 pub mod exif;
 pub mod photo;
+pub mod photo_comment;
 pub mod user;
 pub mod user_settings;
 pub mod uuid_id;
@@ -47,6 +49,14 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         EnsureUuidIdHooks::<ExifModel>::new(),
         &[EntityOperation::Get],
     );
+    builder.use_entity_with_hooks(
+        EnsureUuidIdHooks::<PhotoComment>::new(),
+        &[
+            EntityOperation::List,
+            EntityOperation::Get,
+            EntityOperation::Create,
+        ],
+    );
 
     #[cfg(not(feature = "postgres"))]
     {
@@ -69,6 +79,10 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         builder.register_singleton(|_| {
             let provider = MemoryRepository::<Album>::new();
             Repository::<Album>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
+            let provider = MemoryRepository::<PhotoComment>::new();
+            Repository::<PhotoComment>::new(Box::new(provider))
         });
     }
 
@@ -114,6 +128,11 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let provider = PostgresProvider::<Album>::new((*pool).clone());
             Repository::<Album>::new(Box::new(provider))
         });
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<PhotoComment>::new((*pool).clone());
+            Repository::<PhotoComment>::new(Box::new(provider))
+        });
     }
 
     builder
@@ -137,6 +156,7 @@ pub async fn migrate_entities(app: &Application) {
         let _ = app.migrate_entity::<Photo>().await;
         let _ = app.migrate_entity::<Album>().await;
         let _ = app.migrate_entity::<ExifModel>().await;
+        let _ = app.migrate_entity::<PhotoComment>().await;
 
         log::info!("Creating additional indices for performance...");
         let sqls = [
@@ -144,6 +164,7 @@ pub async fn migrate_entities(app: &Application) {
             "CREATE INDEX IF NOT EXISTS idx_photos_created_at ON photos (created_at)",
             "CREATE INDEX IF NOT EXISTS idx_photos_sort_date_v2 ON photos ((DATE(COALESCE(date_taken, created_at) AT TIME ZONE 'UTC')))",
             "CREATE INDEX IF NOT EXISTS idx_exifs_image_id ON exifs (image_id)",
+            "CREATE INDEX IF NOT EXISTS idx_photo_comments_photo_id ON photo_comments (photo_id)",
         ];
 
         for sql in sqls {
