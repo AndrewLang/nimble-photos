@@ -1,13 +1,14 @@
 import { Component, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
-import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { FormBuilder } from '@angular/forms';
 import { SelectionService } from '../../services/selection.service';
 import { PhotoService } from '../../services/photo.service';
 import { AuthService } from '../../services/auth.service';
 import { DialogService } from '../../services/dialog.service';
 import { InfoDialog } from '../dialog/info.dialog.component';
 import { AlbumEditorComponent } from '../album/album.editor.component';
+import { AlbumSelectorComponent } from '../album/album.selector.component';
 
 @Component({
   selector: 'mtx-header',
@@ -105,11 +106,73 @@ export class HeaderComponent implements OnInit {
     }
   }
 
-  addToAlbum() {
-    this.dialogService.open(InfoDialog, {
+  async addToAlbum() {
+    const photos = this.selectionService.selectedPhotos();
+    if (photos.length === 0) return;
+
+    const ref = this.dialogService.open(AlbumSelectorComponent, {
       title: 'Add to Album',
-      actions: [{ label: 'Understood', value: true, style: 'secondary' }]
+      width: '500px',
+      actions: [
+        { label: 'Cancel', value: false, style: 'ghost' },
+        { label: 'Add to Album', value: 'submit', style: 'primary' }
+      ]
     });
+
+    const result = await ref.afterClosed();
+    if (result && result !== 'submit' && result !== false) {
+      const targetAlbum = result;
+
+      // Fetch full album to get current rules/photoIds
+      this.photoService.getAlbumById(targetAlbum.id!).subscribe(fullAlbum => {
+        if (!fullAlbum) {
+          alert('Album not found.');
+          return;
+        }
+
+        let currentIds: string[] = [];
+        if (fullAlbum.rulesJson) {
+          try {
+            const rules = JSON.parse(fullAlbum.rulesJson);
+            currentIds = rules.photoIds || [];
+          } catch (e) {
+            console.error('Error parsing album rules', e);
+          }
+        }
+
+        // Merge IDs (Set to avoid duplicates)
+        const currentIdsSet = new Set(currentIds.map(id => id.toLowerCase()));
+        const newIds = photos.map(p => p.id.toLowerCase());
+        const idsToAdd = newIds.filter(id => !currentIdsSet.has(id));
+
+        if (idsToAdd.length === 0) {
+          alert('Selected photos are already in this album.');
+          this.selectionService.clearSelection();
+          return;
+        }
+
+        const mergedIds = [...currentIds, ...idsToAdd];
+
+        // Update album
+        this.photoService.updateAlbum({
+          id: fullAlbum.id,
+          name: fullAlbum.name,
+          description: fullAlbum.description,
+          kind: fullAlbum.kind,
+          sortOrder: fullAlbum.sortOrder,
+          rulesJson: JSON.stringify({ photoIds: mergedIds })
+        }).subscribe({
+          next: () => {
+            this.selectionService.clearSelection();
+            this.router.navigate(['/album', fullAlbum.id]);
+          },
+          error: (err) => {
+            console.error('Failed to update album', err);
+            alert('Failed to add photos to album.');
+          }
+        });
+      });
+    }
   }
 
   downloadSelected() {

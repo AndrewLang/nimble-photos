@@ -176,6 +176,12 @@ export class PhotoService {
     );
   }
 
+  updateAlbum(album: Partial<AlbumModel>): Observable<Album> {
+    return this.http.put<AlbumModel>(`${this.apiBase}/albums`, album).pipe(
+      map(dto => this.mapAlbum(dto))
+    );
+  }
+
   getAlbumById(id: string): Observable<Album | null> {
     return this.http.get<AlbumModel>(`${this.apiBase}/albums/${id}`).pipe(
       switchMap((dto) => {
