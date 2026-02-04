@@ -57,7 +57,7 @@
             [style.width.px]="getPhotoWidth(photo, item.row.height)" [class.mr-[6px]]="!lastPhoto"
             [class.z-10]="isSelected(photo.id)">
 
-            <img [src]="getImageUrl(photo)" [alt]="photo.name"
+            <img [src]="getImageUrl(photo)" [alt]="photo.name" fallback
               class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
               [class.translate-y-[-4px]]="isSelected(photo.id)" [class.scale-105]="isSelected(photo.id)" loading="lazy">
 

@@ -21,7 +21,7 @@
 
       <div class="overflow-hidden rounded-sm bg-slate-900 border border-white/5"
         [style.aspect-ratio]="photo.width && photo.height ? (photo.width + '/' + photo.height) : 'auto'">
-        <img [src]="getImageUrl(photo)" [alt]="photo.name"
+        <img [src]="getImageUrl(photo)" [alt]="photo.name" fallback
           class="w-full h-auto block transition-all duration-700 ease-out group-hover:scale-110"
           [class.scale-105]="isSelected(photo.id)" loading="lazy">
       </div>

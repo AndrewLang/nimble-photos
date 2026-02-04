@@ -7,9 +7,11 @@ import { Photo, PagedPhotos } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
 
+import { ImageFallbackDirective } from '../../directives/image-fallback.directive';
+
 @Component({
   selector: 'mtx-gallery',
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, ImageFallbackDirective],
   templateUrl: './gallery.component.html',
   host: {
     class: 'flex flex-col flex-1 min-h-0',

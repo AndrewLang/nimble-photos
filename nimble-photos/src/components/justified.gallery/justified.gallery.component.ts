@@ -7,6 +7,7 @@ import { first } from 'rxjs';
 import { GroupedPhotos, Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
+import { ImageFallbackDirective } from '../../directives/image-fallback.directive';
 
 interface PhotoRow {
     photos: Photo[];
@@ -19,7 +20,7 @@ type GalleryItem =
 
 @Component({
     selector: 'mtx-justified-gallery',
-    imports: [CommonModule, RouterModule, ScrollingModule, DatePipe],
+    imports: [CommonModule, RouterModule, ScrollingModule, DatePipe, ImageFallbackDirective],
     templateUrl: './justified.gallery.component.html',
     host: {
         class: 'block h-full w-full overflow-hidden'

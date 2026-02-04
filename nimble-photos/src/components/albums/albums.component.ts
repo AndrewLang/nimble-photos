@@ -8,10 +8,11 @@ import { Album } from '../../models/photo';
 import { DatePipe } from '@angular/common';
 
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm-dialog.component';
+import { ImageFallbackDirective } from '../../directives/image-fallback.directive';
 
 @Component({
     selector: 'mtx-albums',
-    imports: [RouterModule, DatePipe],
+    imports: [RouterModule, DatePipe, ImageFallbackDirective],
     templateUrl: './albums.component.html',
     host: {
         class: 'block flex-1 min-h-0',
