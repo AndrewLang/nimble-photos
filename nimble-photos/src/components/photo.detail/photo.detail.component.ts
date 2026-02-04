@@ -1,5 +1,5 @@
 import { Component, OnInit, signal, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { first } from 'rxjs';
 import { PhotoService } from '../../services/photo.service';
@@ -30,6 +30,7 @@ export class PhotoDetailComponent implements OnInit {
     constructor(
         private readonly route: ActivatedRoute,
         private readonly router: Router,
+        private readonly location: Location,
         private readonly photoService: PhotoService
     ) { }
 
@@ -88,11 +89,15 @@ export class PhotoDetailComponent implements OnInit {
     }
 
     close(): void {
+        const canGoBack = typeof window !== 'undefined' && window.history.length > 1;
+        if (canGoBack) {
+            this.location.back();
+            return;
+        }
+
         if (this.albumId) {
             this.router.navigate(['/album', this.albumId]);
         } else {
-            // Logic for where they came from might be needed, 
-            // but for now go to home (timeline)
             this.router.navigate(['/']);
         }
     }
