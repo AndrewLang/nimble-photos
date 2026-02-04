@@ -80,6 +80,7 @@ export class PhotoDetailComponent implements OnInit {
                 this.photo.update(current =>
                     current ? { ...current, metadata: metadata ?? undefined } : current
                 );
+                console.log('Loaded metadata for photo', photoId, metadata);
             });
     }
 
@@ -131,24 +132,18 @@ export class PhotoDetailComponent implements OnInit {
         return this.photoService.getThumbnailPath(this.photo()!);
     }
 
-    metadataSections(metadata?: Photo['metadata']): { title: string; fields: { label: string; value: string }[] }[] {
-        if (!metadata) {
+    metadataSections(p?: Photo | null): { title: string; fields: { label: string; value: string }[] }[] {
+        if (!p || !p.metadata) {
             return [];
         }
 
-        const record = metadata as Record<string, unknown>;
-        const usedKeys = new Set<string>();
+        const record = { ...p.metadata } as Record<string, unknown>;
+        if (p.width) record['width'] = p.width;
+        if (p.height) record['height'] = p.height;
 
         const buildSection = (title: string, keys: string[]) => {
             const fields = keys
-                .map(key => {
-                    const field = this.buildMetadataField(record, key);
-                    if (field) {
-                        usedKeys.add(key);
-                        return field;
-                    }
-                    return null;
-                })
+                .map(key => this.buildMetadataField(record, key))
                 .filter((field): field is { label: string; value: string } => Boolean(field));
             return { title, fields };
         };
@@ -159,23 +154,9 @@ export class PhotoDetailComponent implements OnInit {
                 'model',
                 'lensModel',
                 'apertureValue',
-                'shutterSpeedValue',
+                'exposureTime',
                 'iso',
                 'focalLength',
-                'focalLengthIn35mmFilm',
-                'datetimeOriginal',
-            ]),
-            buildSection('Exposure & Capture', [
-                'exposureProgram',
-                'exposureMode',
-                'exposureBiasValue',
-                'meteringMode',
-                'lightSource',
-                'flash',
-                'gainControl',
-                'exposureIndex',
-                'brightnessValue',
-                'recommendedExposureIndex',
             ]),
             buildSection('Lens & Body', [
                 'lensMake',
@@ -187,54 +168,46 @@ export class PhotoDetailComponent implements OnInit {
             buildSection('Image Info', [
                 'imageWidth',
                 'imageLength',
-                'pixelXDimension',
-                'pixelYDimension',
                 'bitsPerSample',
                 'orientation',
                 'compression',
                 'digitalZoomRatio',
                 'resolutionUnit',
-                'colorSpace',
-                'width',
-                'height',
+            ]),
+            buildSection('Exposure & Capture', [
+                'exposureProgram',
+                'exposureMode',
+                'exposureBiasValue',
+                'meteringMode',
+                'lightSource',
+                'flash',
+                'gainControl',
+            ]),
+            buildSection('Tone & Color', [
+                'whiteBalance',
+                'contrast',
+                'saturation',
+                'sharpness',
+                'gamma',
             ]),
             buildSection('Timing', [
-                'datetime',
                 'datetimeOriginal',
                 'datetimeDigitized',
-                'subsecTime',
-                'subsecTimeOriginal',
-                'subsecTimeDigitized',
+                'datetime',
             ]),
-            buildSection('GPS', [
+            buildSection('Gps', [
                 'gpsLatitude',
                 'gpsLongitude',
                 'gpsAltitude',
-                'gpsLatitudeRef',
-                'gpsLongitudeRef',
-                'gpsAltitudeRef',
                 'gpsSpeed',
-                'gpsSpeedRef',
-                'gpsImgDirection',
-                'gpsImgDirectionRef',
+            ]),
+            buildSection('Misc', [
+                'software',
+                'artist',
+                'copyright',
+                'userComment',
             ]),
         ].filter(section => section.fields.length > 0);
-
-        const additionalFields = Object.keys(record)
-            .filter(key => !usedKeys.has(key))
-            .sort()
-            .map(key => {
-                const field = this.buildMetadataField(record, key);
-                if (field) {
-                    usedKeys.add(key);
-                }
-                return field;
-            })
-            .filter((field): field is { label: string; value: string } => Boolean(field));
-
-        if (additionalFields.length > 0) {
-            sections.push({ title: 'Additional Metadata', fields: additionalFields });
-        }
 
         return sections;
     }
@@ -256,20 +229,52 @@ export class PhotoDetailComponent implements OnInit {
 
     private friendlyLabel(key: string): string {
         const labelMap: Record<string, string> = {
+            make: 'Make',
+            model: 'Model',
+            lensModel: 'Lens',
+            lensMake: 'Lens make',
+            lensSpecification: 'Lens specific',
+            lensSerialNumber: 'Lens serial',
+            bodySerialNumber: 'Body serial',
             iso: 'ISO',
-            fNumber: 'F Number',
+            fNumber: 'Aperture',
             apertureValue: 'Aperture',
-            shutterSpeedValue: 'Shutter Speed',
-            focalLength: 'Focal Length',
-            focalLengthIn35mmFilm: 'Focal Length (35mm)',
-            exposureBiasValue: 'Exposure Bias',
-            gpsLatitude: 'GPS Latitude',
-            gpsLongitude: 'GPS Longitude',
-            gpsAltitude: 'GPS Altitude',
-            datetimeOriginal: 'Date Taken',
-            datetimeDigitized: 'Date Digitized',
-            datetime: 'Date',
-            digitalZoomRatio: 'Digital Zoom',
+            shutterSpeedValue: 'Shutter speed',
+            exposureTime: 'Exposure time',
+            exposureProgram: 'Program',
+            exposureMode: 'Mode',
+            exposureBiasValue: 'Exposure bias',
+            focalLength: 'Focal length',
+            meteringMode: 'Metering',
+            lightSource: 'Light source',
+            flash: 'Flash',
+            gainControl: 'Gain control',
+            width: 'Width',
+            height: 'Height',
+            bitsPerSample: 'Bits per sample',
+            orientation: 'Orientation',
+            compression: 'Compression',
+            digitalZoomRatio: 'Digital zoom',
+            resolutionUnit: 'Resolution unit',
+            colorSpace: 'Color space',
+            whiteBalance: 'White balance',
+            contrast: 'Contrast',
+            saturation: 'Saturation',
+            sharpness: 'Sharpness',
+            gamma: 'Gamma',
+            datetimeOriginal: 'Taken',
+            datetimeDigitized: 'Digitized',
+            datetime: 'Edited',
+            gpsLatitude: 'Latitude',
+            gpsLongitude: 'Longitude',
+            gpsAltitude: 'Altitude',
+            gpsSpeed: 'Speed',
+            software: 'Software',
+            artist: 'Artist',
+            copyright: 'Copyright',
+            userComment: 'User comments',
+            imageLength: 'Height',
+            imageWidth: 'Width',
         };
         return labelMap[key] ?? this.humanizeKey(key);
     }
@@ -325,7 +330,7 @@ export class PhotoDetailComponent implements OnInit {
     private formatNumber(value: unknown, decimals = 0): string {
         const num =
             typeof value === 'number' ? value :
-            typeof value === 'string' ? Number(value) : NaN;
+                typeof value === 'string' ? Number(value) : NaN;
         if (Number.isNaN(num)) {
             return '';
         }
