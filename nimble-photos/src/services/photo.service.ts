@@ -171,7 +171,9 @@ export class PhotoService {
   }
 
   deleteAlbum(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiBase}/albums/${id}`);
+    return this.http.delete(`${this.apiBase}/albums/${id}`, { responseType: 'text' }).pipe(
+      map(() => undefined)
+    );
   }
 
   getAlbumById(id: string): Observable<Album | null> {

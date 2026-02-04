@@ -37,6 +37,7 @@ export class AlbumsComponent implements OnInit {
     private fetchAlbums(): void {
         this.loading.set(true);
         this.photoService.getAlbums().pipe(first()).subscribe(result => {
+            console.log('ablums: ', result);
             this.albums.set(result.items);
             this.loading.set(false);
         });
