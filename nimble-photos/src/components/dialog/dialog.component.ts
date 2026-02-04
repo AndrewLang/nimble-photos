@@ -41,6 +41,19 @@ export class DialogComponent implements AfterViewInit, OnInit {
   }
 
   onAction(action: DialogAction) {
+    if (action.value === 'submit') {
+      const instance = this.componentInstance();
+      if (instance) {
+        if (typeof instance.isValid === 'function' && !instance.isValid()) {
+          return;
+        }
+        if (typeof instance.getFormValue === 'function') {
+          this.close(instance.getFormValue());
+          return;
+        }
+      }
+    }
+
     if (action.closeDialog !== false) {
       this.close(action.value);
     }

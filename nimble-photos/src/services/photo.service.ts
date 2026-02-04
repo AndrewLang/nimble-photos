@@ -179,9 +179,7 @@ export class PhotoService {
   getAlbumById(id: string): Observable<Album | null> {
     return this.http.get<AlbumModel>(`${this.apiBase}/albums/${id}`).pipe(
       switchMap((dto) => {
-        console.log('Album: ', dto);
         const rules = JSON.parse(dto.rulesJson || '{ "photoIds": [] }');
-        console.log('Rules: ', rules);
 
         return this.getAlbumPhotos(id, 1, 100).pipe(
           map((photos) => ({
@@ -205,7 +203,6 @@ export class PhotoService {
   }
 
   private mapPhotoPage(response: PagedResponseModel<PhotoModel>): PagedPhotos {
-    console.log('Mapping photo page', response);
     return {
       page: response.page,
       pageSize: response.pageSize,

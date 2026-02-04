@@ -83,9 +83,8 @@ export class HeaderComponent implements OnInit {
     });
 
     const result = await ref.afterClosed();
-    if (result === 'submit') {
-      const editor = ref.componentInstance as AlbumEditorComponent;
-      const albumData = editor.getFormValue();
+    if (result && result !== 'submit' && result !== false) {
+      const albumData = result;
 
       this.photoService.createAlbum({
         name: albumData.name,
@@ -96,7 +95,7 @@ export class HeaderComponent implements OnInit {
       }).subscribe({
         next: (album) => {
           this.selectionService.clearSelection();
-          this.router.navigate(['/albums', album.id]);
+          this.router.navigate(['/album', album.id]);
         },
         error: (err) => {
           console.error('Failed to create album:', err);
