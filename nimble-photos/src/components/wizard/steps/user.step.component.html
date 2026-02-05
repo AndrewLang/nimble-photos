@@ -6,6 +6,16 @@
         </p>
     </div>
 
+    @if (statusLoading()) {
+    <div class="rounded-2xl border border-white/5 bg-slate-950/60 px-5 py-4 text-xs text-slate-400">
+        Checking admin status...
+    </div>
+    } @else if (registrationBlocked()) {
+    <div class="rounded-2xl border border-white/10 bg-slate-950/60 px-6 py-6 text-sm text-slate-300">
+        <p class="font-semibold text-white">Admin User Already Created</p>
+        <p class="mt-2 text-slate-400">{{ registrationMessage() }}</p>
+    </div>
+    } @else {
     <form [formGroup]="userForm" (ngSubmit)="onSubmit()" class="grid gap-6 md:grid-cols-2">
         @if (success()) {
         <div
@@ -58,4 +68,5 @@
             </button>
         </div>
     </form>
+    }
 </div>

@@ -56,9 +56,13 @@
                         class="h-11 rounded-full border border-white/10 px-6 text-xs font-semibold uppercase tracking-wider text-slate-400 transition-all hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
                         Back
                     </button>
-                    <button type="button" (click)="goNext()" [disabled]="activeIndex() >= steps().length - 1"
+                    <button type="button" (click)="goNext()" [disabled]="steps().length === 0"
                         class="h-11 rounded-full bg-linear-to-r from-indigo-500 to-sky-500 px-6 text-xs font-semibold uppercase tracking-wider text-white shadow-lg shadow-indigo-500/20 transition-all hover:from-indigo-400 hover:to-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
+                        @if (isLastStep()) {
+                        Finish
+                        } @else {
                         Next
+                        }
                     </button>
                 </div>
             </div>

@@ -135,6 +135,10 @@ impl SettingService {
         self.get_bool_setting("site.public").await
     }
 
+    pub async fn is_registration_allowed(&self) -> Result<bool, PipelineError> {
+        self.get_bool_setting("site.allowRegistration").await
+    }
+
     pub async fn is_photo_upload_enabled(&self) -> Result<bool, PipelineError> {
         self.get_bool_setting("photo.manage.uploadsEnabled").await
     }
@@ -285,9 +289,29 @@ fn build_definitions() -> Vec<SettingDefinition> {
             options: None,
         },
         SettingDefinition {
+            key: "site.logo",
+            label: "Site logo",
+            description: "URL for the brand logo shown in the header",
+            section: SettingSection::General,
+            group: SettingSection::General.slug(),
+            value_type: SettingValueType::String,
+            default_value: json!(""),
+            options: None,
+        },
+        SettingDefinition {
             key: "site.public",
             label: "Public gallery",
             description: "When enabled visitors can browse and view photos without signing in. Otherwise only authenticated users can access the library.",
+            section: SettingSection::General,
+            group: SettingSection::General.slug(),
+            value_type: SettingValueType::Boolean,
+            default_value: json!(true),
+            options: None,
+        },
+        SettingDefinition {
+            key: "site.allowRegistration",
+            label: "Allow registration",
+            description: "When enabled visitors can create their own accounts from the register screen.",
             section: SettingSection::General,
             group: SettingSection::General.slug(),
             value_type: SettingValueType::Boolean,

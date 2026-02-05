@@ -15,6 +15,11 @@ export interface LoginRequest {
     password: string;
 }
 
+export interface RegistrationStatus {
+    hasAdmin: boolean;
+    allowRegistration: boolean;
+}
+
 export interface RefreshTokenRequest {
     refreshToken: string;
 }

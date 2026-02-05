@@ -43,6 +43,8 @@ export class WizardComponent {
         return ((this.activeIndex() + 1) / total) * 100;
     });
 
+    readonly isLastStep = computed(() => this.activeIndex() >= this.steps().length - 1);
+
     constructor() {
         this.router.events
             .pipe(
@@ -66,6 +68,11 @@ export class WizardComponent {
     }
 
     goNext(): void {
+        if (this.isLastStep()) {
+            void this.router.navigate(['/']);
+            return;
+        }
+
         const index = this.activeIndex();
         const step = this.steps()[index + 1];
         if (step) {

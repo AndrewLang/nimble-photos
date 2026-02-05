@@ -1,0 +1,83 @@
+<div class="flex flex-col gap-8">
+    <div class="flex flex-col gap-4">
+        <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Step 3</p>
+        <h2 class="text-2xl font-semibold text-white md:text-3xl">General Settings</h2>
+        <p class="max-w-2xl text-sm text-slate-400">
+            Set the basics for your Nimble Photos site. You can change these later in the dashboard.
+        </p>
+    </div>
+
+    @if (loading()) {
+    <div class="rounded-2xl border border-white/5 bg-slate-950/60 px-5 py-4 text-xs text-slate-400">
+        Loading settings...
+    </div>
+    } @else {
+    <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()" class="grid gap-6 md:grid-cols-2">
+        @if (success()) {
+        <div class="md:col-span-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4 text-xs text-emerald-200">
+            {{ success() }}
+        </div>
+        }
+
+        @if (error()) {
+        <div class="md:col-span-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-xs text-red-200">
+            {{ error() }}
+        </div>
+        }
+
+        <div class="space-y-2">
+            <label for="siteTitle" class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Site Title</label>
+            <input id="siteTitle" type="text" formControlName="title" placeholder="Nimble Photos"
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+        </div>
+
+        <div class="space-y-2">
+            <label for="siteTagline" class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Site Tagline</label>
+            <input id="siteTagline" type="text" formControlName="tagline" placeholder="My photo stories"
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+        </div>
+
+        <div class="space-y-2 md:col-span-2">
+            <label for="siteLogo" class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Site Logo URL</label>
+            <input id="siteLogo" type="text" formControlName="logo" placeholder="https://cdn.example.com/logo.svg"
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+            <p class="text-xs text-slate-500">Paste a logo URL (SVG, PNG, or JPG). Upload support can be added later.</p>
+        </div>
+
+        <div class="space-y-3">
+            <p class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Visibility</p>
+            <div class="flex flex-wrap gap-3">
+                <label class="flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    <input type="radio" formControlName="isPublic" [value]="true" class="accent-indigo-500" />
+                    Public
+                </label>
+                <label class="flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    <input type="radio" formControlName="isPublic" [value]="false" class="accent-indigo-500" />
+                    Private
+                </label>
+            </div>
+            <p class="text-xs text-slate-500">Private sites require authentication to view the library.</p>
+        </div>
+
+        <div class="space-y-3">
+            <p class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Registration</p>
+            <label class="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-300">
+                <span>Allow visitors to register their own accounts</span>
+                <input type="checkbox" formControlName="allowRegistration" class="h-4 w-4 accent-indigo-500" />
+            </label>
+        </div>
+
+        <div class="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
+            <p class="text-xs text-slate-500">Save to apply these defaults to the site.</p>
+            <button type="submit" [disabled]="settingsForm.invalid || saving()"
+                class="h-11 rounded-full bg-linear-to-r from-indigo-500 to-sky-500 px-6 text-xs font-semibold uppercase tracking-wider text-white shadow-lg shadow-indigo-500/20 transition-all hover:from-indigo-400 hover:to-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
+                @if (saving()) {
+                Saving...
+                } @else {
+                Save General Settings
+                }
+            </button>
+        </div>
+    </form>
+    }
+</div>

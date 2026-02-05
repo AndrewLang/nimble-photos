@@ -31,6 +31,14 @@ export const routes: Routes = [
                     description: 'Create the primary admin account.',
                 },
             },
+            {
+                path: 'general',
+                loadComponent: () => import('../components/wizard/steps/general.step.component').then(m => m.GeneralStepComponent),
+                data: {
+                    title: 'General Settings',
+                    description: 'Set the site title, visibility, and registration options.',
+                },
+            },
         ],
     },
     {

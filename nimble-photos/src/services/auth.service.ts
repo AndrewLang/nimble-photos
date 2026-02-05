@@ -3,7 +3,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { jwtDecode } from 'jwt-decode';
 import { map, Observable, switchMap, tap } from 'rxjs';
-import { LoginRequest, LoginResponse, RegisterRequest } from '../models/auth.model';
+import { LoginRequest, LoginResponse, RegisterRequest, RegistrationStatus } from '../models/auth.model';
 import { JwtClaims } from '../models/jwt-claims.model';
 import { User } from '../models/user.model';
 import { API_BASE_URL } from './api.config';
@@ -73,6 +73,10 @@ export class AuthService {
 
     register(request: RegisterRequest): Observable<any> {
         return this.http.post(`${this.apiBase}/auth/register`, request);
+    }
+
+    getRegistrationStatus(): Observable<RegistrationStatus> {
+        return this.http.get<RegistrationStatus>(`${this.apiBase}/auth/registration-status`);
     }
 
     logout(): void {

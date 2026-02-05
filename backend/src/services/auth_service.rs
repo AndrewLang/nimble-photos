@@ -7,6 +7,10 @@ use nimble_web::data::paging::PageRequest;
 use nimble_web::data::provider::DataProvider;
 use nimble_web::data::query::Query;
 use nimble_web::data::query::Value;
+#[cfg(feature = "postgres")]
+use nimble_web::data::query::FilterOperator;
+#[cfg(feature = "postgres")]
+use nimble_web::data::query_builder::QueryBuilder;
 use nimble_web::data::repository::Repository;
 use nimble_web::identity::claims::Claims;
 use nimble_web::identity::user::UserIdentity;
@@ -112,6 +116,46 @@ impl AuthService {
         })?;
 
         self.issue_tokens(user_id).await
+    }
+
+    pub async fn has_admin_user(&self) -> Result<bool, PipelineError> {
+        #[cfg(feature = "postgres")]
+        {
+            let query = QueryBuilder::<User>::new()
+                .filter(
+                    "roles",
+                    FilterOperator::Contains,
+                    Value::String("admin".to_string()),
+                )
+                .page(1, 1)
+                .build();
+
+            let page = self
+                .repo
+                .query(query)
+                .await
+                .map_err(|_| PipelineError::message("data error"))?;
+
+            return Ok(!page.items.is_empty());
+        }
+
+        #[cfg(not(feature = "postgres"))]
+        {
+            let page = self
+                .repo
+                .query(Query::<User>::new())
+                .await
+                .map_err(|_| PipelineError::message("data error"))?;
+
+            let has_admin = page.items.iter().any(|user| {
+                user.roles
+                    .as_ref()
+                    .map(|roles| roles.split(',').any(|role| role.trim() == "admin"))
+                    .unwrap_or(false)
+            });
+
+            return Ok(has_admin);
+        }
     }
 
     pub async fn login(&self, email: &str, password: &str) -> Result<LoginResponse, PipelineError> {

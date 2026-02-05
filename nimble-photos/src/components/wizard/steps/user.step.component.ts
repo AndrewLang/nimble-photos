@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
 
@@ -7,9 +7,13 @@ import { AuthService } from '../../../services/auth.service';
     imports: [ReactiveFormsModule],
     templateUrl: './user.step.component.html',
 })
-export class UserStepComponent {
+export class UserStepComponent implements OnInit {
     private readonly fb = inject(FormBuilder);
     private readonly authService = inject(AuthService);
+
+    readonly statusLoading = signal(true);
+    readonly registrationBlocked = signal(false);
+    readonly registrationMessage = signal('An administrator account already exists.');
 
     readonly userForm = this.fb.nonNullable.group({
         name: ['', [Validators.required, Validators.minLength(2)]],
@@ -21,7 +25,28 @@ export class UserStepComponent {
     readonly error = signal<string | null>(null);
     readonly success = signal<string | null>(null);
 
+    ngOnInit(): void {
+        this.authService.getRegistrationStatus().subscribe({
+            next: (status) => {
+                this.statusLoading.set(false);
+                if (status.hasAdmin) {
+                    this.registrationBlocked.set(true);
+                    this.registrationMessage.set(
+                        'An administrator account already exists. You can continue to the next step.',
+                    );
+                }
+            },
+            error: () => {
+                this.statusLoading.set(false);
+            },
+        });
+    }
+
     onSubmit(): void {
+        if (this.registrationBlocked()) {
+            return;
+        }
+
         if (this.userForm.invalid || this.loading()) {
             this.userForm.markAllAsTouched();
             return;
