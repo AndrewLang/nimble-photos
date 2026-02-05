@@ -11,6 +11,21 @@ export const routes: Routes = [
     { path: 'forgot-password', loadComponent: () => import('../components/auth/forgot.password.component').then(m => m.ForgotPasswordComponent) },
     { path: 'map', loadComponent: () => import('../components/map/map.component').then(m => m.MapComponent) },
     {
+        path: 'setup',
+        loadComponent: () => import('../components/wizard/wizard.component').then(m => m.WizardComponent),
+        children: [
+            { path: '', pathMatch: 'full', redirectTo: 'welcome' },
+            {
+                path: 'welcome',
+                loadComponent: () => import('../components/wizard/steps/welcome.step.component').then(m => m.WelcomeStepComponent),
+                data: {
+                    title: 'Welcome',
+                    description: 'Meet Nimble Photos and prep for setup.',
+                },
+            },
+        ],
+    },
+    {
         path: 'dashboard',
         loadComponent: () => import('../components/dashboard/dashboard.component').then(m => m.DashboardComponent),
         children: [
