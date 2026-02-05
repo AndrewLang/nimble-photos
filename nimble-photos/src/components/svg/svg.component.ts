@@ -1,8 +1,8 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, Input, computed, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
-import { SvgIcons } from './svg-icons';
+import { SvgIcons } from './svg.icons';
 
 @Component({
     selector: 'mtx-svg',
@@ -36,3 +36,4 @@ export class SvgComponent {
         return this.sanitizer.bypassSecurityTrustHtml(svg);
     });
 }
+

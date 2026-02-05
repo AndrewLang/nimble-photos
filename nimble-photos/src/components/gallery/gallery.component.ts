@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, Input } from '@angular/core';
+﻿import { Component, OnInit, signal, computed, Input } from '@angular/core';
 
 import { Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
@@ -7,7 +7,7 @@ import { Photo, PagedPhotos } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
 
-import { ImageFallbackDirective } from '../../directives/image-fallback.directive';
+import { ImageFallbackDirective } from '../../directives/image.fallback.directive';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
@@ -138,3 +138,4 @@ export class GalleryComponent implements OnInit {
     this.selectionService.clearSelection();
   }
 }
+

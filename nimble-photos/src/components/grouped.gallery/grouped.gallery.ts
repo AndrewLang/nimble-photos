@@ -1,4 +1,4 @@
-
+﻿
 import { Component, effect, ElementRef, OnInit, signal, ViewChild } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { GroupedPhotos, Photo } from '../../models/photo';
@@ -6,7 +6,7 @@ import { PhotoService } from '../../services/photo.service';
 import { JustifiedGalleryComponent } from '../justified.gallery/justified.gallery.component';
 
 @Component({
-  selector: 'mtx-grouped-gallery',
+  selector: 'mtx-grouped.gallery',
   imports: [RouterModule, JustifiedGalleryComponent],
   templateUrl: './grouped.gallery.html',
   host: {
@@ -113,3 +113,4 @@ export class GroupedGallery implements OnInit {
     this.gallery?.clearSelection();
   }
 }
+

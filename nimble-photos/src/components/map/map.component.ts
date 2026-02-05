@@ -1,4 +1,4 @@
-
+﻿
 import { Component, ElementRef, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import * as L from 'leaflet';
@@ -6,7 +6,7 @@ import { first } from 'rxjs';
 import { Photo, PhotoLoc } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SvgComponent } from '../svg/svg.component';
-import { SvgIcons } from '../svg/svg-icons';
+import { SvgIcons } from '../svg/svg.icons';
 
 @Component({
   selector: 'mtx-map',
@@ -211,3 +211,4 @@ export class MapComponent implements OnInit, OnDestroy {
     return this.photoService.getThumbnailPath(photo);
   }
 }
+

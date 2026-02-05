@@ -1,0 +1,128 @@
+﻿@if (store.loading()) {
+<div class="flex h-64 items-center justify-center">
+    <div class="flex flex-col items-center gap-4">
+        <div class="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
+        <p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Loading settings...</p>
+    </div>
+</div>
+}
+
+@if (store.error()) {
+<div
+    class="mb-6 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm text-rose-400 flex items-center gap-3">
+    <mtx-svg name="errorCircle" size="1.25rem" className="text-rose-400"></mtx-svg>
+    {{ store.error() }}
+</div>
+}
+
+@if (!store.loading() && !store.error()) {
+<div class="max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+    <header
+        class="mb-10 p-8 rounded-3xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent">
+        <h1 class="text-3xl font-bold tracking-tight text-white mb-2">{{ getSectionLabel() }}</h1>
+        <p class="text-slate-400 text-sm max-w-2xl leading-relaxed">
+            Tweak how visitors explore Nimble Photos, control notifications, and manage uploads from one place.
+        </p>
+    </header>
+
+    @if (!getSectionSettings().length) {
+    <div class="rounded-lg border border-white/5 bg-slate-900/50 p-12 text-center">
+        <p class="text-sm text-slate-400 font-medium tracking-wide">No settings found in this section.</p>
+    </div>
+    }
+
+    <div class="space-y-2">
+        @for (setting of getSectionSettings(); track setting.key) {
+        <div
+            class="group flex items-center gap-6 rounded-lg border border-white/5 bg-slate-900/60 p-5 transition-all duration-200 hover:border-indigo-500/30 hover:bg-slate-900/80 shadow-sm">
+
+            <div
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-slate-400 border border-white/5">
+                <mtx-svg name="settingItem" size="1.25rem" className="text-slate-400"></mtx-svg>
+            </div>
+
+            <div class="flex-1 min-w-0">
+                <h3 class="text-sm font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
+                    {{ setting.label }}</h3>
+                <p class="text-xs text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">{{ setting.description }}</p>
+
+                @if (store.saveSuccess()[setting.key]) {
+                <p
+                    class="text-[10px] font-bold text-emerald-400 mt-2 uppercase tracking-widest animate-in fade-in slide-in-from-left-2">
+                    Saved Successfully</p>
+                }
+                @if (store.fieldErrors()[setting.key]) {
+                <p
+                    class="text-[10px] font-bold text-rose-400 mt-2 uppercase tracking-widest animate-in fade-in slide-in-from-left-2">
+                    {{ store.fieldErrors()[setting.key] }}</p>
+                }
+            </div>
+
+            <div class="flex shrink-0 items-center gap-4">
+
+                @if (setting.valueType === 'boolean') {
+                <div class="flex flex-col items-end gap-2">
+                    <button type="button" (click)="store.toggleBoolean(setting)"
+                        class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 focus:outline-none ring-1 ring-white/10"
+                        [class.bg-indigo-600]="store.isSettingEnabled(setting)"
+                        [class.bg-slate-800]="!store.isSettingEnabled(setting)">
+                        <span
+                            class="pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-200 ease-in-out shadow-lg"
+                            [class.translate-x-6]="store.isSettingEnabled(setting)"
+                            [class.translate-x-0.5]="!store.isSettingEnabled(setting)"></span>
+                    </button>
+                    <button (click)="store.saveSetting(setting)" [disabled]="store.saving()[setting.key]"
+                        class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 disabled:opacity-30 transition-colors">
+                        {{ store.saving()[setting.key] ? '...' : 'Apply' }}
+                    </button>
+                </div>
+                }
+
+                @else if (setting.options?.length) {
+                <div class="flex flex-col items-end gap-2">
+                    <select [ngModel]="store.getLocalValue(setting.key)"
+                        (ngModelChange)="store.setLocalValue(setting.key, $event)"
+                        class="rounded-md border border-white/10 bg-slate-950 px-3 py-1.5 text-xs text-white focus:border-indigo-500/50 focus:outline-none transition-all cursor-pointer">
+                        @for (option of setting.options; track option.value) {
+                        <option [ngValue]="option.value">{{ option.label }}</option>
+                        }
+                    </select>
+                    <button (click)="store.saveSetting(setting)" [disabled]="store.saving()[setting.key]"
+                        class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 disabled:opacity-30 transition-colors">
+                        {{ store.saving()[setting.key] ? 'Updating...' : 'Save' }}
+                    </button>
+                </div>
+                }
+
+                @else {
+                <div class="flex flex-col items-end gap-2">
+                    @switch (setting.valueType) {
+                    @case ('json') {
+                    <textarea rows="2" [ngModel]="store.getLocalValue(setting.key)"
+                        (ngModelChange)="store.setLocalValue(setting.key, $event)"
+                        class="w-64 rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-[0.7rem] text-slate-300 focus:border-indigo-500/50 focus:outline-none transition-all font-mono"></textarea>
+                    }
+                    @case ('number') {
+                    <input type="number" [ngModel]="store.getLocalValue(setting.key)"
+                        (ngModelChange)="store.setLocalValue(setting.key, $event)"
+                        class="w-32 rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:border-indigo-500/50 focus:outline-none transition-all" />
+                    }
+                    @default {
+                    <input type="text" [ngModel]="store.getLocalValue(setting.key)"
+                        (ngModelChange)="store.setLocalValue(setting.key, $event)"
+                        class="w-64 rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:border-indigo-500/50 focus:outline-none transition-all" />
+                    }
+                    }
+                    <button (click)="store.saveSetting(setting)" [disabled]="store.saving()[setting.key]"
+                        class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 disabled:opacity-30 transition-colors">
+                        {{ store.saving()[setting.key] ? 'Saving...' : 'Update' }}
+                    </button>
+                </div>
+                }
+            </div>
+        </div>
+        }
+    </div>
+</div>
+}

@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnInit, ViewChild, signal, computed, AfterViewInit, Output, EventEmitter, Input } from '@angular/core';
+﻿import { Component, ElementRef, HostListener, OnInit, ViewChild, signal, computed, AfterViewInit, Output, EventEmitter, Input } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ScrollingModule, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
@@ -7,7 +7,7 @@ import { first } from 'rxjs';
 import { GroupedPhotos, Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
-import { ImageFallbackDirective } from '../../directives/image-fallback.directive';
+import { ImageFallbackDirective } from '../../directives/image.fallback.directive';
 import { SvgComponent } from '../svg/svg.component';
 
 interface PhotoRow {
@@ -397,3 +397,4 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
         return group.photos.items.every(p => this.selectedIds().has(p.id));
     }
 }
+

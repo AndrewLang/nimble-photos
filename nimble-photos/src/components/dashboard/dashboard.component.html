@@ -1,4 +1,4 @@
-<div class="flex flex-1 min-h-0 overflow-hidden bg-slate-950 text-slate-100">
+﻿<div class="flex flex-1 flex-col md:flex-row min-h-0 overflow-hidden bg-slate-950 text-slate-100">
 
     <aside class="w-full border-white/10 bg-slate-900/80 p-2 backdrop-blur-2xl transition md:w-80 md:border-r">
         <div class="px-4 py-2 mb-4">
@@ -23,160 +23,27 @@
         </div>
 
         <nav class="space-y-1">
-            @if (!navSections().length) {
-            <div class="px-4 py-2 text-xs text-slate-500">No sections available.</div>
-            }
             @for (section of navSections(); track section.section) {
-            <button type="button" (click)="selectSection(section.section)"
+            <a [routerLink]="['/dashboard', section.section]" routerLinkActive #rla="routerLinkActive"
+                [routerLinkActiveOptions]="{ exact: true }"
                 class="group relative flex w-full items-center gap-3 rounded-md px-4 py-2 text-left text-sm transition-all duration-200"
-                [class.bg-white/5]="selectedSection() === section.section"
-                [class.text-white]="selectedSection() === section.section"
-                [class.text-slate-400]="selectedSection() !== section.section"
-                [class.hover:bg-white/5]="selectedSection() !== section.section">
+                [class.bg-white/5]="rla.isActive" [class.text-white]="rla.isActive"
+                [class.text-slate-400]="!rla.isActive" [class.hover:bg-white/5]="!rla.isActive">
 
-                @if (selectedSection() === section.section) {
+                @if (rla.isActive) {
                 <div class="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-indigo-500"></div>
                 }
 
                 <mtx-svg [name]="getSectionIcon(section.section)" size="1rem"
-                    [className]="selectedSection() === section.section ? 'text-indigo-400 transition-colors' : 'text-slate-400 transition-colors'"></mtx-svg>
+                    [className]="rla.isActive ? 'text-indigo-400 transition-colors' : 'text-slate-400 transition-colors'"></mtx-svg>
 
                 <span class="flex-1 font-medium">{{ section.label }}</span>
-            </button>
+            </a>
             }
         </nav>
     </aside>
 
-    <main class="flex-1 overflow-y-auto px-6 py-6 md:px-12 lg:px-24 bg-slate-950">
-        @if (loading()) {
-        <div class="flex h-64 items-center justify-center">
-            <div class="flex flex-col items-center gap-4">
-                <div class="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
-                <p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Loading settings…</p>
-            </div>
-        </div>
-        }
-
-        @if (error()) {
-        <div
-            class="mb-6 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm text-rose-400 flex items-center gap-3">
-            <mtx-svg name="errorCircle" size="1.25rem" className="text-rose-400"></mtx-svg>
-            {{ error() }}
-        </div>
-        }
-
-        @if (!loading() && !error()) {
-        <div class="max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-            <header
-                class="mb-10 p-8 rounded-3xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent">
-                <h1 class="text-3xl font-bold tracking-tight text-white mb-2">{{ getCurrentSectionLabel() }}</h1>
-                <p class="text-slate-400 text-sm max-w-2xl leading-relaxed">
-                    Tweak how visitors explore Nimble Photos, control notifications, and manage uploads from one place.
-                </p>
-            </header>
-
-            @if (!sectionSettings().length) {
-            <div class="rounded-lg border border-white/5 bg-slate-900/50 p-12 text-center">
-                <p class="text-sm text-slate-400 font-medium tracking-wide">No settings found in this section.</p>
-            </div>
-            }
-
-            <div class="space-y-2">
-                @for (setting of sectionSettings(); track setting.key) {
-                <div
-                    class="group flex items-center gap-6 rounded-lg border border-white/5 bg-slate-900/60 p-5 transition-all duration-200 hover:border-indigo-500/30 hover:bg-slate-900/80 shadow-sm">
-
-                    <div
-                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-slate-400 border border-white/5">
-                        <mtx-svg name="settingItem" size="1.25rem" className="text-slate-400"></mtx-svg>
-                    </div>
-
-                    <div class="flex-1 min-w-0">
-                        <h3
-                            class="text-sm font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
-                            {{ setting.label }}</h3>
-                        <p class="text-xs text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">{{ setting.description }}
-                        </p>
-
-                        @if (saveSuccess()[setting.key]) {
-                        <p
-                            class="text-[10px] font-bold text-emerald-400 mt-2 uppercase tracking-widest animate-in fade-in slide-in-from-left-2">
-                            Saved Successfully</p>
-                        }
-                        @if (fieldErrors()[setting.key]) {
-                        <p
-                            class="text-[10px] font-bold text-rose-400 mt-2 uppercase tracking-widest animate-in fade-in slide-in-from-left-2">
-                            {{ fieldErrors()[setting.key] }}</p>
-                        }
-                    </div>
-
-                    <div class="flex shrink-0 items-center gap-4">
-
-                        @if (setting.valueType === 'boolean') {
-                        <div class="flex flex-col items-end gap-2">
-                            <button type="button" (click)="toggleBoolean(setting)"
-                                class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 focus:outline-none ring-1 ring-white/10"
-                                [class.bg-indigo-600]="isSettingEnabled(setting)"
-                                [class.bg-slate-800]="!isSettingEnabled(setting)">
-                                <span
-                                    class="pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-200 ease-in-out shadow-lg"
-                                    [class.translate-x-6]="isSettingEnabled(setting)"
-                                    [class.translate-x-0.5]="!isSettingEnabled(setting)"></span>
-                            </button>
-                            <button (click)="saveSetting(setting)" [disabled]="saving()[setting.key]"
-                                class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 disabled:opacity-30 transition-colors">
-                                {{ saving()[setting.key] ? '...' : 'Apply' }}
-                            </button>
-                        </div>
-                        }
-
-                        @else if (setting.options?.length) {
-                        <div class="flex flex-col items-end gap-2">
-                            <select [ngModel]="getLocalValue(setting.key)"
-                                (ngModelChange)="setLocalValue(setting.key, $event)"
-                                class="rounded-md border border-white/10 bg-slate-950 px-3 py-1.5 text-xs text-white focus:border-indigo-500/50 focus:outline-none transition-all cursor-pointer">
-                                @for (option of setting.options; track option.value) {
-                                <option [ngValue]="option.value">{{ option.label }}</option>
-                                }
-                            </select>
-                            <button (click)="saveSetting(setting)" [disabled]="saving()[setting.key]"
-                                class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 disabled:opacity-30 transition-colors">
-                                {{ saving()[setting.key] ? 'Updating...' : 'Save' }}
-                            </button>
-                        </div>
-                        }
-
-                        @else {
-                        <div class="flex flex-col items-end gap-2">
-                            @switch (setting.valueType) {
-                            @case ('json') {
-                            <textarea rows="2" [ngModel]="getLocalValue(setting.key)"
-                                (ngModelChange)="setLocalValue(setting.key, $event)"
-                                class="w-64 rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-[0.7rem] text-slate-300 focus:border-indigo-500/50 focus:outline-none transition-all font-mono"></textarea>
-                            }
-                            @case ('number') {
-                            <input type="number" [ngModel]="getLocalValue(setting.key)"
-                                (ngModelChange)="setLocalValue(setting.key, $event)"
-                                class="w-32 rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:border-indigo-500/50 focus:outline-none transition-all" />
-                            }
-                            @default {
-                            <input type="text" [ngModel]="getLocalValue(setting.key)"
-                                (ngModelChange)="setLocalValue(setting.key, $event)"
-                                class="w-64 rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:border-indigo-500/50 focus:outline-none transition-all" />
-                            }
-                            }
-                            <button (click)="saveSetting(setting)" [disabled]="saving()[setting.key]"
-                                class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 disabled:opacity-30 transition-colors">
-                                {{ saving()[setting.key] ? 'Saving...' : 'Update' }}
-                            </button>
-                        </div>
-                        }
-                    </div>
-                </div>
-                }
-            </div>
-        </div>
-        }
+    <main class="w-full flex-1 lg:px-4 xl:px-24 py-6 overflow-y-auto bg-slate-950">
+        <router-outlet></router-outlet>
     </main>
 </div>

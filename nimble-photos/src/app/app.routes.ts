@@ -1,4 +1,4 @@
-import { Routes } from '@angular/router';
+﻿import { Routes } from '@angular/router';
 
 export const routes: Routes = [
     { path: '', loadComponent: () => import('../components/grouped.gallery/grouped.gallery').then(m => m.GroupedGallery) },
@@ -10,6 +10,15 @@ export const routes: Routes = [
     { path: 'register', loadComponent: () => import('../components/auth/register.component').then(m => m.RegisterComponent) },
     { path: 'forgot-password', loadComponent: () => import('../components/auth/forgot.password.component').then(m => m.ForgotPasswordComponent) },
     { path: 'map', loadComponent: () => import('../components/map/map.component').then(m => m.MapComponent) },
-    { path: 'dashboard', loadComponent: () => import('../components/dashboard/dashboard.component').then(m => m.DashboardComponent) },
+    {
+        path: 'dashboard',
+        loadComponent: () => import('../components/dashboard/dashboard.component').then(m => m.DashboardComponent),
+        children: [
+            { path: '', pathMatch: 'full', redirectTo: 'general' },
+            { path: 'general', loadComponent: () => import('../components/dashboard/general.setting.component').then(m => m.GeneralSettingComponent) },
+            { path: 'photo-manage', loadComponent: () => import('../components/dashboard/photo.manage.setting.component').then(m => m.PhotoManageSettingComponent) },
+        ],
+    },
     { path: 'all', loadComponent: () => import('../components/gallery/gallery.component').then(m => m.GalleryComponent) },
 ];
+

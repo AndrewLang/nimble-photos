@@ -1,8 +1,8 @@
-import { HttpClient } from '@angular/common/http';
+﻿import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import { DashboardSetting } from '../models/dashboard-settings.model';
+import { DashboardSetting } from '../models/dashboard.settings.model';
 
 @Injectable({
     providedIn: 'root',
@@ -20,3 +20,4 @@ export class SettingsService {
         return this.http.put<DashboardSetting>(`${this.apiBase}/dashboard/settings/${key}`, { value });
     }
 }
+

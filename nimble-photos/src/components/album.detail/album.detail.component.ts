@@ -1,4 +1,4 @@
-import { CommonModule, DatePipe } from '@angular/common';
+﻿import { CommonModule, DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
@@ -9,7 +9,7 @@ import { DialogService } from '../../services/dialog.service';
 import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
 import { GalleryComponent } from '../gallery/gallery.component';
-import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm-dialog.component';
+import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
 
 const MAX_COMMENT_LENGTH = 1024;
 
@@ -289,3 +289,4 @@ export class AlbumDetailComponent implements OnInit {
         });
     }
 }
+

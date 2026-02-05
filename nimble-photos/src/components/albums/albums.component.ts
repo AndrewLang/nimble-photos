@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+﻿import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 import { PhotoService } from '../../services/photo.service';
@@ -7,8 +7,8 @@ import { DialogService } from '../../services/dialog.service';
 import { Album } from '../../models/photo';
 import { DatePipe } from '@angular/common';
 
-import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm-dialog.component';
-import { ImageFallbackDirective } from '../../directives/image-fallback.directive';
+import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
+import { ImageFallbackDirective } from '../../directives/image.fallback.directive';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
@@ -82,3 +82,5 @@ export class AlbumsComponent implements OnInit {
         });
     }
 }
+
+
