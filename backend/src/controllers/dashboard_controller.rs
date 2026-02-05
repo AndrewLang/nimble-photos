@@ -19,6 +19,9 @@ impl Controller for DashboardController {
             EndpointRoute::get("/api/dashboard/settings", ListSettingsHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
+            EndpointRoute::get("/api/dashboard/settings/{key}", GetSettingHandler)
+                .with_policy(Policy::Authenticated)
+                .build(),
             EndpointRoute::put("/api/dashboard/settings/{key}", UpdateSettingHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
@@ -58,6 +61,23 @@ impl HttpHandler for UpdateSettingHandler {
     }
 }
 
+struct GetSettingHandler;
+
+#[async_trait]
+impl HttpHandler for GetSettingHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let key = context
+            .route()
+            .and_then(|route| route.params().get("key"))
+            .ok_or_else(|| PipelineError::message("key parameter missing"))?;
+
+        let service = context.service::<SettingService>()?;
+        let setting = service.get(key).await?;
+
+        Ok(ResponseValue::json(setting))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,7 +86,7 @@ mod tests {
     #[test]
     fn routes_are_authenticated() {
         let routes = DashboardController::routes();
-        assert_eq!(routes.len(), 2);
+        assert_eq!(routes.len(), 3);
 
         let list_route = &routes[0];
         assert_eq!(list_route.route.method(), "GET");
@@ -76,7 +96,15 @@ mod tests {
             Some(&Policy::Authenticated)
         );
 
-        let update_route = &routes[1];
+        let get_route = &routes[1];
+        assert_eq!(get_route.route.method(), "GET");
+        assert_eq!(get_route.route.path(), "/api/dashboard/settings/{key}");
+        assert_eq!(
+            get_route.endpoint.metadata().policy(),
+            Some(&Policy::Authenticated)
+        );
+
+        let update_route = &routes[2];
         assert_eq!(update_route.route.method(), "PUT");
         assert_eq!(update_route.route.path(), "/api/dashboard/settings/{key}");
         assert_eq!(

@@ -3,7 +3,7 @@ import { Component, computed, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { DashboardSystemSection } from '../../models/dashboard.settings.model';
-import { DashboardSettingsStore } from '../../services/dashboard.setting.store';
+import { DashboardSettingsService } from '../../services/dashboard.setting.service';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
@@ -15,7 +15,7 @@ import { SvgComponent } from '../svg/svg.component';
     },
 })
 export class DashboardComponent implements OnInit {
-    readonly store = inject(DashboardSettingsStore);
+    readonly store = inject(DashboardSettingsService);
     readonly navSections = computed(() =>
         this.sections.map(section => ({
             section,
@@ -52,4 +52,3 @@ export class DashboardComponent implements OnInit {
         }
     }
 }
-

@@ -6,6 +6,7 @@ import { AlbumModel } from '../models/album.model';
 import { PagedAlbumsModel } from '../models/paged.albums.model';
 import { PagedModel } from '../models/paged.response.model';
 import { Album, AlbumComment, GroupedPhotos, PagedPhotos, Photo, PhotoComment, PhotoLoc, PhotoMetadata } from '../models/photo';
+import { API_BASE_URL } from './api.config';
 
 
 type DateFieldKey = 'createdAt' | 'updatedAt' | 'dateImported' | 'dateTaken';
@@ -26,7 +27,7 @@ type PhotoLocResponse = PhotoResponse & {
   providedIn: 'root',
 })
 export class PhotoService {
-  private readonly apiBase = 'http://localhost:8080/api';
+  readonly apiBase = API_BASE_URL;
   private timelinePhotoIds: string[] | null = null;
   public timelineCache: GroupedPhotos[] | null = null;
 

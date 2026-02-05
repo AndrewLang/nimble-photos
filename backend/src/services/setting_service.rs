@@ -49,6 +49,34 @@ impl SettingService {
         Ok(results)
     }
 
+    pub async fn get(&self, key: &str) -> Result<SettingDto, PipelineError> {
+        self.ensure_defaults().await?;
+
+        let def = self
+            .definitions
+            .iter()
+            .find(|d| d.key == key)
+            .ok_or_else(|| PipelineError::message("Unknown setting"))?;
+
+        let key_owned = def.key.to_string();
+        let entity = self.repository.get(&key_owned).await.map_err(|e| {
+            let msg = format!("Failed to load setting {}: {:?}", key_owned, e);
+            PipelineError::message(&msg)
+        })?;
+
+        let current_value = entity
+            .as_ref()
+            .and_then(|entry| parse_value(&entry.value))
+            .unwrap_or_else(|| def.default_value.clone());
+
+        let updated_at = entity
+            .as_ref()
+            .map(|entry| entry.updated_at)
+            .unwrap_or_else(Utc::now);
+
+        Ok(def.to_dto(current_value, updated_at))
+    }
+
     pub async fn update(&self, key: &str, value: JsonValue) -> Result<SettingDto, PipelineError> {
         let def = self
             .definitions

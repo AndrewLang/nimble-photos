@@ -7,7 +7,7 @@ import { SettingsService } from './settings.service';
 @Injectable({
     providedIn: 'root',
 })
-export class DashboardSettingsStore {
+export class DashboardSettingsService {
     readonly settings = signal<DashboardSetting[]>([]);
     readonly loading = signal(false);
     readonly error = signal<string | null>(null);
@@ -38,6 +38,14 @@ export class DashboardSettingsStore {
 
     getSectionCount(section: DashboardSystemSection): number {
         return this.settings().filter(setting => setting.section === section).length;
+    }
+
+    getSettingByName(key: string): DashboardSetting | undefined {
+        return this.settings().find(setting => setting.key === key);
+    }
+
+    getSettingValue(key: string): unknown {
+        return this.getSettingByName(key)?.value;
     }
 
     getLocalValue(key: string): unknown {

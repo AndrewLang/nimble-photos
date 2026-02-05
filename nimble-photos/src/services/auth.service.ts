@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, tap, switchMap, map, of, catchError } from 'rxjs';
 import { jwtDecode } from 'jwt-decode';
 import { LoginRequest, LoginResponse, RegisterRequest } from '../models/auth.model';
+import { API_BASE_URL } from './api.config';
 import { User } from '../models/user.model';
 
 interface JwtClaims {
@@ -19,7 +20,7 @@ export class AuthService {
     private readonly http = inject(HttpClient);
     private readonly router = inject(Router);
 
-    private readonly apiBase = 'http://localhost:8080/api';
+    private readonly apiBase = API_BASE_URL;
     private readonly TOKEN_KEY = 'mtx_access_token';
     private readonly REFRESH_TOKEN_KEY = 'mtx_refresh_token';
     private readonly USER_KEY = 'mtx_user';

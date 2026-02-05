@@ -45,7 +45,7 @@ export class AlbumsComponent implements OnInit {
 
     getThumbnailUrl(album: Album): string | null {
         if (!album.thumbnailHash) return null;
-        return `${(this.photoService as any).apiBase}/photos/thumbnail/${album.thumbnailHash}`;
+        return `${this.photoService.apiBase}/photos/thumbnail/${album.thumbnailHash}`;
     }
 
     deleteAlbum(event: MouseEvent, album: Album): void {

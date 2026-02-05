@@ -1,14 +1,16 @@
-import { Component, signal, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 
-import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormBuilder } from '@angular/forms';
-import { SelectionService } from '../../services/selection.service';
-import { PhotoService } from '../../services/photo.service';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { catchError, first, of } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { DialogService } from '../../services/dialog.service';
-import { InfoDialog } from '../dialog/info.dialog.component';
+import { PhotoService } from '../../services/photo.service';
+import { SelectionService } from '../../services/selection.service';
+import { SettingsService } from '../../services/settings.service';
 import { AlbumEditorComponent } from '../album/album.editor.component';
 import { AlbumSelectorComponent } from '../album/album.selector.component';
+import { InfoDialog } from '../dialog/info.dialog.component';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
@@ -28,9 +30,12 @@ export class HeaderComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly dialogService = inject(DialogService);
+  private readonly settingsService = inject(SettingsService);
 
   readonly isMenuOpen = signal(false);
   readonly isUserMenuOpen = signal(false);
+  readonly siteTitle = signal('Nimble Photos');
+  readonly siteTagline = signal('My Photo Stories');
 
   constructor(
     public readonly selectionService: SelectionService,
@@ -39,6 +44,7 @@ export class HeaderComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
+    this.loadSiteSettings();
     this.route.queryParams.subscribe(params => {
       if (params['registered']) {
       }
@@ -194,5 +200,32 @@ export class HeaderComponent implements OnInit {
         { label: 'OK', value: true, style: 'primary' }
       ]
     });
+  }
+
+  private loadSiteSettings(): void {
+    this.settingsService
+      .getSettingByName('site.title')
+      .pipe(
+        first(),
+        catchError(() => of(null))
+      )
+      .subscribe(setting => {
+        console.log('Site Title Setting:', setting);
+        if (typeof setting?.value === 'string' && setting.value.trim().length) {
+          this.siteTitle.set(setting.value);
+        }
+      });
+
+    this.settingsService
+      .getSettingByName('site.tagline')
+      .pipe(
+        first(),
+        catchError(() => of(null))
+      )
+      .subscribe(setting => {
+        if (typeof setting?.value === 'string' && setting.value.trim().length) {
+          this.siteTagline.set(setting.value);
+        }
+      });
   }
 }
