@@ -4,8 +4,12 @@
     <div class="flex items-center gap-3 md:gap-4 z-50">
         <a routerLink="/" (click)="closeMenu()">
             <div
-                class="logo flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 text-sm md:text-base font-semibold text-white shadow-lg shadow-indigo-500/20">
+                class="logo flex h-9 w-9 md:h-10 md:w-10 items-center justify-center overflow-hidden rounded-full text-sm md:text-base font-semibold text-white shadow-lg shadow-indigo-500/20">
+                @if (siteLogo()) {
+                <img [src]="siteLogo()!" alt="Site logo" class="h-full w-full object-contain" />
+                } @else {
                 NM
+                }
             </div>
         </a>
         <div class="hidden sm:block">

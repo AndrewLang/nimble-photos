@@ -24,3 +24,6 @@ Thumbs.db
 crates/nimble-web/node_modules/
 crates/nimble-web/dist/
 crates/nimble-web/.env
+
+# Uploaded assets
+/data/

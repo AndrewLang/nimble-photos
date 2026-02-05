@@ -36,11 +36,13 @@ export class HeaderComponent implements OnInit {
   readonly isUserMenuOpen = signal(false);
   readonly siteTitle = signal('Nimble Photos');
   readonly siteTagline = signal('My Photo Stories');
+  readonly siteLogo = signal<string | null>(null);
 
   constructor(
     public readonly selectionService: SelectionService,
     public readonly photoService: PhotoService,
-    public readonly authService: AuthService
+    public readonly authService: AuthService,
+    public readonly settingService: SettingsService,
   ) { }
 
   ngOnInit(): void {
@@ -225,6 +227,14 @@ export class HeaderComponent implements OnInit {
       .subscribe(setting => {
         if (typeof setting?.value === 'string' && setting.value.trim().length) {
           this.siteTagline.set(setting.value);
+        }
+      });
+
+    this.settingsService
+      .getLogoUrl()
+      .subscribe(logoUrl => {
+        if (typeof logoUrl === 'string' && logoUrl.trim().length) {
+          this.siteLogo.set(logoUrl);
         }
       });
   }

@@ -18,7 +18,7 @@ export class DashboardSettingsService {
 
     private hasLoaded = false;
 
-    constructor(private readonly settingsService: SettingsService) {}
+    constructor(private readonly settingsService: SettingsService) { }
 
     ensureLoaded(): void {
         if (this.loading() || this.hasLoaded) {
@@ -114,6 +114,7 @@ export class DashboardSettingsService {
             .pipe(first())
             .subscribe({
                 next: result => {
+                    console.log('Loaded Dashboard Settings:', result);
                     this.settings.set(result);
                     this.buildLocalValues(result);
                     this.hasLoaded = true;

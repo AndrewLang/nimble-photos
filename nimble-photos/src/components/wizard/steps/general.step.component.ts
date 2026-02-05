@@ -16,6 +16,8 @@ export class GeneralStepComponent {
     readonly saving = signal(false);
     readonly error = signal<string | null>(null);
     readonly success = signal<string | null>(null);
+    readonly logoUploading = signal(false);
+    readonly isDragOver = signal(false);
 
     readonly settingsForm = this.fb.nonNullable.group({
         title: ['', [Validators.required, Validators.minLength(2)]],
@@ -24,6 +26,8 @@ export class GeneralStepComponent {
         isPublic: [true],
         allowRegistration: [true],
     });
+
+    readonly logoPreview = signal<string | null>(null);
 
     constructor() {
         this.loadSettings();
@@ -48,6 +52,9 @@ export class GeneralStepComponent {
                     isPublic: Boolean(settings.isPublic.value),
                     allowRegistration: Boolean(settings.allowRegistration.value),
                 });
+                console.log('Loaded Settings:', settings);
+                const logo = this.settingsService.buildLogoUrl(this.settingsForm.get('logo')?.value ?? '');
+                this.logoPreview.set(logo ? logo : null);
                 this.loading.set(false);
             },
             error: (err) => {
@@ -85,5 +92,68 @@ export class GeneralStepComponent {
                 this.error.set(err.error?.message || 'Failed to save settings.');
             },
         });
+    }
+
+    onLogoSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+        this.handleLogoFile(file);
+    }
+
+    onLogoDropped(event: DragEvent): void {
+        event.preventDefault();
+        this.isDragOver.set(false);
+        const file = event.dataTransfer?.files?.[0];
+        this.handleLogoFile(file);
+    }
+
+    onLogoDragOver(event: DragEvent): void {
+        event.preventDefault();
+        if (!this.logoUploading()) {
+            this.isDragOver.set(true);
+        }
+    }
+
+    onLogoDragLeave(): void {
+        this.isDragOver.set(false);
+    }
+
+    clearLogo(): void {
+        this.logoPreview.set(null);
+        this.settingsForm.get('logo')?.setValue('');
+    }
+
+    private handleLogoFile(file?: File): void {
+        if (!file || this.logoUploading()) {
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            this.error.set('Please select an image file.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = typeof reader.result === 'string' ? reader.result : null;
+            if (result) {
+                this.logoPreview.set(result);
+                this.logoUploading.set(true);
+                this.settingsService.uploadLogo(result).subscribe({
+                    next: (setting) => {
+                        this.logoUploading.set(false);
+                        if (typeof setting.value === 'string') {
+                            this.settingsForm.get('logo')?.setValue(setting.value);
+                            this.logoPreview.set(setting.value);
+                        }
+                    },
+                    error: (err) => {
+                        this.logoUploading.set(false);
+                        this.error.set(err.error?.message || 'Failed to upload logo.');
+                    },
+                });
+            }
+        };
+        reader.readAsDataURL(file);
     }
 }

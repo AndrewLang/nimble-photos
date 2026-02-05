@@ -62,3 +62,9 @@ pub struct SettingDto {
 pub struct UpdateSettingPayload {
     pub value: JsonValue,
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogoUploadRequest {
+    pub data_url: String,
+}
