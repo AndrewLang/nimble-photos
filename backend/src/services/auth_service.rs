@@ -3,7 +3,9 @@ use crate::entities::user::User;
 use crate::entities::user_settings::UserSettings;
 use crate::services::EncryptService;
 use chrono::{Duration, Utc};
+use nimble_web::data::paging::PageRequest;
 use nimble_web::data::provider::DataProvider;
+use nimble_web::data::query::Query;
 use nimble_web::data::query::Value;
 use nimble_web::data::repository::Repository;
 use nimble_web::identity::claims::Claims;
@@ -41,6 +43,17 @@ impl AuthService {
         password: &str,
         display_name: &str,
     ) -> Result<LoginResponse, PipelineError> {
+        let is_first_user = self
+            .repo
+            .query({
+                let mut query = Query::<User>::new();
+                query.paging = Some(PageRequest::new(1, 1));
+                query
+            })
+            .await
+            .map(|page| page.items.is_empty())
+            .map_err(|_| PipelineError::message("data error"))?;
+
         let password_hash = self
             .encrypt_service
             .encrypt(password)
@@ -69,7 +82,11 @@ impl AuthService {
             reset_token_expires_at: None,
             verification_token: Some(Uuid::new_v4().to_string()),
             email_verified: false,
-            roles: None,
+            roles: if is_first_user {
+                Some("admin".to_string())
+            } else {
+                None
+            },
         };
 
         let user_id = user.id;

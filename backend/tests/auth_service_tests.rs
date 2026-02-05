@@ -129,6 +129,48 @@ async fn register_creates_user_and_returns_tokens() {
 }
 
 #[tokio::test]
+async fn register_assigns_admin_role_to_first_user() {
+    let service = create_auth_service();
+    let email = "first@example.com";
+    let password = "password123";
+
+    let response = service
+        .register(email, password, "First User")
+        .await
+        .unwrap();
+
+    let token_service = JwtTokenService::new("test-secret".to_string(), "test-issuer".to_string());
+    let claims = token_service
+        .validate_access_token(&response.access_token)
+        .unwrap();
+
+    assert!(claims.roles().contains("admin"));
+}
+
+#[tokio::test]
+async fn register_does_not_assign_admin_role_to_second_user() {
+    let service = create_auth_service();
+    let password = "password123";
+
+    service
+        .register("first@example.com", password, "First User")
+        .await
+        .unwrap();
+
+    let response = service
+        .register("second@example.com", password, "Second User")
+        .await
+        .unwrap();
+
+    let token_service = JwtTokenService::new("test-secret".to_string(), "test-issuer".to_string());
+    let claims = token_service
+        .validate_access_token(&response.access_token)
+        .unwrap();
+
+    assert!(!claims.roles().contains("admin"));
+}
+
+#[tokio::test]
 async fn login_with_valid_credentials_returns_tokens() {
     let service = create_auth_service();
     let email = "test@example.com";

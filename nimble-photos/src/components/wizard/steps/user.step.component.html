@@ -1,0 +1,61 @@
+<div class="flex flex-col gap-8">
+    <div class="flex flex-col gap-4">
+        <h2 class="text-2xl font-semibold text-white md:text-3xl">Create the Admin User</h2>
+        <p class="max-w-2xl text-sm text-slate-400">
+            This admin account will manage settings, users, and system defaults for Nimble Photos.
+        </p>
+    </div>
+
+    <form [formGroup]="userForm" (ngSubmit)="onSubmit()" class="grid gap-6 md:grid-cols-2">
+        @if (success()) {
+        <div
+            class="md:col-span-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4 text-xs text-emerald-200">
+            {{ success() }}
+        </div>
+        }
+
+        @if (error()) {
+        <div class="md:col-span-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-xs text-red-200">
+            {{ error() }}
+        </div>
+        }
+        <div class="space-y-2">
+            <label for="adminName" class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Display
+                Name</label>
+            <input id="adminName" type="text" formControlName="name" placeholder="Alex Morgan"
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+        </div>
+
+        <div class="space-y-2">
+            <label for="adminEmail"
+                class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Email</label>
+            <input id="adminEmail" type="email" formControlName="email" placeholder="admin@nimble.photos"
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+        </div>
+
+        <div class="space-y-2 md:col-span-2">
+            <label for="adminPassword"
+                class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Password</label>
+            <input id="adminPassword" type="password" formControlName="password" placeholder="At least 8 characters"
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+            <p class="text-xs text-slate-500">This account will be assigned the Admin role.</p>
+        </div>
+
+        <div
+            class="md:col-span-2 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-5 py-4 text-xs text-slate-200">
+            Admin privileges include access to user management, integrations, and system-level preferences.
+        </div>
+
+        <div class="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
+            <p class="text-xs text-slate-500">Required fields must be completed before creating the admin user.</p>
+            <button type="submit" [disabled]="userForm.invalid || loading()"
+                class="h-11 rounded-full bg-linear-to-r from-indigo-500 to-sky-500 px-6 text-xs font-semibold uppercase tracking-wider text-white shadow-lg shadow-indigo-500/20 transition-all hover:from-indigo-400 hover:to-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
+                @if (loading()) {
+                Creating...
+                } @else {
+                Create Admin User
+                }
+            </button>
+        </div>
+    </form>
+</div>

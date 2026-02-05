@@ -23,6 +23,14 @@ export const routes: Routes = [
                     description: 'Meet Nimble Photos and prep for setup.',
                 },
             },
+            {
+                path: 'admin-user',
+                loadComponent: () => import('../components/wizard/steps/user.step.component').then(m => m.UserStepComponent),
+                data: {
+                    title: 'Admin User',
+                    description: 'Create the primary admin account.',
+                },
+            },
         ],
     },
     {
