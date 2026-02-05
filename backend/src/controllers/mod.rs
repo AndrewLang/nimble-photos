@@ -3,6 +3,7 @@ pub mod assets_controller;
 pub mod auth_controller;
 pub mod dashboard_controller;
 pub mod photo_controller;
+pub mod storage_controller;
 
 use album_controller::AlbumController;
 use assets_controller::AssetsController;
@@ -10,6 +11,7 @@ use auth_controller::AuthController;
 use dashboard_controller::DashboardController;
 use nimble_web::*;
 use photo_controller::PhotoController;
+use storage_controller::StorageController;
 
 pub fn register_controllers(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder
@@ -17,7 +19,8 @@ pub fn register_controllers(builder: &mut AppBuilder) -> &mut AppBuilder {
         .use_controller::<PhotoController>()
         .use_controller::<DashboardController>()
         .use_controller::<AlbumController>()
-        .use_controller::<AssetsController>();
+        .use_controller::<AssetsController>()
+        .use_controller::<StorageController>();
 
     builder
 }

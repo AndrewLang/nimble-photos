@@ -319,6 +319,16 @@ fn build_definitions() -> Vec<SettingDefinition> {
             options: None,
         },
         SettingDefinition {
+            key: "storage.locations",
+            label: "Storage locations",
+            description: "Folders used to store uploaded photos and generated assets.",
+            section: SettingSection::General,
+            group: SettingSection::General.slug(),
+            value_type: SettingValueType::Json,
+            default_value: json!([]),
+            options: None,
+        },
+        SettingDefinition {
             key: "photo.manage.uploadsEnabled",
             label: "Upload photos",
             description: "Allow uploads (including the scan endpoint) when authenticated members add new images.",

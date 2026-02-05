@@ -25,7 +25,7 @@ rand = "0.9"
 base64 = "0.22"
 anyhow = "1.0"
 uuid = { version = "1.13", features = ["v4", "serde"] }
-
+sysinfo = { version = "0.37", default-features = false, features = ["system", "disk"] }
 
 [features]
 default = ["postgres"]

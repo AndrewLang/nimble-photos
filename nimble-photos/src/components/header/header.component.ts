@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 
 import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -31,6 +32,7 @@ export class HeaderComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly dialogService = inject(DialogService);
   private readonly settingsService = inject(SettingsService);
+  private readonly document = inject(DOCUMENT);
 
   readonly isMenuOpen = signal(false);
   readonly isUserMenuOpen = signal(false);
@@ -235,7 +237,27 @@ export class HeaderComponent implements OnInit {
       .subscribe(logoUrl => {
         if (typeof logoUrl === 'string' && logoUrl.trim().length) {
           this.siteLogo.set(logoUrl);
+          this.setFavicon(logoUrl);
         }
       });
+  }
+
+  private setFavicon(url: string): void {
+    const head = this.document.head;
+    if (!head) {
+      return;
+    }
+
+    const existing = head.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+    if (existing) {
+      existing.href = url;
+      return;
+    }
+
+    const link = this.document.createElement('link');
+    link.rel = 'icon';
+    link.type = 'image/png';
+    link.href = url;
+    head.appendChild(link);
   }
 }

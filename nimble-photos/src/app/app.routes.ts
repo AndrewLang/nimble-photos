@@ -39,6 +39,15 @@ export const routes: Routes = [
                     description: 'Set the site title, visibility, and registration options.',
                 },
             },
+            {
+                path: 'storage',
+                loadComponent: () => import('../components/wizard/steps/storage.step.component').then(m => m.StorageStepComponent),
+                data: {
+                    title: 'Storage',
+                    description: 'Choose storage locations for uploads.',
+                },
+            },
+
         ],
     },
     {
