@@ -17,6 +17,19 @@ export class PhotoManageSettingComponent {
     readonly uploadError = signal<string | null>(null);
     readonly uploading = signal(false);
     readonly uploadSuccess = signal(false);
+    readonly supportedExtensions = [
+        'jpg',
+        'jpeg',
+        'png',
+        'heic',
+        'heif',
+        'webp',
+        'gif',
+        'tiff',
+        'bmp',
+        'raw',
+        'dng',
+    ];
 
     readonly title = computed(() => {
         const value = this.settingsService.getSettingValue('dashboard.photo-manage.title');
@@ -70,6 +83,13 @@ export class PhotoManageSettingComponent {
         this.uploadSuccess.set(false);
     }
 
+    removeFile(target: File): void {
+        const remaining = this.selectedFiles().filter(
+            file => !(file.name === target.name && file.size === target.size),
+        );
+        this.selectedFiles.set(remaining);
+    }
+
     uploadFiles(): void {
         const files = this.selectedFiles();
         if (!files.length || this.uploading()) {
@@ -108,11 +128,26 @@ export class PhotoManageSettingComponent {
 
         const existing = this.selectedFiles();
         const merged = [...existing];
+        const rejected: string[] = [];
         for (const file of incoming) {
+            if (!this.isSupported(file.name)) {
+                rejected.push(file.name);
+                continue;
+            }
             if (!merged.some(current => current.name === file.name && current.size === file.size)) {
                 merged.push(file);
             }
         }
         this.selectedFiles.set(merged);
+        if (rejected.length) {
+            this.uploadError.set(`Unsupported files skipped: ${rejected.join(', ')}`);
+        }
+    }
+
+    private isSupported(filename: string): boolean {
+        const parts = filename.toLowerCase().split('.');
+        if (parts.length < 2) return false;
+        const ext = parts[parts.length - 1];
+        return this.supportedExtensions.includes(ext);
     }
 }
