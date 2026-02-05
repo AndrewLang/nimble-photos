@@ -6,22 +6,8 @@ import { AlbumModel } from '../models/album.model';
 import { PagedAlbumsModel } from '../models/paged.albums.model';
 import { PagedModel } from '../models/paged.response.model';
 import { Album, AlbumComment, GroupedPhotos, PagedPhotos, Photo, PhotoComment, PhotoLoc, PhotoMetadata } from '../models/photo';
+import { PhotoLocResponse, PhotoResponse } from '../models/photo.response.model';
 import { API_BASE_URL } from './api.config';
-
-
-type DateFieldKey = 'createdAt' | 'updatedAt' | 'dateImported' | 'dateTaken';
-
-type PhotoResponse = Omit<Photo, DateFieldKey> & {
-  createdAt?: string | null;
-  updatedAt?: string | null;
-  dateImported?: string | null;
-  dateTaken?: string | null;
-};
-
-type PhotoLocResponse = PhotoResponse & {
-  lat: number;
-  lon: number;
-};
 
 @Injectable({
   providedIn: 'root',
