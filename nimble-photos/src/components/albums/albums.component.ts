@@ -9,10 +9,11 @@ import { DatePipe } from '@angular/common';
 
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm-dialog.component';
 import { ImageFallbackDirective } from '../../directives/image-fallback.directive';
+import { SvgComponent } from '../svg/svg.component';
 
 @Component({
     selector: 'mtx-albums',
-    imports: [RouterModule, DatePipe, ImageFallbackDirective],
+    imports: [RouterModule, DatePipe, ImageFallbackDirective, SvgComponent],
     templateUrl: './albums.component.html',
     host: {
         class: 'block flex-1 min-h-0',

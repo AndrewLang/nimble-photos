@@ -9,11 +9,12 @@ import { DialogService } from '../../services/dialog.service';
 import { InfoDialog } from '../dialog/info.dialog.component';
 import { AlbumEditorComponent } from '../album/album.editor.component';
 import { AlbumSelectorComponent } from '../album/album.selector.component';
+import { SvgComponent } from '../svg/svg.component';
 
 @Component({
   selector: 'mtx-header',
   standalone: true,
-  imports: [RouterModule],
+  imports: [RouterModule, SvgComponent],
   templateUrl: './header.component.html',
   styles: [`
     :host {

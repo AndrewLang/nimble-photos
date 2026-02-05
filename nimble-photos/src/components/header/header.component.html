@@ -20,11 +20,7 @@
         <div class="flex items-center gap-2 pl-3 pr-2 border-r border-white/20">
             <button (click)="clearSelection()" class="p-1.5 hover:bg-white/10 rounded-full transition-colors"
                 title="Clear Selection">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd"
-                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                        clip-rule="evenodd" />
-                </svg>
+                <mtx-svg name="closeSolid" size="1rem"></mtx-svg>
             </button>
             <span class="text-xs font-bold uppercase tracking-[0.1em] whitespace-nowrap">{{
                 selectionService.selectedCount() }} <span class="hidden md:inline">selected</span></span>
@@ -33,39 +29,24 @@
         <div class="flex items-center gap-2 pr-1">
             <button (click)="createAlbum()"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
+                <mtx-svg name="plus" size="0.875rem"></mtx-svg>
                 <span class="hidden sm:inline">Create Album</span>
             </button>
             <button (click)="addToAlbum()"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                </svg>
+                <mtx-svg name="folderPlus" size="0.875rem"></mtx-svg>
                 <span class="hidden sm:inline">Add to Album</span>
             </button>
 
             <button (click)="tagPhotos()"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
+                <mtx-svg name="tag" size="0.875rem"></mtx-svg>
                 <span class="hidden sm:inline">Tag Photos</span>
             </button>
 
             <button (click)="downloadSelected()"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
+                <mtx-svg name="download" size="0.875rem"></mtx-svg>
                 <span class="hidden sm:inline">Download</span>
             </button>
         </div>
@@ -100,11 +81,7 @@
         <div class="relative">
             <button (click)="toggleUserMenu()"
                 class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+                <mtx-svg name="user" size="1.25rem"></mtx-svg>
             </button>
 
             @if (isUserMenuOpen()) {
@@ -152,13 +129,9 @@
 
     <button (click)="toggleMenu()" class="md:hidden z-50 p-2 text-white/80 hover:text-white focus:outline-none">
         @if (!isMenuOpen()) {
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
+        <mtx-svg name="menu" size="1.5rem"></mtx-svg>
         } @else {
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <mtx-svg name="close" size="1.5rem"></mtx-svg>
         }
     </button>
 </header>

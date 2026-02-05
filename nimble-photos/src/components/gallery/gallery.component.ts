@@ -8,10 +8,11 @@ import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
 
 import { ImageFallbackDirective } from '../../directives/image-fallback.directive';
+import { SvgComponent } from '../svg/svg.component';
 
 @Component({
   selector: 'mtx-gallery',
-  imports: [RouterModule, ImageFallbackDirective],
+  imports: [RouterModule, ImageFallbackDirective, SvgComponent],
   templateUrl: './gallery.component.html',
   host: {
     class: 'flex flex-col flex-1 min-h-0',

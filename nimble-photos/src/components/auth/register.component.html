@@ -14,11 +14,7 @@
             <div
                 class="bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl p-4 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
                 <div class="flex items-center gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <mtx-svg name="errorCircleOutline" size="1.25rem"></mtx-svg>
                     <span>{{ error() }}</span>
                 </div>
             </div>
@@ -58,11 +54,8 @@
                 <div class="relative flex items-center pt-0.5">
                     <input type="checkbox" id="terms" formControlName="terms"
                         class="peer h-5 w-5 appearance-none rounded-md border border-white/10 bg-white/5 checked:bg-indigo-500 checked:border-indigo-400 transition-all cursor-pointer">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                        class="absolute h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100 left-0.5 pointer-events-none transition-opacity"
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                    </svg>
+                    <mtx-svg name="checkOutline" size="0.875rem"
+                        className="absolute text-white opacity-0 peer-checked:opacity-100 left-0.5 pointer-events-none transition-opacity"></mtx-svg>
                 </div>
                 <label for="terms" class="text-xs text-slate-400 leading-relaxed cursor-pointer select-none">
                     I agree to the <span class="text-indigo-400 font-bold">Terms of Service</span> and <span
@@ -77,11 +70,7 @@
                 <span>Joining...</span>
                 } @else {
                 <span>Create Account</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
+                <mtx-svg name="arrowRight" size="1.25rem"></mtx-svg>
                 }
             </button>
 

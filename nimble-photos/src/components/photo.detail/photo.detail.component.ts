@@ -5,12 +5,13 @@ import { first } from 'rxjs';
 import { Photo, PhotoComment } from '../../models/photo';
 import { AuthService } from '../../services/auth.service';
 import { PhotoService } from '../../services/photo.service';
+import { SvgComponent } from '../svg/svg.component';
 
 const MAX_COMMENT_LENGTH = 1024;
 
 @Component({
     selector: 'mtx-photo-detail',
-    imports: [RouterModule],
+    imports: [RouterModule, SvgComponent],
     templateUrl: './photo.detail.component.html',
     host: {
         class: 'fixed inset-0 z-[100] bg-slate-950 flex flex-col',

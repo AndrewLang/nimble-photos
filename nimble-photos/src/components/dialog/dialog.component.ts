@@ -2,10 +2,11 @@ import { Component, Type, ViewChild, ViewContainerRef, ViewEncapsulation, signal
 
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { DialogAction, DialogConfig } from '../../models/dialog.model';
+import { SvgComponent } from '../svg/svg.component';
 
 @Component({
   selector: 'mtx-dialog',
-  imports: [],
+  imports: [SvgComponent],
   templateUrl: './dialog.component.html',
   encapsulation: ViewEncapsulation.None
 })

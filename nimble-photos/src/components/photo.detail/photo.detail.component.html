@@ -14,20 +14,12 @@
             <div class="flex gap-2 pointer-events-auto">
                 <button
                     class="p-2 text-white/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
+                    <mtx-svg name="download" size="1.25rem"></mtx-svg>
                 </button>
                 <button (click)="close()"
                     class="p-2 text-white/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-md border border-white/10 shadow-lg"
                     title="Close">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <mtx-svg name="close" size="1.25rem"></mtx-svg>
                 </button>
             </div>
         </div>
@@ -35,20 +27,14 @@
         @if (adjacents().prevId) {
         <button (click)="navigateToPhoto(adjacents().prevId!)"
             class="absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 z-20 p-2 transition-all bg-white/5 hover:bg-white/20 hover:scale-110 rounded-full backdrop-blur-xl border border-white/10 text-white/50 hover:text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 lg:h-6 lg:w-6" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
-            </svg>
+            <mtx-svg name="chevronLeftBold" size="1.25rem"></mtx-svg>
         </button>
         }
 
         @if (adjacents().nextId) {
         <button (click)="navigateToPhoto(adjacents().nextId!)"
             class="absolute right-4 lg:right-6 top-1/2 -translate-y-1/2 z-20 p-2 transition-all bg-white/5 hover:bg-white/20 hover:scale-110 rounded-full backdrop-blur-xl border border-white/10 text-white/50 hover:text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 lg:h-6 lg:w-6" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
-            </svg>
+            <mtx-svg name="chevronRightBold" size="1.25rem"></mtx-svg>
         </button>
         }
 
@@ -170,12 +156,11 @@
                     <button type="button" (click)="toggleMetadata()"
                         class="p-1 rounded-full text-slate-400 hover:text-white transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500">
                         <span class="sr-only">Toggle metadata</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                            class="h-4 w-4 transition-transform duration-200" [class.rotate-180]="metadataExpanded()">
-                            <path fill="currentColor" fill-rule="evenodd"
-                                d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.586l3.71-3.356a.75.75 0 0 1 1.02 1.097l-4 3.615a.75.75 0 0 1-1.02 0l-4-3.615a.75.75 0 0 1 .02-1.057z"
-                                clip-rule="evenodd" />
-                        </svg>
+                        <mtx-svg
+                            name="chevronDownSolid"
+                            size="1rem"
+                            [className]="metadataExpanded() ? 'text-slate-400 transition-transform duration-200 rotate-180' : 'text-slate-400 transition-transform duration-200'">
+                        </mtx-svg>
                     </button>
                 </div>
                 @if (metadataExpanded()) {
