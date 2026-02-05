@@ -1,11 +1,11 @@
 import { Component, Type, ViewChild, ViewContainerRef, ViewEncapsulation, signal, inject, AfterViewInit, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { DialogAction, DialogConfig } from '../../models/dialog.model';
 
 @Component({
   selector: 'mtx-dialog',
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './dialog.component.html',
   encapsulation: ViewEncapsulation.None
 })

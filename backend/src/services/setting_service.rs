@@ -103,6 +103,38 @@ impl SettingService {
         Ok(def.to_dto(parsed_value, saved.updated_at))
     }
 
+    pub async fn is_site_public(&self) -> Result<bool, PipelineError> {
+        self.get_bool_setting("site.public").await
+    }
+
+    pub async fn is_photo_upload_enabled(&self) -> Result<bool, PipelineError> {
+        self.get_bool_setting("photo.manage.uploadsEnabled").await
+    }
+
+    async fn get_bool_setting(&self, key: &str) -> Result<bool, PipelineError> {
+        let owned_key = key.to_string();
+        let entry = self.repository.get(&owned_key).await.map_err(|e| {
+            let msg = format!("Failed to load setting {}: {:?}", owned_key, e);
+            PipelineError::message(&msg)
+        })?;
+
+        if let Some(stored) = entry {
+            if let Some(parsed) = parse_value(&stored.value).and_then(|json| json.as_bool()) {
+                return Ok(parsed);
+            }
+        }
+
+        Ok(self.definition_default_bool(key))
+    }
+
+    fn definition_default_bool(&self, key: &str) -> bool {
+        self.definitions
+            .iter()
+            .find(|def| def.key == key)
+            .and_then(|def| def.default_value.as_bool())
+            .unwrap_or(false)
+    }
+
     async fn ensure_defaults(&self) -> Result<(), PipelineError> {
         for def in &self.definitions {
             let key = def.key.to_string();
@@ -222,6 +254,26 @@ fn build_definitions() -> Vec<SettingDefinition> {
             group: SettingSection::General.slug(),
             value_type: SettingValueType::String,
             default_value: json!("My photo stories"),
+            options: None,
+        },
+        SettingDefinition {
+            key: "site.public",
+            label: "Public gallery",
+            description: "When enabled visitors can browse and view photos without signing in. Otherwise only authenticated users can access the library.",
+            section: SettingSection::General,
+            group: SettingSection::General.slug(),
+            value_type: SettingValueType::Boolean,
+            default_value: json!(true),
+            options: None,
+        },
+        SettingDefinition {
+            key: "photo.manage.uploadsEnabled",
+            label: "Upload photos",
+            description: "Allow uploads (including the scan endpoint) when authenticated members add new images.",
+            section: SettingSection::PhotoManage,
+            group: SettingSection::PhotoManage.slug(),
+            value_type: SettingValueType::Boolean,
+            default_value: json!(true),
             options: None,
         },
         SettingDefinition {

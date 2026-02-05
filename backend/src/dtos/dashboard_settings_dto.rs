@@ -10,6 +10,8 @@ pub enum SettingSection {
     General,
     Experience,
     Notifications,
+    #[serde(rename = "photo-manage")]
+    PhotoManage,
 }
 
 impl SettingSection {
@@ -18,6 +20,7 @@ impl SettingSection {
             SettingSection::General => "General",
             SettingSection::Experience => "Experience",
             SettingSection::Notifications => "Notifications",
+            SettingSection::PhotoManage => "Photo manage",
         }
     }
 
@@ -26,6 +29,7 @@ impl SettingSection {
             SettingSection::General => "general",
             SettingSection::Experience => "experience",
             SettingSection::Notifications => "notifications",
+            SettingSection::PhotoManage => "photo-manage",
         }
     }
 }

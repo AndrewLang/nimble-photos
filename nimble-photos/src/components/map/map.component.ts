@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, ElementRef, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import * as L from 'leaflet';
@@ -9,7 +9,7 @@ import { PhotoService } from '../../services/photo.service';
 @Component({
   selector: 'mtx-map',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './map.component.html',
   host: {
     class: 'block flex-1 min-h-0',

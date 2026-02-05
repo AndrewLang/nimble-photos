@@ -1,5 +1,5 @@
 import { Component, OnInit, signal, computed, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 
@@ -11,7 +11,7 @@ import { ImageFallbackDirective } from '../../directives/image-fallback.directiv
 
 @Component({
   selector: 'mtx-gallery',
-  imports: [CommonModule, RouterModule, ImageFallbackDirective],
+  imports: [RouterModule, ImageFallbackDirective],
   templateUrl: './gallery.component.html',
   host: {
     class: 'flex flex-col flex-1 min-h-0',

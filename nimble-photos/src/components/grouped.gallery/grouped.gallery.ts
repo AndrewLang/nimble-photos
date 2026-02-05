@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, effect, ElementRef, OnInit, signal, ViewChild } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { GroupedPhotos, Photo } from '../../models/photo';
@@ -7,7 +7,7 @@ import { JustifiedGalleryComponent } from '../justified.gallery/justified.galler
 
 @Component({
   selector: 'mtx-grouped-gallery',
-  imports: [CommonModule, RouterModule, JustifiedGalleryComponent],
+  imports: [RouterModule, JustifiedGalleryComponent],
   templateUrl: './grouped.gallery.html',
   host: {
     class: 'block flex-1 min-h-0',

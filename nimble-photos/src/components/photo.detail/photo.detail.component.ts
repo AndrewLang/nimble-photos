@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, HostListener, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
@@ -10,7 +10,7 @@ const MAX_COMMENT_LENGTH = 1024;
 
 @Component({
     selector: 'mtx-photo-detail',
-    imports: [CommonModule, RouterModule],
+    imports: [RouterModule],
     templateUrl: './photo.detail.component.html',
     host: {
         class: 'fixed inset-0 z-[100] bg-slate-950 flex flex-col',

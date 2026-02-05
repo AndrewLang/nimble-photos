@@ -1,12 +1,12 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { PhotoService } from '../../services/photo.service';
 import { Album } from '../../models/photo';
 
 @Component({
     selector: 'mtx-album-selector',
-    imports: [CommonModule, FormsModule],
+    imports: [FormsModule],
     templateUrl: './album.selector.component.html'
 })
 export class AlbumSelectorComponent implements OnInit {

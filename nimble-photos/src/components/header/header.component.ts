@@ -1,5 +1,5 @@
 import { Component, signal, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormBuilder } from '@angular/forms';
 import { SelectionService } from '../../services/selection.service';
@@ -13,7 +13,7 @@ import { AlbumSelectorComponent } from '../album/album.selector.component';
 @Component({
   selector: 'mtx-header',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './header.component.html',
   styles: [`
     :host {

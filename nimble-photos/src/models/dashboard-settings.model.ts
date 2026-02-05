@@ -1,4 +1,4 @@
-export type DashboardSystemSection = 'general' | 'experience' | 'notifications';
+export type DashboardSystemSection = 'general' | 'experience' | 'notifications' | 'photo-manage';
 export type DashboardSettingValueType = 'string' | 'boolean' | 'number' | 'json';
 
 export interface DashboardSettingOption {
