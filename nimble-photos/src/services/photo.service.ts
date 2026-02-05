@@ -42,6 +42,12 @@ export class PhotoService {
       .pipe(map((response) => this.mapPhotoPage(response)));
   }
 
+  uploadPhotos(files: File[]): Observable<void> {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file, file.name));
+    return this.http.post<void>(`${this.apiBase}/photos`, formData);
+  }
+
   getPhotoById(id: string): Observable<Photo | null> {
     return this.http.get<PhotoResponse>(`${this.apiBase}/photos/${id}`).pipe(
       map((dto) => this.mapPhoto(dto)),
