@@ -1,17 +1,12 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, tap, switchMap, map, of, catchError } from 'rxjs';
 import { jwtDecode } from 'jwt-decode';
+import { map, Observable, switchMap, tap } from 'rxjs';
 import { LoginRequest, LoginResponse, RegisterRequest } from '../models/auth.model';
-import { API_BASE_URL } from './api.config';
+import { JwtClaims } from '../models/jwt-claims.model';
 import { User } from '../models/user.model';
-
-interface JwtClaims {
-    sub: string;
-    roles?: string[];
-    exp: number;
-}
+import { API_BASE_URL } from './api.config';
 
 @Injectable({
     providedIn: 'root',
@@ -96,6 +91,7 @@ export class AuthService {
         localStorage.removeItem(this.TOKEN_KEY);
         localStorage.removeItem(this.REFRESH_TOKEN_KEY);
         localStorage.removeItem(this.USER_KEY);
+
         this.currentUser.set(null);
         this.router.navigate(['/login']);
     }
