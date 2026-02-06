@@ -11,8 +11,8 @@ import { SelectionService } from '../../services/selection.service';
 import { SettingsService } from '../../services/settings.service';
 import { AlbumEditorComponent } from '../album/album.editor.component';
 import { AlbumSelectorComponent } from '../album/album.selector.component';
-import { InfoDialog } from '../dialog/info.dialog.component';
 import { SvgComponent } from '../svg/svg.component';
+import { TagEditorComponent } from '../tag/tag.editor.component';
 
 @Component({
   selector: 'mtx-header',
@@ -219,13 +219,42 @@ export class HeaderComponent implements OnInit {
   }
 
   tagPhotos() {
-    this.dialogService.open(InfoDialog, {
-      title: 'Tag Photos',
-      actions: [
-        { label: 'Cancel', value: false, style: 'ghost' },
-        { label: 'OK', value: true, style: 'primary' }
-      ]
-    });
+    const photos = this.selectionService.selectedPhotos();
+    if (photos.length === 0) {
+      return;
+    }
+
+    this.photoService.getAllPhotoTags()
+      .pipe(
+        first(),
+        catchError(() => of([]))
+      )
+      .subscribe(async existingTags => {
+        const ref = this.dialogService.open(TagEditorComponent, {
+          title: 'Tag Photos',
+          width: '700px',
+          data: { photos, existingTags },
+          actions: [
+            { label: 'Cancel', value: false, style: 'ghost' },
+            { label: 'Apply Tags', value: 'submit', style: 'primary' }
+          ]
+        });
+
+        const result = await ref.afterClosed();
+        if (!result || result === 'submit' || result === false) {
+          return;
+        }
+
+        this.photoService.updatePhotoTags(result.photoIds, result.tags).subscribe({
+          next: () => {
+            this.selectionService.clearSelection();
+          },
+          error: (err) => {
+            console.error('Failed to update tags', err);
+            alert('Failed to update photo tags.');
+          }
+        });
+      });
   }
 
   private loadSiteSettings(): void {

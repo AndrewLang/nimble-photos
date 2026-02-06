@@ -97,6 +97,7 @@ export interface Photo {
   path: string;
   thumbnailPath?: string;
   name: string;
+  tags?: string[];
   format?: string;
   hash?: string;
   size?: number;

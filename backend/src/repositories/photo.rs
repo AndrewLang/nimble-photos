@@ -59,6 +59,7 @@ impl PhotoRepository for PostgresPhotoRepository {
                         'thumbnail_optimized', pd.thumbnail_optimized,
                         'metadata_extracted', pd.metadata_extracted,
                         'is_raw', pd.is_raw,
+                        'tags', CASE WHEN pd.tags IS NULL OR pd.tags = '' THEN '[]'::json ELSE pd.tags::json END,
                         'width', pd.width,
                         'height', pd.height,
                         'thumbnail_width', pd.thumbnail_width,
@@ -68,7 +69,7 @@ impl PhotoRepository for PostgresPhotoRepository {
                     SELECT
                         p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
                         p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                        p.metadata_extracted, p.is_raw,
+                        p.metadata_extracted, p.is_raw, p.tags,
                         CASE
                             WHEN e.orientation IN (5, 6, 7, 8) THEN
                                 COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
@@ -179,7 +180,7 @@ impl PhotoRepository for PostgresPhotoRepository {
             SELECT
                 p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
                 p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                p.metadata_extracted, p.is_raw,
+                p.metadata_extracted, p.is_raw, p.tags,
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
@@ -213,7 +214,7 @@ impl PhotoRepository for PostgresPhotoRepository {
             SELECT
                 p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
                 p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                p.metadata_extracted, p.is_raw,
+                p.metadata_extracted, p.is_raw, p.tags,
 
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN

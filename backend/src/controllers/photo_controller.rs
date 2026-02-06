@@ -1,12 +1,14 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use serde::Deserialize;
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::result::Result;
 use uuid::Uuid;
 
 use crate::dtos::photo_comment_dto::PhotoCommentDto;
 use crate::entities::exif::ExifModel;
+use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
 use crate::entities::user_settings::UserSettings;
 use crate::repositories::photo::PhotoRepository;
@@ -14,6 +16,7 @@ use crate::repositories::photo::PhotoRepository;
 use nimble_web::DataProvider;
 use nimble_web::Repository;
 use nimble_web::controller::controller::Controller;
+use nimble_web::data::paging::PageRequest;
 use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection, Value};
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
@@ -26,6 +29,7 @@ use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
 
 const MAX_COMMENT_LENGTH: usize = 1024;
+const TAGS_PAGE_SIZE: u32 = 500;
 
 pub struct PhotoController;
 
@@ -39,6 +43,10 @@ impl Controller for PhotoController {
                 .build(),
             EndpointRoute::get("/api/photos/with-gps/{page}/{pageSize}", MapPhotosHandler).build(),
             EndpointRoute::get("/api/photos/{id}/metadata", PhotoMetadataHandler).build(),
+            EndpointRoute::get("/api/photos/tags", PhotoTagsHandler).build(),
+            EndpointRoute::put("/api/photos/tags", UpdatePhotoTagsHandler)
+                .with_policy(Policy::Authenticated)
+                .build(),
             EndpointRoute::get("/api/photos/comments/{id}", PhotoCommentsHandler).build(),
             EndpointRoute::post("/api/photos/comments/{id}", CreatePhotoCommentHandler)
                 .with_policy(Policy::Authenticated)
@@ -341,4 +349,109 @@ impl HttpHandler for PhotoMetadataHandler {
 
         Ok(ResponseValue::new(Json(metadata)))
     }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdatePhotoTagsPayload {
+    photo_ids: Vec<String>,
+    tags: Vec<String>,
+}
+
+struct PhotoTagsHandler;
+
+#[async_trait]
+impl HttpHandler for PhotoTagsHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let repository = context.service::<Repository<Photo>>()?;
+        let mut all_tags = BTreeSet::<String>::new();
+        let mut current_page = 1;
+
+        loop {
+            let mut query = Query::<Photo>::new();
+            query.paging = Some(PageRequest::new(current_page, TAGS_PAGE_SIZE));
+
+            let page = repository
+                .query(query)
+                .await
+                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+            for photo in page.items {
+                if let Some(tags) = photo.tags {
+                    for tag in tags {
+                        let normalized = tag.trim();
+                        if !normalized.is_empty() {
+                            all_tags.insert(normalized.to_string());
+                        }
+                    }
+                }
+            }
+
+            let fetched = (current_page * TAGS_PAGE_SIZE) as u64;
+            if fetched >= page.total {
+                break;
+            }
+            current_page += 1;
+        }
+
+        Ok(ResponseValue::new(Json(all_tags.into_iter().collect::<Vec<_>>())))
+    }
+}
+
+struct UpdatePhotoTagsHandler;
+
+#[async_trait]
+impl HttpHandler for UpdatePhotoTagsHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload = context
+            .read_json::<UpdatePhotoTagsPayload>()
+            .map_err(|e| PipelineError::message(e.message()))?;
+
+        if payload.photo_ids.is_empty() {
+            return Err(PipelineError::message("photoIds cannot be empty"));
+        }
+
+        let normalized_tags = normalize_tags(payload.tags);
+        let repository = context.service::<Repository<Photo>>()?;
+
+        let mut updated = 0u32;
+        for raw_photo_id in payload.photo_ids {
+            let photo_id = Uuid::parse_str(raw_photo_id.trim())
+                .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
+
+            let mut photo = match repository
+                .get(&photo_id)
+                .await
+                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
+            {
+                Some(existing) => existing,
+                None => continue,
+            };
+
+            photo.tags = if normalized_tags.is_empty() {
+                None
+            } else {
+                Some(normalized_tags.clone())
+            };
+
+            repository
+                .update(photo)
+                .await
+                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+            updated += 1;
+        }
+
+        Ok(ResponseValue::new(Json(serde_json::json!({ "updated": updated }))))
+    }
+}
+
+fn normalize_tags(tags: Vec<String>) -> Vec<String> {
+    let mut dedup = BTreeSet::<String>::new();
+    for tag in tags {
+        let trimmed = tag.trim();
+        if !trimmed.is_empty() {
+            dedup.insert(trimmed.to_string());
+        }
+    }
+    dedup.into_iter().collect()
 }

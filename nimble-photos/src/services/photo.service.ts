@@ -91,6 +91,19 @@ export class PhotoService {
       );
   }
 
+  getAllPhotoTags(): Observable<string[]> {
+    return this.http
+      .get<string[]>(`${this.apiBase}/photos/tags`)
+      .pipe(catchError(() => of([])));
+  }
+
+  updatePhotoTags(photoIds: string[], tags: string[]): Observable<{ updated: number }> {
+    return this.http.put<{ updated: number }>(`${this.apiBase}/photos/tags`, {
+      photoIds,
+      tags
+    });
+  }
+
   getThumbnailPath(photo: Photo): string {
     if (photo.hash) {
       return `${this.apiBase}/photos/thumbnail/${photo.hash}`;
@@ -278,6 +291,7 @@ export class PhotoService {
       id: dto.id,
       path: dto.path,
       name: dto.name,
+      tags: Array.isArray(dto.tags) ? dto.tags : undefined,
       format: dto.format ?? undefined,
       hash: dto.hash ?? undefined,
       size: dto.size ?? undefined,
