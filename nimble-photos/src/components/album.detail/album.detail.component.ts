@@ -1,13 +1,14 @@
 ﻿import { CommonModule, DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { first } from 'rxjs';
+import { catchError, first, of } from 'rxjs';
 import { PagedModel } from '../../models/paged.response.model';
 import { Album, AlbumComment, Photo } from '../../models/photo';
 import { AuthService } from '../../services/auth.service';
 import { DialogService } from '../../services/dialog.service';
 import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
+import { SettingsService } from '../../services/settings.service';
 import { GalleryComponent } from '../gallery/gallery.component';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
 
@@ -28,6 +29,7 @@ export class AlbumDetailComponent implements OnInit {
     private readonly authService = inject(AuthService);
     private readonly dialogService = inject(DialogService);
     private readonly selectionService = inject(SelectionService);
+    private readonly settingsService = inject(SettingsService);
 
     readonly album = signal<Album | null>(null);
     readonly loading = signal(false);
@@ -48,6 +50,7 @@ export class AlbumDetailComponent implements OnInit {
     readonly commentEditorVisible = signal(false);
     readonly maxCommentLength = MAX_COMMENT_LENGTH;
     readonly isAuthenticated = computed(() => this.authService.isAuthenticated());
+    readonly allowComments = signal(true);
     readonly sidebarOpen = signal(false);
 
     constructor() { }
@@ -63,6 +66,19 @@ export class AlbumDetailComponent implements OnInit {
                 this.fetchAlbum(id);
             }
         });
+
+        this.settingsService.getSettingByName('site.allowComments')
+            .pipe(
+                first(),
+                catchError(() => of(null))
+            )
+            .subscribe(setting => {
+                const enabled = typeof setting?.value === 'boolean' ? setting.value : true;
+                this.allowComments.set(enabled);
+                if (!enabled) {
+                    this.commentEditorVisible.set(false);
+                }
+            });
 
         this.selectionService.clearSelection();
     }
@@ -134,7 +150,7 @@ export class AlbumDetailComponent implements OnInit {
     }
 
     toggleCommentEditor(): void {
-        if (!this.authService.isAuthenticated()) {
+        if (!this.allowComments() || !this.authService.isAuthenticated()) {
             return;
         }
         this.commentEditorVisible.update(value => !value);

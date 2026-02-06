@@ -18,7 +18,7 @@ impl SettingService {
     pub fn new(repository: Arc<Repository<Setting>>) -> Self {
         Self {
             repository,
-            definitions: build_definitions(),
+            definitions: Self::build_definitions(),
         }
     }
 
@@ -35,7 +35,7 @@ impl SettingService {
 
             let current_value = entity
                 .as_ref()
-                .and_then(|entry| parse_value(&entry.value))
+                .and_then(|entry| Self::parse_value(&entry.value))
                 .unwrap_or_else(|| def.default_value.clone());
 
             let updated_at = entity
@@ -66,7 +66,7 @@ impl SettingService {
 
         let current_value = entity
             .as_ref()
-            .and_then(|entry| parse_value(&entry.value))
+            .and_then(|entry| Self::parse_value(&entry.value))
             .unwrap_or_else(|| def.default_value.clone());
 
         let updated_at = entity
@@ -126,7 +126,7 @@ impl SettingService {
             })?
         };
 
-        let parsed_value = parse_value(&saved.value).unwrap_or_else(|| def.default_value.clone());
+        let parsed_value = Self::parse_value(&saved.value).unwrap_or_else(|| def.default_value.clone());
 
         Ok(def.to_dto(parsed_value, saved.updated_at))
     }
@@ -151,7 +151,7 @@ impl SettingService {
         })?;
 
         if let Some(stored) = entry {
-            if let Some(parsed) = parse_value(&stored.value).and_then(|json| json.as_bool()) {
+            if let Some(parsed) = Self::parse_value(&stored.value).and_then(|json| json.as_bool()) {
                 return Ok(parsed);
             }
         }
@@ -216,6 +216,158 @@ impl SettingService {
         }
         Ok(())
     }
+
+    fn build_definitions() -> Vec<SettingDefinition> {
+        vec![
+            SettingDefinition {
+                key: "site.title",
+                label: "Site title",
+                description: "Displayed in the header and shared links",
+                section: SettingSection::General,
+                group: SettingSection::General.slug(),
+                value_type: SettingValueType::String,
+                default_value: json!("Nimble Photos"),
+                options: None,
+            },
+            SettingDefinition {
+                key: "site.tagline",
+                label: "Site tagline",
+                description: "Short description below the logo",
+                section: SettingSection::General,
+                group: SettingSection::General.slug(),
+                value_type: SettingValueType::String,
+                default_value: json!("My photo stories"),
+                options: None,
+            },
+            SettingDefinition {
+                key: "site.logo",
+                label: "Site logo",
+                description: "URL for the brand logo shown in the header",
+                section: SettingSection::General,
+                group: SettingSection::General.slug(),
+                value_type: SettingValueType::String,
+                default_value: json!(""),
+                options: None,
+            },
+            SettingDefinition {
+                key: "site.public",
+                label: "Public gallery",
+                description: "When enabled visitors can browse and view photos without signing in. Otherwise only authenticated users can access the library.",
+                section: SettingSection::General,
+                group: SettingSection::General.slug(),
+                value_type: SettingValueType::Boolean,
+                default_value: json!(true),
+                options: None,
+            },
+            SettingDefinition {
+                key: "site.allowRegistration",
+                label: "Allow registration",
+                description: "When enabled visitors can create their own accounts from the register screen.",
+                section: SettingSection::General,
+                group: SettingSection::General.slug(),
+                value_type: SettingValueType::Boolean,
+                default_value: json!(true),
+                options: None,
+            },
+            SettingDefinition {
+                key: "site.allowComments",
+                label: "Allow comments",
+                description: "When enabled users can add comments on photo and album detail views.",
+                section: SettingSection::General,
+                group: SettingSection::General.slug(),
+                value_type: SettingValueType::Boolean,
+                default_value: json!(true),
+                options: None,
+            },
+            SettingDefinition {
+                key: "storage.locations",
+                label: "Storage locations",
+                description: "Folders used to store uploaded photos and generated assets.",
+                section: SettingSection::General,
+                group: SettingSection::General.slug(),
+                value_type: SettingValueType::Json,
+                default_value: json!([]),
+                options: None,
+            },
+            SettingDefinition {
+                key: "photo.manage.uploadsEnabled",
+                label: "Upload photos",
+                description: "Allow uploads (including the scan endpoint) when authenticated members add new images.",
+                section: SettingSection::PhotoManage,
+                group: SettingSection::PhotoManage.slug(),
+                value_type: SettingValueType::Boolean,
+                default_value: json!(true),
+                options: None,
+            },
+            SettingDefinition {
+                key: "experience.gridColumns",
+                label: "Gallery columns",
+                description: "Columns used for the main gallery grid",
+                section: SettingSection::Experience,
+                group: SettingSection::Experience.slug(),
+                value_type: SettingValueType::Number,
+                default_value: json!(3),
+                options: None,
+            },
+            SettingDefinition {
+                key: "experience.defaultView",
+                label: "Default landing view",
+                description: "View presented to visitors by default",
+                section: SettingSection::Experience,
+                group: SettingSection::Experience.slug(),
+                value_type: SettingValueType::String,
+                default_value: json!("timeline"),
+                options: Some(vec![
+                    SettingOption {
+                        label: "Timeline",
+                        value: json!("timeline"),
+                    },
+                    SettingOption {
+                        label: "Gallery",
+                        value: json!("gallery"),
+                    },
+                    SettingOption {
+                        label: "Map",
+                        value: json!("map"),
+                    },
+                ]),
+            },
+            SettingDefinition {
+                key: "experience.tipsEnabled",
+                label: "Show tips",
+                description: "Offer contextual tips across the app",
+                section: SettingSection::Experience,
+                group: SettingSection::Experience.slug(),
+                value_type: SettingValueType::Boolean,
+                default_value: json!(true),
+                options: None,
+            },
+            SettingDefinition {
+                key: "notifications.emailSummary",
+                label: "Email summaries",
+                description: "Send a weekly recap of new photos",
+                section: SettingSection::Notifications,
+                group: SettingSection::Notifications.slug(),
+                value_type: SettingValueType::Boolean,
+                default_value: json!(false),
+                options: None,
+            },
+            SettingDefinition {
+                key: "notifications.dailyDigestHour",
+                label: "Daily digest hour",
+                description: "UTC hour for the digest email",
+                section: SettingSection::Notifications,
+                group: SettingSection::Notifications.slug(),
+                value_type: SettingValueType::Number,
+                default_value: json!(18),
+                options: None,
+            },
+        ]
+    }
+
+    fn parse_value(raw: &str) -> Option<JsonValue> {
+        serde_json::from_str(raw).ok()
+    }
 }
 
 #[derive(Clone)]
@@ -264,146 +416,4 @@ impl SettingOption {
             value: self.value.clone(),
         }
     }
-}
-
-fn build_definitions() -> Vec<SettingDefinition> {
-    vec![
-        SettingDefinition {
-            key: "site.title",
-            label: "Site title",
-            description: "Displayed in the header and shared links",
-            section: SettingSection::General,
-            group: SettingSection::General.slug(),
-            value_type: SettingValueType::String,
-            default_value: json!("Nimble Photos"),
-            options: None,
-        },
-        SettingDefinition {
-            key: "site.tagline",
-            label: "Site tagline",
-            description: "Short description below the logo",
-            section: SettingSection::General,
-            group: SettingSection::General.slug(),
-            value_type: SettingValueType::String,
-            default_value: json!("My photo stories"),
-            options: None,
-        },
-        SettingDefinition {
-            key: "site.logo",
-            label: "Site logo",
-            description: "URL for the brand logo shown in the header",
-            section: SettingSection::General,
-            group: SettingSection::General.slug(),
-            value_type: SettingValueType::String,
-            default_value: json!(""),
-            options: None,
-        },
-        SettingDefinition {
-            key: "site.public",
-            label: "Public gallery",
-            description: "When enabled visitors can browse and view photos without signing in. Otherwise only authenticated users can access the library.",
-            section: SettingSection::General,
-            group: SettingSection::General.slug(),
-            value_type: SettingValueType::Boolean,
-            default_value: json!(true),
-            options: None,
-        },
-        SettingDefinition {
-            key: "site.allowRegistration",
-            label: "Allow registration",
-            description: "When enabled visitors can create their own accounts from the register screen.",
-            section: SettingSection::General,
-            group: SettingSection::General.slug(),
-            value_type: SettingValueType::Boolean,
-            default_value: json!(true),
-            options: None,
-        },
-        SettingDefinition {
-            key: "storage.locations",
-            label: "Storage locations",
-            description: "Folders used to store uploaded photos and generated assets.",
-            section: SettingSection::General,
-            group: SettingSection::General.slug(),
-            value_type: SettingValueType::Json,
-            default_value: json!([]),
-            options: None,
-        },
-        SettingDefinition {
-            key: "photo.manage.uploadsEnabled",
-            label: "Upload photos",
-            description: "Allow uploads (including the scan endpoint) when authenticated members add new images.",
-            section: SettingSection::PhotoManage,
-            group: SettingSection::PhotoManage.slug(),
-            value_type: SettingValueType::Boolean,
-            default_value: json!(true),
-            options: None,
-        },
-        SettingDefinition {
-            key: "experience.gridColumns",
-            label: "Gallery columns",
-            description: "Columns used for the main gallery grid",
-            section: SettingSection::Experience,
-            group: SettingSection::Experience.slug(),
-            value_type: SettingValueType::Number,
-            default_value: json!(3),
-            options: None,
-        },
-        SettingDefinition {
-            key: "experience.defaultView",
-            label: "Default landing view",
-            description: "View presented to visitors by default",
-            section: SettingSection::Experience,
-            group: SettingSection::Experience.slug(),
-            value_type: SettingValueType::String,
-            default_value: json!("timeline"),
-            options: Some(vec![
-                SettingOption {
-                    label: "Timeline",
-                    value: json!("timeline"),
-                },
-                SettingOption {
-                    label: "Gallery",
-                    value: json!("gallery"),
-                },
-                SettingOption {
-                    label: "Map",
-                    value: json!("map"),
-                },
-            ]),
-        },
-        SettingDefinition {
-            key: "experience.tipsEnabled",
-            label: "Show tips",
-            description: "Offer contextual tips across the app",
-            section: SettingSection::Experience,
-            group: SettingSection::Experience.slug(),
-            value_type: SettingValueType::Boolean,
-            default_value: json!(true),
-            options: None,
-        },
-        SettingDefinition {
-            key: "notifications.emailSummary",
-            label: "Email summaries",
-            description: "Send a weekly recap of new photos",
-            section: SettingSection::Notifications,
-            group: SettingSection::Notifications.slug(),
-            value_type: SettingValueType::Boolean,
-            default_value: json!(false),
-            options: None,
-        },
-        SettingDefinition {
-            key: "notifications.dailyDigestHour",
-            label: "Daily digest hour",
-            description: "UTC hour for the digest email",
-            section: SettingSection::Notifications,
-            group: SettingSection::Notifications.slug(),
-            value_type: SettingValueType::Number,
-            default_value: json!(18),
-            options: None,
-        },
-    ]
-}
-
-fn parse_value(raw: &str) -> Option<JsonValue> {
-    serde_json::from_str(raw).ok()
 }

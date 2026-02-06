@@ -1,10 +1,11 @@
 
 import { Component, HostListener, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { first } from 'rxjs';
+import { catchError, first, of } from 'rxjs';
 import { Photo, PhotoComment } from '../../models/photo';
 import { AuthService } from '../../services/auth.service';
 import { PhotoService } from '../../services/photo.service';
+import { SettingsService } from '../../services/settings.service';
 import { SvgComponent } from '../svg/svg.component';
 import { Formatter } from '../../models/formatters';
 
@@ -39,6 +40,7 @@ export class PhotoDetailComponent implements OnInit {
     readonly commentsError = signal<string | null>(null);
     readonly metadataExpanded = signal(false);
     readonly commentEditorVisible = signal(false);
+    readonly allowComments = signal(true);
     readonly formatBytes = (size?: number) => Formatter.formatBytes(size, { zeroLabel: 'n/a' });
 
     private albumId: string | null = null;
@@ -48,7 +50,8 @@ export class PhotoDetailComponent implements OnInit {
         private readonly route: ActivatedRoute,
         private readonly router: Router,
         public readonly authService: AuthService,
-        private readonly photoService: PhotoService
+        private readonly photoService: PhotoService,
+        private readonly settingsService: SettingsService
     ) { }
 
     ngOnInit(): void {
@@ -64,6 +67,19 @@ export class PhotoDetailComponent implements OnInit {
                 this.fetchPhoto(id);
             }
         });
+
+        this.settingsService.getSettingByName('site.allowComments')
+            .pipe(
+                first(),
+                catchError(() => of(null))
+            )
+            .subscribe(setting => {
+                const enabled = typeof setting?.value === 'boolean' ? setting.value : true;
+                this.allowComments.set(enabled);
+                if (!enabled) {
+                    this.commentEditorVisible.set(false);
+                }
+            });
     }
 
     @HostListener('window:keydown', ['$event'])
@@ -144,7 +160,7 @@ export class PhotoDetailComponent implements OnInit {
     }
 
     toggleCommentEditor(): void {
-        if (!this.authService.isAuthenticated()) {
+        if (!this.allowComments() || !this.authService.isAuthenticated()) {
             return;
         }
         this.commentEditorVisible.update(value => !value);

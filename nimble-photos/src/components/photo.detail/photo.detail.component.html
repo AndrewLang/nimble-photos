@@ -111,6 +111,7 @@
                     </div>
                 </div>
                 <div class="space-y-3 flex-none">
+                    @if (allowComments()) {
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase text-slate-500">Comment</span>
                         <div class="flex items-center gap-2">
@@ -145,6 +146,7 @@
                     </div>
                     } @else if (!authService.isAuthenticated()) {
                     <p class="text-[10px] text-slate-500">Sign in to leave a comment.</p>
+                    }
                     }
                 </div>
             </div>

@@ -55,7 +55,7 @@
                     {{ albumCommentsList.length }} comment{{ albumCommentsList.length === 1 ? '' : 's' }}
                 </p>
             </div>
-            @if (isAuthenticated()) {
+            @if (allowComments() && isAuthenticated()) {
             <button type="button" (click)="toggleCommentEditor()"
                 class="px-3 py-1 text-[10px] font-semibold uppercase rounded-full border border-white/20 bg-indigo-600 text-white transition duration-200 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500">
                 {{ commentEditorVisible() ? 'Hide editor' : 'Add comment' }}
@@ -105,7 +105,7 @@
         </div>
 
         <div class="space-y-2">
-            @if (commentEditorVisible() && isAuthenticated()) {
+            @if (allowComments() && commentEditorVisible() && isAuthenticated()) {
             <textarea rows="3" [value]="commentDraft()" (input)="handleCommentInput($event)"
                 [attr.maxlength]="maxCommentLength" placeholder="Share your thoughts about this album..."
                 class="w-full bg-slate-900/60 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition duration-200 resize-none">
@@ -122,7 +122,7 @@
                     {{ commentSaving() ? 'Posting...' : 'Post' }}
                 </button>
             </div>
-            } @else if (!isAuthenticated()) {
+            } @else if (allowComments() && !isAuthenticated()) {
             <p class="text-[11px] text-slate-500">Sign in to leave a comment.</p>
             }
         </div>
