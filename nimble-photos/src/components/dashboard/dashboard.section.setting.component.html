@@ -1,4 +1,4 @@
-﻿@if (store.loading()) {
+@if (store.loading()) {
 <div class="flex h-64 items-center justify-center">
     <div class="flex flex-col items-center gap-4">
         <div class="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
@@ -10,7 +10,7 @@
 @if (store.error()) {
 <div
     class="mb-6 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm text-rose-400 flex items-center gap-3">
-    <mtx-svg name="errorCircle" size="1.25rem" className="text-rose-400"></mtx-svg>
+    <mtx-svg name="errorCircle" className="text-rose-400"></mtx-svg>
     {{ store.error() }}
 </div>
 }
@@ -59,7 +59,7 @@
 
             <div
                 class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-slate-400 border border-white/5">
-                <mtx-svg name="settingItem" size="1.25rem" className="text-slate-400"></mtx-svg>
+                <mtx-svg name="settingItem" className="text-slate-400"></mtx-svg>
             </div>
 
             <div class="flex-1 min-w-0">
@@ -146,3 +146,4 @@
     </div>
 </div>
 }
+

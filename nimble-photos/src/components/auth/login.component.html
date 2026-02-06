@@ -18,7 +18,7 @@
             <div
                 class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl p-4 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
                 <div class="flex items-center gap-3">
-                    <mtx-svg name="checkCircle" size="1.25rem"></mtx-svg>
+                    <mtx-svg name="checkCircle"></mtx-svg>
                     <span>{{ success() }}</span>
                 </div>
             </div>
@@ -28,7 +28,7 @@
             <div
                 class="bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl p-4 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
                 <div class="flex items-center gap-3">
-                    <mtx-svg name="errorCircleOutline" size="1.25rem"></mtx-svg>
+                    <mtx-svg name="errorCircleOutline"></mtx-svg>
                     <span>{{ error() }}</span>
                 </div>
             </div>
@@ -41,7 +41,7 @@
                         class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all">
                     <div
                         class="absolute inset-y-0 right-4 flex items-center text-slate-500 group-focus-within:text-indigo-400">
-                        <mtx-svg name="mail" size="1.25rem"></mtx-svg>
+                        <mtx-svg name="mail"></mtx-svg>
                     </div>
                 </div>
             </div>
@@ -61,9 +61,9 @@
                     <button type="button" (click)="togglePassword()"
                         class="absolute inset-y-0 right-4 flex items-center text-slate-500 hover:text-white transition-colors">
                         @if (showPassword()) {
-                        <mtx-svg name="eye" size="1.25rem"></mtx-svg>
+                        <mtx-svg name="eye"></mtx-svg>
                         } @else {
-                        <mtx-svg name="eyeOff" size="1.25rem"></mtx-svg>
+                        <mtx-svg name="eyeOff"></mtx-svg>
                         }
                     </button>
                 </div>
@@ -76,7 +76,7 @@
                 <span>Authenticating...</span>
                 } @else {
                 <span>Sign In</span>
-                <mtx-svg name="arrowRight" size="1.25rem"></mtx-svg>
+                <mtx-svg name="arrowRight"></mtx-svg>
                 }
             </button>
 
@@ -90,3 +90,4 @@
         </form>
     </div>
 </div>
+

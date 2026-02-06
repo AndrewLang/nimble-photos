@@ -37,7 +37,7 @@
           [class.border-white/50]="!isSelected(photo.id)" [class.hover:border-white]="!isSelected(photo.id)"
           [class.hover:scale-110]="true">
           @if (isSelected(photo.id)) {
-          <mtx-svg name="checkSolid" size="1rem" className="text-white"></mtx-svg>
+          <mtx-svg name="checkSolid" className="text-white"></mtx-svg>
           }
         </button>
       </div>
@@ -64,7 +64,7 @@
   <div class="flex flex-col items-center justify-center py-24 px-4 text-center">
     <div class="h-px w-24 bg-linear-to-r from-transparent via-slate-800 to-transparent mb-8"></div>
     <div class="relative">
-      <mtx-svg name="sparkle" size="2rem" className="text-slate-800"></mtx-svg>
+      <mtx-svg name="sparkle" className="text-slate-800"></mtx-svg>
     </div>
     <h3 class="mt-4 text-slate-400 font-medium tracking-tight">End of the line</h3>
     <p class="mt-1 text-slate-600 text-xs">Your entire collection has been indexed</p>

@@ -39,7 +39,7 @@
             [class.border-slate-600]="!isGroupSelected(item.title)"
             [class.hover:border-slate-400]="!isGroupSelected(item.title)">
             @if (isGroupSelected(item.title)) {
-            <mtx-svg name="checkSolid" size="1rem" className="text-white"></mtx-svg>
+            <mtx-svg name="checkSolid" className="text-white"></mtx-svg>
             }
           </button>
           }
@@ -72,7 +72,7 @@
                 [class.border-white/50]="!isSelected(photo.id)" [class.hover:border-white]="!isSelected(photo.id)"
                 [class.hover:scale-110]="true">
                 @if (isSelected(photo.id)) {
-                <mtx-svg name="checkSolid" size="1rem" className="text-white"></mtx-svg>
+                <mtx-svg name="checkSolid" className="text-white"></mtx-svg>
                 }
               </button>
             </div>
@@ -116,3 +116,4 @@
     </div>
   </cdk-virtual-scroll-viewport>
 </div>
+

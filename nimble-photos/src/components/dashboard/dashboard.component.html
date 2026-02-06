@@ -5,7 +5,7 @@
             <div class="flex items-center justify-center gap-0 mb-2 lg:justify-start lg:gap-4">
                 <div
                     class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/20">
-                    <mtx-svg name="userCircle" size="4rem" className="text-indigo-400"></mtx-svg>
+                    <mtx-svg name="userCircle" className="text-indigo-400"></mtx-svg>
                 </div>
                 <div class="hidden lg:block">
                     <h2 class="text-sm font-semibold text-white">Administrator</h2>
@@ -26,7 +26,7 @@
                 <div class="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-indigo-500"></div>
                 }
 
-                <mtx-svg [name]="getSectionIcon(section.section)" size="var(--nav-icon-size)"
+                <mtx-svg [name]="getSectionIcon(section.section)"
                     [className]="rla.isActive ? 'text-indigo-400 transition-colors' : 'text-slate-400 transition-colors'"></mtx-svg>
 
                 <span class="hidden lg:inline flex-1 font-medium">{{ section.label }}</span>

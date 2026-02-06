@@ -15,24 +15,23 @@
         <a [routerLink]="['/album', album.id]"
             class="group relative flex flex-col overflow-hidden rounded-3xl bg-slate-900/40 border border-white/5 transition-all duration-500 hover:border-white/20 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/10 h-[400px]">
 
-            
+
             <div class="relative h-2/3 w-full overflow-hidden bg-slate-800">
                 @if (getThumbnailUrl(album)) {
                 <img [src]="getThumbnailUrl(album)"
                     class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                     [alt]="album.name" fallback>
                 } @else {
-                <div
-                    class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
-                    <mtx-svg name="imagePlaceholder" size="3rem" className="text-slate-700"></mtx-svg>
+                <div class="flex h-full w-full items-center justify-center bg-linear-to-br from-slate-800 to-slate-900">
+                    <mtx-svg name="imagePlaceholder" className="text-slate-700"></mtx-svg>
                 </div>
                 }
 
-                
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60">
+
+                <div class="absolute inset-0 bg-linear-to-t from-slate-950 via-transparent to-transparent opacity-60">
                 </div>
 
-                
+
                 <div
                     class="absolute bottom-4 right-4 rounded-full bg-black/40 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white backdrop-blur-md border border-white/10">
                     {{ album.imageCount ?? 0 }} Photos
@@ -41,12 +40,12 @@
                 @if (isAdmin()) {
                 <button (click)="deleteAlbum($event, album)"
                     class="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 backdrop-blur-md border border-white/10 transition-all duration-300 z-50">
-                    <mtx-svg name="trash" size="1rem"></mtx-svg>
+                    <mtx-svg name="trash"></mtx-svg>
                 </button>
                 }
             </div>
 
-            
+
             <div class="flex flex-1 flex-col p-6">
                 <div class="mb-2 flex items-center justify-between">
                     <div></div>
@@ -65,7 +64,7 @@
                     <span
                         class="text-[10px] font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-2">
                         View Collection
-                        <mtx-svg name="arrowRight" size="0.75rem"></mtx-svg>
+                        <mtx-svg name="arrowRight"></mtx-svg>
                     </span>
                 </div>
             </div>

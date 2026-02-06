@@ -6,7 +6,7 @@ import { first } from 'rxjs';
 import { Photo, PhotoLoc } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SvgComponent } from '../svg/svg.component';
-import { SvgIcons } from '../svg/svg.icons';
+import { SvgIcon } from '../svg/svg.icons';
 
 @Component({
   selector: 'mtx-map',
@@ -166,11 +166,11 @@ export class MapComponent implements OnInit, OnDestroy {
                 </div>
                 <div class="map-footer">
                 <div class="footer-row">
-                    ${SvgIcons['mapPinSolid']}
+                    ${SvgIcon.get('mapPinSolid')}
                     <span>${latStr}, ${lngStr}</span>
                   </div>
                   <div class="footer-row">
-                    ${SvgIcons['calendar']}
+                    ${SvgIcon.get('calendar')}
                     <span>${dateStr}</span>
                   </div>
                 </div>
@@ -190,9 +190,9 @@ export class MapComponent implements OnInit, OnDestroy {
         gridImages.forEach(img => {
           img.addEventListener('click', (e) => {
             const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-              if (id) {
-                this.router.navigate(['/photo', id], { state: { returnUrl: this.router.url } });
-              }
+            if (id) {
+              this.router.navigate(['/photo', id], { state: { returnUrl: this.router.url } });
+            }
           });
         });
       });

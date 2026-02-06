@@ -24,7 +24,7 @@
         <div class="flex items-center gap-2 pl-3 pr-2 border-r border-white/20">
             <button (click)="clearSelection()" class="p-1.5 hover:bg-white/10 rounded-full transition-colors"
                 title="Clear Selection">
-                <mtx-svg name="closeSolid" size="1rem"></mtx-svg>
+                <mtx-svg name="closeSolid"></mtx-svg>
             </button>
             <span class="text-xs font-bold uppercase tracking-[0.1em] whitespace-nowrap">{{
                 selectionService.selectedCount() }} <span class="hidden md:inline">selected</span></span>
@@ -33,24 +33,24 @@
         <div class="flex items-center gap-2 pr-1">
             <button (click)="createAlbum()"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <mtx-svg name="plus" size="0.875rem"></mtx-svg>
+                <mtx-svg name="plus"></mtx-svg>
                 <span class="hidden sm:inline">Create Album</span>
             </button>
             <button (click)="addToAlbum()"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <mtx-svg name="folderPlus" size="0.875rem"></mtx-svg>
+                <mtx-svg name="folderPlus"></mtx-svg>
                 <span class="hidden sm:inline">Add to Album</span>
             </button>
 
             <button (click)="tagPhotos()"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <mtx-svg name="tag" size="0.875rem"></mtx-svg>
+                <mtx-svg name="tag"></mtx-svg>
                 <span class="hidden sm:inline">Tag Photos</span>
             </button>
 
             <button (click)="downloadSelected()"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <mtx-svg name="download" size="0.875rem"></mtx-svg>
+                <mtx-svg name="download"></mtx-svg>
                 <span class="hidden sm:inline">Download</span>
             </button>
         </div>
@@ -85,7 +85,7 @@
         <div class="relative" #userMenuRoot>
             <button (click)="toggleUserMenu()"
                 class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer">
-                <mtx-svg name="user" size="1.25rem"></mtx-svg>
+                <mtx-svg name="user"></mtx-svg>
             </button>
 
             @if (isUserMenuOpen()) {
@@ -130,9 +130,9 @@
 
     <button (click)="toggleMenu()" class="md:hidden z-50 p-2 text-white/80 hover:text-white focus:outline-none">
         @if (!isMenuOpen()) {
-        <mtx-svg name="menu" size="1.5rem"></mtx-svg>
+        <mtx-svg name="menu"></mtx-svg>
         } @else {
-        <mtx-svg name="close" size="1.5rem"></mtx-svg>
+        <mtx-svg name="close"></mtx-svg>
         }
     </button>
 </header>
@@ -182,3 +182,4 @@
     </div>
 </div>
 }
+
