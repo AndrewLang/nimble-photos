@@ -39,6 +39,7 @@ export class HeaderComponent implements OnInit {
   readonly siteTitle = signal('Nimble Photos');
   readonly siteTagline = signal('My Photo Stories');
   readonly siteLogo = signal<string | null>(null);
+  readonly allowRegistration = signal(true);
 
   constructor(
     public readonly selectionService: SelectionService,
@@ -229,6 +230,18 @@ export class HeaderComponent implements OnInit {
       .subscribe(setting => {
         if (typeof setting?.value === 'string' && setting.value.trim().length) {
           this.siteTagline.set(setting.value);
+        }
+      });
+
+    this.settingsService
+      .getSettingByName('site.allowRegistration')
+      .pipe(
+        first(),
+        catchError(() => of(null))
+      )
+      .subscribe(setting => {
+        if (typeof setting?.value === 'boolean') {
+          this.allowRegistration.set(setting.value);
         }
       });
 
