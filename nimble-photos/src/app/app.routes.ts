@@ -1,4 +1,5 @@
-﻿import { Routes } from '@angular/router';
+import { Routes } from '@angular/router';
+import { AdminGuard } from './guards/admin.guard';
 
 export const routes: Routes = [
     { path: '', loadComponent: () => import('../components/grouped.gallery/grouped.gallery').then(m => m.GroupedGallery) },
@@ -52,6 +53,7 @@ export const routes: Routes = [
     },
     {
         path: 'dashboard',
+        canActivate: [AdminGuard],
         loadComponent: () => import('../components/dashboard/dashboard.component').then(m => m.DashboardComponent),
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'general' },
@@ -62,3 +64,4 @@ export const routes: Routes = [
     },
     { path: 'all', loadComponent: () => import('../components/gallery/gallery.component').then(m => m.GalleryComponent) },
 ];
+

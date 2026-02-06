@@ -23,19 +23,19 @@ impl Controller for DashboardController {
     fn routes() -> Vec<EndpointRoute> {
         vec![
             EndpointRoute::get("/api/dashboard/settings", ListSettingsHandler)
-                .with_policy(Policy::Authenticated)
+                .with_policy(Policy::InRole("admin".to_string()))
                 .build(),
             EndpointRoute::get("/api/dashboard/settings/{key}", GetSettingHandler)
-                .with_policy(Policy::Authenticated)
+                .with_policy(Policy::InRole("admin".to_string()))
                 .build(),
             EndpointRoute::put("/api/dashboard/settings/{key}", UpdateSettingHandler)
-                .with_policy(Policy::Authenticated)
+                .with_policy(Policy::InRole("admin".to_string()))
                 .build(),
             EndpointRoute::post(
                 "/api/dashboard/settings/site.logo/upload",
                 UploadLogoHandler,
             )
-            .with_policy(Policy::Authenticated)
+            .with_policy(Policy::InRole("admin".to_string()))
             .build(),
         ]
     }
