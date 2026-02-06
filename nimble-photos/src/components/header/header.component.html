@@ -58,6 +58,7 @@
     }
 
     <div class="hidden md:flex items-center gap-3 pl-4">
+        @if (authService.isAuthenticated()) {
         <a routerLink="/" routerLinkActive="text-white" #rlaTimeline="routerLinkActive"
             [routerLinkActiveOptions]="{exact: true}"
             class="text-xs font-bold uppercase text-slate-400 hover:text-white transition-all cursor-pointer text-decoration-none relative group py-2">
@@ -81,6 +82,7 @@
         </a>
 
         <div class="h-6 w-px bg-white/10 mx-2"></div>
+        }
 
         <div class="relative" #userMenuRoot>
             <button (click)="toggleUserMenu()"
@@ -140,6 +142,7 @@
 @if (isMenuOpen()) {
 <div
     class="fixed inset-0 z-40 bg-slate-950/95 backdrop-blur-xl pt-24 px-6 md:hidden flex flex-col gap-6 animate-in fade-in slide-in-from-top-5 duration-200">
+    @if (authService.isAuthenticated()) {
     <nav class="flex flex-col gap-4">
         <a routerLink="/" (click)="closeMenu()" routerLinkActive="text-white border-l-2 border-indigo-500 pl-4"
             class="text-xl font-medium text-slate-300 hover:text-white transition-colors py-2 block">
@@ -156,6 +159,7 @@
     </nav>
 
     <div class="h-px w-full bg-white/10 my-2"></div>
+    }
 
     <div class="flex flex-col gap-4">
         @if (authService.isAuthenticated()) {
