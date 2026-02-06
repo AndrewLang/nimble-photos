@@ -97,10 +97,10 @@ export class SvgIcon {
 
   static readonly sectionStorage = SvgIcon.register(
     new SvgIcon('sectionStorage', SvgIcon.defaultViewBox, [
-      '<rect x="3" y="4" width="18" height="6" rx="2">',
-      '<rect x="3" y="14" width="18" height="6" rx="2">',
-      '<circle cx="8" cy="7" r="1.2">',
-      '<circle cx="8" cy="17" r="1.2">',
+      'M5 4h14a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z',
+      'M5 14h14a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2Z',
+      'M9.2 7a1.2 1.2 0 1 1-2.4 0a1.2 1.2 0 1 1 2.4 0Z',
+      'M9.2 17a1.2 1.2 0 1 1-2.4 0a1.2 1.2 0 1 1 2.4 0Z',
     ])
   );
 
@@ -297,4 +297,3 @@ export class SvgIcon {
   );
 
 }
-
