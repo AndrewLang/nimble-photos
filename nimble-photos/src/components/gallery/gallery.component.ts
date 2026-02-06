@@ -1,9 +1,9 @@
-﻿import { Component, OnInit, signal, computed, Input } from '@angular/core';
+﻿import { Component, computed, Input, OnInit, signal } from '@angular/core';
 
 import { Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 
-import { Photo, PagedPhotos } from '../../models/photo';
+import { Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SelectionService } from '../../services/selection.service';
 
@@ -13,10 +13,7 @@ import { SvgComponent } from '../svg/svg.component';
 @Component({
   selector: 'mtx-gallery',
   imports: [RouterModule, ImageFallbackDirective, SvgComponent],
-  templateUrl: './gallery.component.html',
-  host: {
-    class: 'flex flex-col flex-1 min-h-0',
-  },
+  templateUrl: './gallery.component.html'
 })
 export class GalleryComponent implements OnInit {
   readonly photos = signal<Photo[]>([]);

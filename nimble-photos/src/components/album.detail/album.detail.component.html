@@ -42,9 +42,9 @@
     </p>
 </section>
 
-<div class="flex-1 min-h-0 flex flex-col overflow-y-auto px-6 pb-6 space-y-10">
-    <mtx-gallery class="flex-1 min-h-0 relative" [initialPhotos]="albumPhotos()" [autoFetch]="true" [albumId]="a.id"
-        [showHeader]="false" paddingTop="20px" [selectionEnabled]="isEditMode()"></mtx-gallery>
+<div class="flex-1 flex flex-col overflow-y-auto px-6 pb-6 space-y-10">
+    <mtx-gallery [initialPhotos]="albumPhotos()" [autoFetch]="true" [albumId]="a.id" [showHeader]="false"
+        paddingTop="20px" [selectionEnabled]="isEditMode()"></mtx-gallery>
 
 
     <section class="bg-slate-900/50 border border-white/10 rounded-2xl p-4 md:p-6 space-y-5">
