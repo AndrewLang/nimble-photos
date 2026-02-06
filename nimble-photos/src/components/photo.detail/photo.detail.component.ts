@@ -188,6 +188,7 @@ export class PhotoDetailComponent implements OnInit {
                 next: (comments: PhotoComment[]) => {
                     console.log('Loaded comments for photo', photoId, comments);
                     this.comments.set(comments);
+                    this.metadataExpanded.set(comments.length === 0);
                     this.commentsLoading.set(false);
                 },
                 error: () => {
