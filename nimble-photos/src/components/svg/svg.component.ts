@@ -15,7 +15,11 @@ import { SvgIcon } from './svg.icons';
         [attr.stroke-width]="strokeThickness">
 
         @for(d of iconDef.paths; track d){
+            @if (isMarkupPath(d)) {
+                <g [innerHTML]="toPathMarkup(d)"></g>
+            } @else {
             <path [attr.d]="d"></path>
+            }
         }
     </svg>
     `
@@ -98,5 +102,17 @@ export class SvgComponent {
         let icon = SvgIcon.getIcon(this.iconName());
 
         return icon || { name: 'default', viewBox: '0 0 24 24', paths: [] };
+    }
+
+    isMarkupPath(value: string): boolean {
+        return value.trim().startsWith('<');
+    }
+
+    toPathMarkup(value: string): string {
+        const trimmed = value.trim();
+        if (trimmed.endsWith('/>') || trimmed.includes('</')) {
+            return trimmed;
+        }
+        return `${trimmed} />`;
     }
 }
