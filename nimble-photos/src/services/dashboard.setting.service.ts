@@ -28,20 +28,20 @@ export class DashboardSettingsService {
     }
 
     getSectionSettings(section: DashboardSystemSection): DashboardSetting[] {
-        return this.settings().filter(setting => setting.section === section && setting.key !== 'storage.locations');
+        return this.safeSettings().filter(setting => setting.section === section && setting.key !== 'storage.locations');
     }
 
     getSectionLabel(section: DashboardSystemSection): string {
-        const match = this.settings().find(setting => setting.section === section);
+        const match = this.safeSettings().find(setting => setting.section === section);
         return match?.sectionLabel ?? '';
     }
 
     getSectionCount(section: DashboardSystemSection): number {
-        return this.settings().filter(setting => setting.section === section).length;
+        return this.safeSettings().filter(setting => setting.section === section).length;
     }
 
     getSettingByName(key: string): DashboardSetting | undefined {
-        return this.settings().find(setting => setting.key === key);
+        return this.safeSettings().find(setting => setting.key === key);
     }
 
     getSettingValue(key: string): unknown {
@@ -114,9 +114,9 @@ export class DashboardSettingsService {
             .pipe(first())
             .subscribe({
                 next: result => {
-                    console.log('Loaded Dashboard Settings:', result);
-                    this.settings.set(result);
-                    this.buildLocalValues(result);
+                    const normalized = Array.isArray(result) ? result : [];
+                    this.settings.set(normalized);
+                    this.buildLocalValues(normalized);
                     this.hasLoaded = true;
                 },
                 error: err => {
@@ -139,6 +139,11 @@ export class DashboardSettingsService {
         }
 
         this.localValues.set(snapshot);
+    }
+
+    private safeSettings(): DashboardSetting[] {
+        const current = this.settings();
+        return Array.isArray(current) ? current : [];
     }
 
     private normalizeValue(

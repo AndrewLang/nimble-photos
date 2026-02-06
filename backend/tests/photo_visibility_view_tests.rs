@@ -154,4 +154,3 @@ async fn photo_visibility_view_hides_and_unhides_with_admin_only_tag() {
         .execute(&pool)
         .await;
 }
-

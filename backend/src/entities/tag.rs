@@ -13,4 +13,3 @@ pub struct Tag {
     pub visibility: i16,
     pub created_at: Option<DateTime<Utc>>,
 }
-

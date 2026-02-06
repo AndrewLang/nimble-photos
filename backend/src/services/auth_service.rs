@@ -5,10 +5,10 @@ use crate::services::EncryptService;
 use chrono::{Duration, Utc};
 use nimble_web::data::paging::PageRequest;
 use nimble_web::data::provider::DataProvider;
-use nimble_web::data::query::Query;
-use nimble_web::data::query::Value;
 #[cfg(feature = "postgres")]
 use nimble_web::data::query::FilterOperator;
+use nimble_web::data::query::Query;
+use nimble_web::data::query::Value;
 #[cfg(feature = "postgres")]
 use nimble_web::data::query_builder::QueryBuilder;
 use nimble_web::data::repository::Repository;

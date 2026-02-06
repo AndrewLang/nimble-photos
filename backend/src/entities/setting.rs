@@ -11,15 +11,15 @@ use {
     nimble_web::data::postgres::PostgresEntity,
     nimble_web::data::query::Value,
     nimble_web::data::schema::{ColumnDef, ColumnType},
+    sqlx::FromRow,
     sqlx::{
+        Type,
         database::Database,
         decode::Decode,
         encode::{Encode, IsNull},
         error::BoxDynError,
         postgres::{PgTypeInfo, PgValueRef, Postgres},
-        Type,
     },
-    sqlx::FromRow,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

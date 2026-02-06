@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use nimble_web::data::paging::Page;
 use nimble_web::data::provider::{DataError, DataResult};
 use serde_json;
-use sqlx::PgPool;
 use sqlx::FromRow;
+use sqlx::PgPool;
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -20,12 +20,21 @@ pub enum TagRef {
 
 #[async_trait]
 pub trait PhotoRepository: Send + Sync {
-    async fn get_timeline(&self, limit: u32, offset: u32, is_admin: bool)
-    -> DataResult<Vec<TimelineGroup>>;
+    async fn get_timeline(
+        &self,
+        limit: u32,
+        offset: u32,
+        is_admin: bool,
+    ) -> DataResult<Vec<TimelineGroup>>;
     async fn get_years(&self, is_admin: bool) -> DataResult<Vec<String>>;
     async fn get_year_offset(&self, year: &str, is_admin: bool) -> DataResult<u32>;
     async fn get_by_ids(&self, ids: &[Uuid], is_admin: bool) -> DataResult<Vec<Photo>>;
-    async fn get_with_gps(&self, limit: u32, offset: u32, is_admin: bool) -> DataResult<Vec<PhotoLoc>>;
+    async fn get_with_gps(
+        &self,
+        limit: u32,
+        offset: u32,
+        is_admin: bool,
+    ) -> DataResult<Vec<PhotoLoc>>;
 
     async fn list_all_tags(&self, is_admin: bool) -> DataResult<Vec<Tag>>;
     async fn get_tags_by_ids(&self, ids: &[i64], is_admin: bool) -> DataResult<Vec<Tag>>;
@@ -119,7 +128,11 @@ impl PostgresPhotoRepository {
         dedup.into_iter().map(|(norm, name)| (name, norm)).collect()
     }
 
-    async fn resolve_tag_ids(&self, refs: &[TagRef], default_visibility: i16) -> DataResult<Vec<i64>> {
+    async fn resolve_tag_ids(
+        &self,
+        refs: &[TagRef],
+        default_visibility: i16,
+    ) -> DataResult<Vec<i64>> {
         let mut ids = Vec::<i64>::new();
         let mut names = Vec::<String>::new();
 
@@ -366,7 +379,12 @@ impl PhotoRepository for PostgresPhotoRepository {
         Ok(photos)
     }
 
-    async fn get_with_gps(&self, limit: u32, offset: u32, is_admin: bool) -> DataResult<Vec<PhotoLoc>> {
+    async fn get_with_gps(
+        &self,
+        limit: u32,
+        offset: u32,
+        is_admin: bool,
+    ) -> DataResult<Vec<PhotoLoc>> {
         let tags_text = Self::tags_json_text_expr("p");
         let photos = Self::photos_relation(is_admin);
         let sql = format!(
@@ -585,21 +603,15 @@ impl PhotoRepository for PostgresPhotoRepository {
         let normalized = Self::normalize_tag_names(tag_names);
         let normalized_values: Vec<String> = normalized.into_iter().map(|(_, norm)| norm).collect();
         if match_all && !normalized_values.is_empty() {
-            let existing_count: i64 = sqlx::query_scalar(
-                "SELECT COUNT(*) FROM tags WHERE name_norm = ANY($1::text[])",
-            )
-            .bind(&normalized_values)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| DataError::Provider(e.to_string()))?;
+            let existing_count: i64 =
+                sqlx::query_scalar("SELECT COUNT(*) FROM tags WHERE name_norm = ANY($1::text[])")
+                    .bind(&normalized_values)
+                    .fetch_one(&self.pool)
+                    .await
+                    .map_err(|e| DataError::Provider(e.to_string()))?;
 
             if existing_count < normalized_values.len() as i64 {
-                return Ok(Page::new(
-                    Vec::new(),
-                    0,
-                    page.max(1),
-                    page_size.max(1),
-                ));
+                return Ok(Page::new(Vec::new(), 0, page.max(1), page_size.max(1)));
             }
         }
 
@@ -680,9 +692,7 @@ impl PhotoRepository for PostgresPhotoRepository {
         for row in rows {
             use sqlx::Row;
             total = row.try_get::<i64, _>("_total_count").unwrap_or(0).max(0) as u64;
-            items.push(
-                Photo::from_row(&row).map_err(|e| DataError::Provider(e.to_string()))?,
-            );
+            items.push(Photo::from_row(&row).map_err(|e| DataError::Provider(e.to_string()))?);
         }
 
         Ok(Page::new(items, total, page_value, limit))

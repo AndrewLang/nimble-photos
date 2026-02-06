@@ -103,10 +103,13 @@ impl StorageController {
             .cloned()
     }
 
-    async fn load_locations(service: &SettingService) -> Result<Vec<StorageLocation>, PipelineError> {
+    async fn load_locations(
+        service: &SettingService,
+    ) -> Result<Vec<StorageLocation>, PipelineError> {
         let setting = service.get("storage.locations").await?;
         let value = setting.value;
-        serde_json::from_value(value).map_err(|_| PipelineError::message("Invalid storage settings"))
+        serde_json::from_value(value)
+            .map_err(|_| PipelineError::message("Invalid storage settings"))
     }
 
     async fn save_locations(
@@ -245,7 +248,8 @@ impl HttpHandler for CreateStorageHandler {
         locations.push(new_location.clone());
         StorageController::save_locations(&service, &locations).await?;
 
-        let disk = StorageController::match_disk(&new_location.path, &StorageController::list_disks());
+        let disk =
+            StorageController::match_disk(&new_location.path, &StorageController::list_disks());
 
         Ok(ResponseValue::json(StorageLocationResponse {
             id: new_location.id,

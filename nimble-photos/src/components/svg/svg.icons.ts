@@ -160,6 +160,13 @@ export class SvgIcon {
     ])
   );
 
+  static readonly refresh = SvgIcon.register(
+    new SvgIcon('refresh', SvgIcon.defaultViewBox, [
+      'M21 12a9 9 0 0 1-15.3 6.36M3 12A9 9 0 0 1 18.3 5.64',
+      'M3 4v5h5M21 20v-5h-5',
+    ])
+  );
+
   static readonly user = SvgIcon.register(
     new SvgIcon('user', SvgIcon.defaultViewBox, [
       'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',

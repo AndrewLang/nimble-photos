@@ -1,9 +1,11 @@
+pub mod admin_user_service;
 pub mod auth_service;
 pub mod encrypt_service;
 pub mod id_generation_service;
 pub mod photo_service;
 pub mod setting_service;
 
+pub use admin_user_service::AdminUserService;
 pub use auth_service::AuthService;
 pub use encrypt_service::EncryptService;
 pub use id_generation_service::IdGenerationService;
@@ -58,6 +60,11 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|provider| {
         let settings_repo = provider.get::<Repository<Setting>>();
         SettingService::new(settings_repo)
+    });
+
+    builder.register_singleton(|provider| {
+        let repo = provider.get::<Repository<User>>();
+        AdminUserService::new(repo)
     });
 
     builder

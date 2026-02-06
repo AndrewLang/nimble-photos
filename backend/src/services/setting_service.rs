@@ -133,7 +133,8 @@ impl SettingService {
             })?
         };
 
-        let parsed_value = Self::parse_value(&saved.value).unwrap_or_else(|| def.default_value.clone());
+        let parsed_value =
+            Self::parse_value(&saved.value).unwrap_or_else(|| def.default_value.clone());
 
         Ok(def.to_dto(parsed_value, saved.updated_at))
     }
@@ -150,20 +151,25 @@ impl SettingService {
         self.get_bool_setting("photo.manage.uploadsEnabled").await
     }
 
-    pub async fn can_access_dashboard(&self, roles: &HashSet<String>) -> Result<bool, PipelineError> {
+    pub async fn can_access_dashboard(
+        &self,
+        roles: &HashSet<String>,
+    ) -> Result<bool, PipelineError> {
         self.is_action_allowed(roles, Self::ACTION_DASHBOARD_ACCESS)
             .await
     }
 
     pub async fn can_upload_photos(&self, roles: &HashSet<String>) -> Result<bool, PipelineError> {
-        self.is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD).await
+        self.is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD)
+            .await
     }
 
     pub async fn can_create_comments(
         &self,
         roles: &HashSet<String>,
     ) -> Result<bool, PipelineError> {
-        self.is_action_allowed(roles, Self::ACTION_COMMENTS_CREATE).await
+        self.is_action_allowed(roles, Self::ACTION_COMMENTS_CREATE)
+            .await
     }
 
     pub async fn can_update_setting(

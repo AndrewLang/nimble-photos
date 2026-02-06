@@ -538,7 +538,9 @@ impl HttpHandler for UpdatePhotoTagsHandler {
             updated += 1;
         }
 
-        Ok(ResponseValue::new(Json(serde_json::json!({ "updated": updated }))))
+        Ok(ResponseValue::new(Json(
+            serde_json::json!({ "updated": updated }),
+        )))
     }
 }
 
