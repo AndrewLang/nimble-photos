@@ -27,7 +27,7 @@ export class SvgComponent {
         this.iconName.set(value ?? '');
     }
 
-    @Input() size: string = '1.25rem';
+    @Input() size: string = '2rem';
     @Input() className = '';
     @Input() ariaLabel?: string;
 
