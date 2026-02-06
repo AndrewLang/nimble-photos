@@ -2,12 +2,12 @@
 import { Component, HostListener, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { catchError, first, of } from 'rxjs';
+import { Formatter } from '../../models/formatters';
 import { Photo, PhotoComment } from '../../models/photo';
 import { AuthService } from '../../services/auth.service';
 import { PhotoService } from '../../services/photo.service';
 import { SettingsService } from '../../services/settings.service';
 import { SvgComponent } from '../svg/svg.component';
-import { Formatter } from '../../models/formatters';
 
 const MAX_COMMENT_LENGTH = 1024;
 
@@ -114,7 +114,7 @@ export class PhotoDetailComponent implements OnInit {
                     current ? { ...current, metadata: metadata ?? undefined } : current
                 );
                 this.metadataExpanded.set(false);
-                console.log('Loaded metadata for photo', photoId, metadata);
+                console.log('Photo ', this.photo());
             });
     }
 
@@ -190,7 +190,6 @@ export class PhotoDetailComponent implements OnInit {
             .pipe(first())
             .subscribe({
                 next: (comments: PhotoComment[]) => {
-                    console.log('Loaded comments for photo', photoId, comments);
                     this.comments.set(comments);
                     this.metadataExpanded.set(comments.length === 0);
                     this.commentsLoading.set(false);

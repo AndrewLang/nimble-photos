@@ -1,4 +1,5 @@
 use nimble_photos::controllers::dashboard_controller::DashboardController;
+use nimble_web::Controller;
 use nimble_web::security::policy::Policy;
 
 #[test]

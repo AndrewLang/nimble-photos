@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use serde::Deserialize;
-use std::collections::BTreeSet;
 use std::path::Path;
 use std::result::Result;
 use uuid::Uuid;
@@ -11,12 +10,11 @@ use crate::entities::exif::ExifModel;
 use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
 use crate::entities::user_settings::UserSettings;
-use crate::repositories::photo::PhotoRepository;
+use crate::repositories::photo::{PhotoRepository, TagRef};
 
 use nimble_web::DataProvider;
 use nimble_web::Repository;
 use nimble_web::controller::controller::Controller;
-use nimble_web::data::paging::PageRequest;
 use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection, Value};
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
@@ -29,7 +27,6 @@ use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
 
 const MAX_COMMENT_LENGTH: usize = 1024;
-const TAGS_PAGE_SIZE: u32 = 500;
 
 pub struct PhotoController;
 
@@ -42,7 +39,12 @@ impl Controller for PhotoController {
             EndpointRoute::get("/api/photos/timeline/year-offset/{year}", YearOffsetHandler)
                 .build(),
             EndpointRoute::get("/api/photos/with-gps/{page}/{pageSize}", MapPhotosHandler).build(),
+            EndpointRoute::get("/api/photos", PhotosQueryHandler).build(),
             EndpointRoute::get("/api/photos/{id}/metadata", PhotoMetadataHandler).build(),
+            EndpointRoute::get("/api/photos/{id}/tags", PhotoTagListHandler).build(),
+            EndpointRoute::put("/api/photos/{id}/tags", ReplacePhotoTagsHandler)
+                .with_policy(Policy::Authenticated)
+                .build(),
             EndpointRoute::get("/api/photos/tags", PhotoTagsHandler).build(),
             EndpointRoute::put("/api/photos/tags", UpdatePhotoTagsHandler)
                 .with_policy(Policy::Authenticated)
@@ -129,7 +131,7 @@ impl HttpHandler for TimelineHandler {
         let offset = if page > 0 { (page - 1) * limit } else { 0 };
 
         let timeline = repository
-            .get_timeline(limit, offset)
+            .get_timeline(limit, offset, PhotoController::is_admin(context))
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
@@ -148,7 +150,7 @@ impl HttpHandler for TimelineYearsHandler {
             .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
 
         let years = repository
-            .get_years()
+            .get_years(PhotoController::is_admin(context))
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
@@ -172,7 +174,7 @@ impl HttpHandler for YearOffsetHandler {
             .ok_or_else(|| PipelineError::message("year parameter missing"))?;
 
         let offset = repository
-            .get_year_offset(year)
+            .get_year_offset(year, PhotoController::is_admin(context))
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
@@ -206,7 +208,7 @@ impl HttpHandler for MapPhotosHandler {
         let offset = if page > 0 { (page - 1) * limit } else { 0 };
 
         let photos = repository
-            .get_with_gps(limit, offset)
+            .get_with_gps(limit, offset, PhotoController::is_admin(context))
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
@@ -217,6 +219,58 @@ impl HttpHandler for MapPhotosHandler {
         });
 
         Ok(ResponseValue::new(Json(response)))
+    }
+}
+
+struct PhotosQueryHandler;
+
+#[async_trait]
+impl HttpHandler for PhotosQueryHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let repository = context
+            .services()
+            .resolve::<Box<dyn PhotoRepository>>()
+            .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
+
+        let query = context.request().query_params();
+        let tags_raw = query.get("tags").cloned().unwrap_or_default();
+        let tags = tags_raw
+            .split(',')
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .collect::<Vec<_>>();
+        let match_all = query
+            .get("match")
+            .map(|v| v.eq_ignore_ascii_case("all"))
+            .unwrap_or(false);
+        let page = query
+            .get("page")
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(1);
+        let page_size = query
+            .get("pageSize")
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(56);
+
+        if tags.is_empty() {
+            let page_result = repository
+                .get_photos_page(page, page_size, PhotoController::is_admin(context))
+                .await
+                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+            return Ok(ResponseValue::new(Json(page_result)));
+        }
+
+        let result = repository
+            .filter_photos_by_tags(
+                &tags,
+                match_all,
+                PhotoController::is_admin(context),
+                page,
+                page_size,
+            )
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        Ok(ResponseValue::new(Json(result)))
     }
 }
 
@@ -352,6 +406,65 @@ impl HttpHandler for PhotoMetadataHandler {
 }
 
 #[derive(Deserialize)]
+struct ReplaceTagsPayload {
+    tags: Vec<serde_json::Value>,
+}
+
+struct PhotoTagListHandler;
+
+#[async_trait]
+impl HttpHandler for PhotoTagListHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let photo_id_param = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        let photo_id = Uuid::parse_str(photo_id_param)
+            .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
+
+        let repository = context.service::<Box<dyn PhotoRepository>>()?;
+        let tags = repository
+            .get_photo_tags(photo_id, PhotoController::is_admin(context))
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(tags)))
+    }
+}
+
+struct ReplacePhotoTagsHandler;
+
+#[async_trait]
+impl HttpHandler for ReplacePhotoTagsHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let photo_id_param = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        let photo_id = Uuid::parse_str(photo_id_param)
+            .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
+
+        let payload = context
+            .read_json::<ReplaceTagsPayload>()
+            .map_err(|e| PipelineError::message(e.message()))?;
+        let refs = PhotoController::to_tag_refs(&payload.tags)?;
+
+        let repository = context.service::<Box<dyn PhotoRepository>>()?;
+        repository
+            .set_photo_tags(photo_id, &refs)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        let tags = repository
+            .get_photo_tags(photo_id, PhotoController::is_admin(context))
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(tags)))
+    }
+}
+
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct UpdatePhotoTagsPayload {
     photo_ids: Vec<String>,
@@ -363,38 +476,13 @@ struct PhotoTagsHandler;
 #[async_trait]
 impl HttpHandler for PhotoTagsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context.service::<Repository<Photo>>()?;
-        let mut all_tags = BTreeSet::<String>::new();
-        let mut current_page = 1;
-
-        loop {
-            let mut query = Query::<Photo>::new();
-            query.paging = Some(PageRequest::new(current_page, TAGS_PAGE_SIZE));
-
-            let page = repository
-                .query(query)
-                .await
-                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-
-            for photo in page.items {
-                if let Some(tags) = photo.tags {
-                    for tag in tags {
-                        let normalized = tag.trim();
-                        if !normalized.is_empty() {
-                            all_tags.insert(normalized.to_string());
-                        }
-                    }
-                }
-            }
-
-            let fetched = (current_page * TAGS_PAGE_SIZE) as u64;
-            if fetched >= page.total {
-                break;
-            }
-            current_page += 1;
-        }
-
-        Ok(ResponseValue::new(Json(all_tags.into_iter().collect::<Vec<_>>())))
+        let repository = context.service::<Box<dyn PhotoRepository>>()?;
+        let tags = repository
+            .list_all_tags(PhotoController::is_admin(context))
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let names = tags.into_iter().map(|t| t.name).collect::<Vec<_>>();
+        Ok(ResponseValue::new(Json(names)))
     }
 }
 
@@ -411,31 +499,31 @@ impl HttpHandler for UpdatePhotoTagsHandler {
             return Err(PipelineError::message("photoIds cannot be empty"));
         }
 
-        let normalized_tags = normalize_tags(payload.tags);
-        let repository = context.service::<Repository<Photo>>()?;
+        let refs = payload
+            .tags
+            .iter()
+            .map(|name| TagRef::Name(name.clone()))
+            .collect::<Vec<_>>();
+        let repository = context.service::<Box<dyn PhotoRepository>>()?;
 
         let mut updated = 0u32;
         for raw_photo_id in payload.photo_ids {
             let photo_id = Uuid::parse_str(raw_photo_id.trim())
                 .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
 
-            let mut photo = match repository
+            let exists = context
+                .service::<Repository<Photo>>()?
                 .get(&photo_id)
                 .await
                 .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
-            {
-                Some(existing) => existing,
-                None => continue,
-            };
+                .is_some();
 
-            photo.tags = if normalized_tags.is_empty() {
-                None
-            } else {
-                Some(normalized_tags.clone())
-            };
+            if !exists {
+                continue;
+            }
 
             repository
-                .update(photo)
+                .set_photo_tags(photo_id, &refs)
                 .await
                 .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
             updated += 1;
@@ -445,13 +533,38 @@ impl HttpHandler for UpdatePhotoTagsHandler {
     }
 }
 
-fn normalize_tags(tags: Vec<String>) -> Vec<String> {
-    let mut dedup = BTreeSet::<String>::new();
-    for tag in tags {
-        let trimmed = tag.trim();
-        if !trimmed.is_empty() {
-            dedup.insert(trimmed.to_string());
-        }
+impl PhotoController {
+    fn is_admin(context: &HttpContext) -> bool {
+        context
+            .get::<IdentityContext>()
+            .map(|ctx| ctx.identity().claims().roles().contains("admin"))
+            .unwrap_or(false)
     }
-    dedup.into_iter().collect()
+
+    fn to_tag_refs(values: &[serde_json::Value]) -> Result<Vec<TagRef>, PipelineError> {
+        let mut refs = Vec::<TagRef>::new();
+        for value in values {
+            match value {
+                serde_json::Value::Number(num) => {
+                    let id = num
+                        .as_i64()
+                        .ok_or_else(|| PipelineError::message("invalid numeric tag id"))?;
+                    refs.push(TagRef::Id(id));
+                }
+                serde_json::Value::String(text) => {
+                    let trimmed = text.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    if let Ok(id) = trimmed.parse::<i64>() {
+                        refs.push(TagRef::Id(id));
+                    } else {
+                        refs.push(TagRef::Name(trimmed.to_string()));
+                    }
+                }
+                _ => return Err(PipelineError::message("tags must be ids or names")),
+            }
+        }
+        Ok(refs)
+    }
 }

@@ -1,5 +1,5 @@
-import { Component, ElementRef, HostListener, ViewChild, inject, OnInit, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { Component, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 
 import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -265,7 +265,6 @@ export class HeaderComponent implements OnInit {
         catchError(() => of(null))
       )
       .subscribe(setting => {
-        console.log('Site Title Setting:', setting);
         if (typeof setting?.value === 'string' && setting.value.trim().length) {
           this.siteTitle.set(setting.value);
           this.setBrowserTitle(setting.value);

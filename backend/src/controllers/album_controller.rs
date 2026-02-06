@@ -2,7 +2,7 @@ use crate::dtos::album_comment_dto::AlbumCommentDto;
 use crate::entities::album::Album;
 use crate::entities::album_comment::AlbumComment;
 use crate::entities::user_settings::UserSettings;
-use crate::repositories::photo::PhotoRepository;
+use crate::repositories::photo::{PhotoRepository, TagRef};
 use async_trait::async_trait;
 use chrono::Utc;
 use nimble_web::controller::controller::Controller;
@@ -35,6 +35,10 @@ impl Controller for AlbumController {
             )
             .build(),
             EndpointRoute::get("/api/albums/{page}/{pageSize}", ListAlbumsHandler).build(),
+            EndpointRoute::get("/api/albums/{id}/tags", AlbumTagsHandler).build(),
+            EndpointRoute::put("/api/albums/{id}/tags", ReplaceAlbumTagsHandler)
+                .with_policy(Policy::Authenticated)
+                .build(),
             EndpointRoute::get("/api/album/comments/{id}", AlbumCommentsHandler).build(),
             EndpointRoute::post("/api/album/comments/{id}", CreateAlbumCommentHandler)
                 .with_policy(Policy::Authenticated)
@@ -105,9 +109,13 @@ impl HttpHandler for AlbumPhotosHandler {
                 if start < rules.photo_ids.len() {
                     let slice = &rules.photo_ids[start..end];
                     let photo_repo = context.service::<Box<dyn PhotoRepository>>()?;
+                    let can_view_admin_only = context
+                        .get::<IdentityContext>()
+                        .map(|ctx| ctx.identity().claims().roles().contains("admin"))
+                        .unwrap_or(false);
 
                     photos = photo_repo
-                        .get_by_ids(slice)
+                        .get_by_ids(slice, can_view_admin_only)
                         .await
                         .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
                 }
@@ -174,6 +182,64 @@ impl HttpHandler for ListAlbumsHandler {
 }
 
 struct AlbumCommentsHandler;
+
+#[derive(Deserialize)]
+struct ReplaceAlbumTagsPayload {
+    tags: Vec<serde_json::Value>,
+}
+
+struct AlbumTagsHandler;
+
+#[async_trait]
+impl HttpHandler for AlbumTagsHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let album_id_param = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        let album_id = Uuid::parse_str(album_id_param)
+            .map_err(|e| PipelineError::message(&format!("invalid album id: {}", e)))?;
+
+        let repository = context.service::<Box<dyn PhotoRepository>>()?;
+        let tags = repository
+            .get_album_tags(album_id, AlbumController::is_admin(context))
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(tags)))
+    }
+}
+
+struct ReplaceAlbumTagsHandler;
+
+#[async_trait]
+impl HttpHandler for ReplaceAlbumTagsHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let album_id_param = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        let album_id = Uuid::parse_str(album_id_param)
+            .map_err(|e| PipelineError::message(&format!("invalid album id: {}", e)))?;
+
+        let payload = context
+            .read_json::<ReplaceAlbumTagsPayload>()
+            .map_err(|e| PipelineError::message(e.message()))?;
+        let refs = AlbumController::to_tag_refs(&payload.tags)?;
+
+        let repository = context.service::<Box<dyn PhotoRepository>>()?;
+        repository
+            .set_album_tags(album_id, &refs)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let tags = repository
+            .get_album_tags(album_id, AlbumController::is_admin(context))
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+
+        Ok(ResponseValue::new(Json(tags)))
+    }
+}
 
 #[async_trait]
 impl HttpHandler for AlbumCommentsHandler {
@@ -360,5 +426,41 @@ impl HttpHandler for UpdateAlbumCommentVisibilityHandler {
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::new(Json(AlbumCommentDto::from(saved))))
+    }
+}
+
+impl AlbumController {
+    fn is_admin(context: &HttpContext) -> bool {
+        context
+            .get::<IdentityContext>()
+            .map(|ctx| ctx.identity().claims().roles().contains("admin"))
+            .unwrap_or(false)
+    }
+
+    fn to_tag_refs(values: &[serde_json::Value]) -> Result<Vec<TagRef>, PipelineError> {
+        let mut refs = Vec::<TagRef>::new();
+        for value in values {
+            match value {
+                serde_json::Value::Number(num) => {
+                    let id = num
+                        .as_i64()
+                        .ok_or_else(|| PipelineError::message("invalid numeric tag id"))?;
+                    refs.push(TagRef::Id(id));
+                }
+                serde_json::Value::String(text) => {
+                    let trimmed = text.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    if let Ok(id) = trimmed.parse::<i64>() {
+                        refs.push(TagRef::Id(id));
+                    } else {
+                        refs.push(TagRef::Name(trimmed.to_string()));
+                    }
+                }
+                _ => return Err(PipelineError::message("tags must be ids or names")),
+            }
+        }
+        Ok(refs)
     }
 }

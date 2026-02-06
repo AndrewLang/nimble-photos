@@ -5,6 +5,7 @@ use nimble_web::entity::hooks::{EntityHooks, RequestContext};
 use nimble_web::result::HttpError;
 use nimble_web::result::Result as HttpResult;
 
+use crate::repositories::photo::PhotoRepository;
 use crate::services::IdGenerationService;
 
 pub struct AlbumHooks;
@@ -52,11 +53,11 @@ impl AlbumHooks {
                         if let Some(first_id_val) = photo_ids.first() {
                             if let Some(first_id_str) = first_id_val.as_str() {
                                 if let Ok(first_id) = uuid::Uuid::parse_str(first_id_str) {
-                                    if let Some(repo) = context
-                                        .services()
-                                        .resolve::<Box<dyn crate::repositories::photo::PhotoRepository>>()
+                                    if let Some(repo) =
+                                        context.services().resolve::<Box<dyn PhotoRepository>>()
                                     {
-                                        if let Ok(photos) = repo.get_by_ids(&[first_id]).await {
+                                        if let Ok(photos) = repo.get_by_ids(&[first_id], true).await
+                                        {
                                             if let Some(photo) = photos.first() {
                                                 entity.thumbnail_hash = photo.hash.clone();
                                             }
