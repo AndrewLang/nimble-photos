@@ -1,22 +1,33 @@
-﻿import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { RouterModule } from '@angular/router';
 
+import { StorageLocation } from '../../models/storage.model';
 import { DashboardSettingsService } from '../../services/dashboard.setting.service';
+import { DialogService } from '../../services/dialog.service';
 import { PhotoService } from '../../services/photo.service';
+import { StorageService } from '../../services/storage.service';
+import { StorageSelectorComponent } from '../storage/storage.selector.component';
+import { Formatter } from '../../models/formatters';
 
 @Component({
     selector: 'mtx-photo-manage-setting',
-    standalone: true,
+    imports: [RouterModule],
     templateUrl: './photo.manage.setting.component.html',
 })
-export class PhotoManageSettingComponent {
+export class PhotoManageSettingComponent implements OnInit {
     private readonly settingsService = inject(DashboardSettingsService);
     private readonly photoService = inject(PhotoService);
+    private readonly storageService = inject(StorageService);
+    private readonly dialogService = inject(DialogService);
 
     readonly isDragActive = signal(false);
     readonly selectedFiles = signal<File[]>([]);
     readonly uploadError = signal<string | null>(null);
     readonly uploading = signal(false);
     readonly uploadSuccess = signal(false);
+    readonly storageLoading = signal(false);
+    readonly storageLocations = signal<StorageLocation[]>([]);
+    readonly selectedStorage = signal<StorageLocation | null>(null);
     readonly supportedExtensions = [
         'jpg',
         'jpeg',
@@ -47,12 +58,36 @@ export class PhotoManageSettingComponent {
         return 'Upload new photos or drag folders to add them to your library.';
     });
 
+    readonly canUpload = computed(() => !!this.selectedStorage());
+    readonly hasStorages = computed(() => this.storageLocations().length > 0);
+    readonly totalSelectedBytes = computed(() => {
+        return this.selectedFiles().reduce((sum, file) => sum + file.size, 0);
+    });
+    readonly hasEnoughSpace = computed(() => {
+        const storage = this.selectedStorage();
+        if (!storage?.disk) {
+            return true;
+        }
+        return this.totalSelectedBytes() <= storage.disk.availableBytes;
+    });
+    readonly canSubmitUpload = computed(() => {
+        return this.canUpload() && this.hasEnoughSpace();
+    });
+    readonly formatBytes = Formatter.formatBytes;
+
     constructor() {
         this.settingsService.ensureLoaded();
     }
 
+    ngOnInit(): void {
+        this.loadStorages();
+    }
+
     onDragOver(event: DragEvent): void {
         event.preventDefault();
+        if (!this.canUpload()) {
+            return;
+        }
         this.isDragActive.set(true);
     }
 
@@ -64,12 +99,18 @@ export class PhotoManageSettingComponent {
     onDrop(event: DragEvent): void {
         event.preventDefault();
         this.isDragActive.set(false);
+        if (!this.canUpload()) {
+            return;
+        }
         if (event.dataTransfer?.files?.length) {
             this.addFiles(event.dataTransfer.files);
         }
     }
 
     onFileSelected(event: Event): void {
+        if (!this.canUpload()) {
+            return;
+        }
         const input = event.target as HTMLInputElement | null;
         if (input?.files?.length) {
             this.addFiles(input.files);
@@ -92,7 +133,7 @@ export class PhotoManageSettingComponent {
 
     uploadFiles(): void {
         const files = this.selectedFiles();
-        if (!files.length || this.uploading()) {
+        if (!files.length || this.uploading() || !this.canSubmitUpload()) {
             return;
         }
 
@@ -114,12 +155,43 @@ export class PhotoManageSettingComponent {
         });
     }
 
-    formatBytes(bytes: number): string {
-        if (!bytes || bytes <= 0) return '0 B';
-        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-        const value = bytes / Math.pow(1024, index);
-        return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+    async openStorageSelector(): Promise<void> {
+        if (!this.hasStorages()) {
+            return;
+        }
+
+        const ref = this.dialogService.open(StorageSelectorComponent, {
+            title: 'Select Storage',
+            width: '560px',
+            actions: [
+                { label: 'Cancel', value: false, style: 'ghost' },
+                { label: 'Use Storage', value: 'submit', style: 'primary' },
+            ],
+        });
+
+        const result = await ref.afterClosed();
+        if (result && result !== 'submit' && result !== false) {
+            this.selectedStorage.set(result as StorageLocation);
+        }
+    }
+
+    private loadStorages(): void {
+        this.storageLoading.set(true);
+        this.storageService.getLocations().subscribe({
+            next: (locations) => {
+                this.storageLocations.set(locations);
+                const defaultStorage = locations.find(location => location.isDefault) ?? null;
+                if (defaultStorage && !this.selectedStorage()) {
+                    this.selectedStorage.set(defaultStorage);
+                }
+                this.storageLoading.set(false);
+            },
+            error: () => {
+                this.storageLocations.set([]);
+                this.selectedStorage.set(null);
+                this.storageLoading.set(false);
+            },
+        });
     }
 
     private addFiles(list: FileList): void {

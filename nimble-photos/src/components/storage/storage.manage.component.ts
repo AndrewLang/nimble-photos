@@ -6,6 +6,7 @@ import { StorageDiskInfo, StorageLocation } from '../../models/storage.model';
 import { DialogService } from '../../services/dialog.service';
 import { StorageService } from '../../services/storage.service';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
+import { Formatter } from '../../models/formatters';
 
 @Component({
     selector: 'mtx-storage-manage',
@@ -76,6 +77,8 @@ export class StorageManageComponent {
         const disk = this.editSelectedDisk();
         return disk ? `${disk.name} (${disk.mountPoint})` : '';
     });
+    readonly formatBytes = Formatter.formatBytes;
+    readonly formatAvailablePercent = Formatter.formatAvailablePercent;
 
     constructor() {
         this.loadData();
@@ -269,24 +272,6 @@ export class StorageManageComponent {
 
     closeEditDiskMenu(): void {
         this.editDiskMenuOpen.set(false);
-    }
-
-    formatBytes(bytes: number): string {
-        if (!Number.isFinite(bytes) || bytes <= 0) {
-            return '0 B';
-        }
-        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-        const value = bytes / Math.pow(1024, index);
-        return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
-    }
-
-    formatAvailablePercent(availableBytes: number, totalBytes: number): string {
-        if (!Number.isFinite(availableBytes) || !Number.isFinite(totalBytes) || totalBytes <= 0) {
-            return '0%';
-        }
-        const percent = Math.max(0, Math.min(1, availableBytes / totalBytes)) * 100;
-        return `${Math.round(percent)}%`;
     }
 
     private buildPath(mountPoint: string, folderName: string): string {

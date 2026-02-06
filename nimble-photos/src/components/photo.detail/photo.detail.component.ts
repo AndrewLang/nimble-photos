@@ -6,6 +6,7 @@ import { Photo, PhotoComment } from '../../models/photo';
 import { AuthService } from '../../services/auth.service';
 import { PhotoService } from '../../services/photo.service';
 import { SvgComponent } from '../svg/svg.component';
+import { Formatter } from '../../models/formatters';
 
 const MAX_COMMENT_LENGTH = 1024;
 
@@ -38,6 +39,7 @@ export class PhotoDetailComponent implements OnInit {
     readonly commentsError = signal<string | null>(null);
     readonly metadataExpanded = signal(false);
     readonly commentEditorVisible = signal(false);
+    readonly formatBytes = (size?: number) => Formatter.formatBytes(size, { zeroLabel: 'n/a' });
 
     private albumId: string | null = null;
     private returnUrl = '/';
@@ -209,20 +211,6 @@ export class PhotoDetailComponent implements OnInit {
             day: 'numeric',
             year: 'numeric',
         });
-    }
-
-    formatBytes(size?: number): string {
-        if (!size || size <= 0) {
-            return 'n/a';
-        }
-        const units = ['B', 'KB', 'MB', 'GB'];
-        let value = size;
-        let index = 0;
-        while (value >= 1024 && index < units.length - 1) {
-            value /= 1024;
-            index += 1;
-        }
-        return `${value.toFixed(1)} ${units[index]}`;
     }
 
     getPhotoPath(): string {
