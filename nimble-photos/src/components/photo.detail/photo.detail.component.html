@@ -62,20 +62,6 @@
         <p class="text-sm text-slate-400">Photo not found.</p>
         }
 
-        @if (photo(); as p) {
-        <div class="absolute inset-x-4 bottom-6 z-20 pointer-events-auto ">
-            <div class="flex flex-wrap justify-center gap-2 ">
-                @for (r of reactions(); track r.emoji) {
-                <button (click)="addReaction(r.emoji)" [class.bg-indigo-500]="r.selected"
-                    [class.text-white]="r.selected" [class.border-indigo-400]="r.selected"
-                    class="flex items-center gap-2 px-3 py-2 rounded-full transition-all hover:bg-white/10 border border-white/10 bg-white/5">
-                    <span class="text-lg leading-none">{{ r.emoji }}</span>
-                    <span class="text-xs font-bold opacity-80" [class.opacity-100]="r.selected">{{ r.count }}</span>
-                </button>
-                }
-            </div>
-        </div>
-        }
     </div>
 
     @if (photo(); as p) {

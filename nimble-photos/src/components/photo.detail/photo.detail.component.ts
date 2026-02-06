@@ -23,13 +23,6 @@ export class PhotoDetailComponent implements OnInit {
     readonly photo = signal<Photo | null>(null);
     readonly loading = signal(false);
     readonly adjacents = signal<{ prevId: string | null; nextId: string | null }>({ prevId: null, nextId: null });
-    readonly reactions = signal<{ emoji: string; count: number; selected: boolean }[]>([
-        { emoji: '❤️', count: 12, selected: false },
-        { emoji: '🔥', count: 8, selected: false },
-        { emoji: '👏', count: 5, selected: false },
-        { emoji: '😮', count: 2, selected: false },
-        { emoji: '✨', count: 4, selected: false },
-    ]);
 
     readonly commentDraft = signal('');
     readonly commentSaving = signal(false);
@@ -174,16 +167,6 @@ export class PhotoDetailComponent implements OnInit {
     toggleSidebar(): void {
         this.sidebarHidden.update(value => !value);
     }
-
-    addReaction(emoji: string): void {
-        this.reactions.update(prev => prev.map(r => {
-            if (r.emoji === emoji) {
-                return { ...r, count: r.selected ? r.count - 1 : r.count + 1, selected: !r.selected };
-            }
-            return r;
-        }));
-    }
-
     navigateToPhoto(id: string): void {
         const commands = this.albumId
             ? ['/album', this.albumId, 'photo', id]
@@ -509,3 +492,4 @@ export class PhotoDetailComponent implements OnInit {
         });
     }
 }
+
