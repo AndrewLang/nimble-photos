@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde_json::{Value as JsonValue, json};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::dtos::dashboard_settings_dto::{SettingDto, SettingOptionDto, SettingSection};
@@ -15,6 +16,12 @@ pub struct SettingService {
 }
 
 impl SettingService {
+    const ROLE_PERMISSIONS_KEY: &'static str = "security.rolePermissions";
+    const ACTION_DASHBOARD_ACCESS: &'static str = "dashboard.access";
+    const ACTION_SETTINGS_GENERAL_UPDATE: &'static str = "settings.general.update";
+    const ACTION_PHOTOS_UPLOAD: &'static str = "photos.upload";
+    const ACTION_COMMENTS_CREATE: &'static str = "comments.create";
+
     pub fn new(repository: Arc<Repository<Setting>>) -> Self {
         Self {
             repository,
@@ -143,6 +150,45 @@ impl SettingService {
         self.get_bool_setting("photo.manage.uploadsEnabled").await
     }
 
+    pub async fn can_access_dashboard(&self, roles: &HashSet<String>) -> Result<bool, PipelineError> {
+        self.is_action_allowed(roles, Self::ACTION_DASHBOARD_ACCESS)
+            .await
+    }
+
+    pub async fn can_upload_photos(&self, roles: &HashSet<String>) -> Result<bool, PipelineError> {
+        self.is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD).await
+    }
+
+    pub async fn can_create_comments(
+        &self,
+        roles: &HashSet<String>,
+    ) -> Result<bool, PipelineError> {
+        self.is_action_allowed(roles, Self::ACTION_COMMENTS_CREATE).await
+    }
+
+    pub async fn can_update_setting(
+        &self,
+        roles: &HashSet<String>,
+        key: &str,
+    ) -> Result<bool, PipelineError> {
+        if roles.contains("admin") {
+            return Ok(true);
+        }
+
+        let def = self.definitions.iter().find(|d| d.key == key);
+        let Some(definition) = def else {
+            return Ok(false);
+        };
+
+        if roles.contains("contributor") && definition.section == SettingSection::General {
+            return self
+                .is_action_allowed(roles, Self::ACTION_SETTINGS_GENERAL_UPDATE)
+                .await;
+        }
+
+        Ok(false)
+    }
+
     async fn get_bool_setting(&self, key: &str) -> Result<bool, PipelineError> {
         let owned_key = key.to_string();
         let entry = self.repository.get(&owned_key).await.map_err(|e| {
@@ -164,6 +210,72 @@ impl SettingService {
             .iter()
             .find(|def| def.key == key)
             .and_then(|def| def.default_value.as_bool())
+            .unwrap_or(false)
+    }
+
+    async fn role_permissions_config(&self) -> Result<JsonValue, PipelineError> {
+        let entry = self
+            .repository
+            .get(&Self::ROLE_PERMISSIONS_KEY.to_string())
+            .await
+            .map_err(|e| {
+                let msg = format!(
+                    "Failed to load setting {}: {:?}",
+                    Self::ROLE_PERMISSIONS_KEY,
+                    e
+                );
+                PipelineError::message(&msg)
+            })?;
+
+        if let Some(stored) = entry {
+            if let Some(parsed) = Self::parse_value(&stored.value) {
+                return Ok(parsed);
+            }
+        }
+
+        Ok(self
+            .definitions
+            .iter()
+            .find(|d| d.key == Self::ROLE_PERMISSIONS_KEY)
+            .map(|d| d.default_value.clone())
+            .unwrap_or_else(|| json!({})))
+    }
+
+    async fn is_action_allowed(
+        &self,
+        roles: &HashSet<String>,
+        action: &str,
+    ) -> Result<bool, PipelineError> {
+        if roles.contains("admin") {
+            return Ok(true);
+        }
+
+        let config = self.role_permissions_config().await?;
+        for role in roles {
+            if self.role_has_action(&config, role, action) {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    fn role_has_action(&self, config: &JsonValue, role: &str, action: &str) -> bool {
+        let Some(role_config) = config.get(role) else {
+            return false;
+        };
+
+        if role_config
+            .get("*")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
+            return true;
+        }
+
+        role_config
+            .get(action)
+            .and_then(|v| v.as_bool())
             .unwrap_or(false)
     }
 
@@ -277,6 +389,30 @@ impl SettingService {
                 group: SettingSection::General.slug(),
                 value_type: SettingValueType::Boolean,
                 default_value: json!(true),
+                options: None,
+            },
+            SettingDefinition {
+                key: "security.rolePermissions",
+                label: "Role permissions",
+                description: "JSON map for role-based actions. Actions: dashboard.access, settings.general.update, photos.upload, comments.create.",
+                section: SettingSection::Security,
+                group: SettingSection::Security.slug(),
+                value_type: SettingValueType::Json,
+                default_value: json!({
+                    "admin": { "*": true },
+                    "contributor": {
+                        "dashboard.access": true,
+                        "settings.general.update": true,
+                        "photos.upload": true,
+                        "comments.create": true
+                    },
+                    "viewer": {
+                        "dashboard.access": false,
+                        "settings.general.update": false,
+                        "photos.upload": false,
+                        "comments.create": false
+                    }
+                }),
                 options: None,
             },
             SettingDefinition {

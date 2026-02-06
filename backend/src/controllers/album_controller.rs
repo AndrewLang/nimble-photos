@@ -3,8 +3,15 @@ use crate::entities::album::Album;
 use crate::entities::album_comment::AlbumComment;
 use crate::entities::user_settings::UserSettings;
 use crate::repositories::photo::{PhotoRepository, TagRef};
+use crate::services::SettingService;
+
 use async_trait::async_trait;
 use chrono::Utc;
+use serde::Deserialize;
+use serde_json::json;
+use sqlx::PgPool;
+use uuid::Uuid;
+
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
 use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection, Value};
@@ -17,10 +24,6 @@ use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
-use serde::Deserialize;
-use serde_json::json;
-use sqlx::PgPool;
-use uuid::Uuid;
 
 pub struct AlbumController;
 
@@ -348,6 +351,14 @@ impl HttpHandler for CreateAlbumCommentHandler {
             .ok_or_else(|| PipelineError::message("identity not found"))?;
         let user_id = Uuid::parse_str(identity.identity().subject())
             .map_err(|_| PipelineError::message("invalid identity"))?;
+        let settings = context.service::<SettingService>()?;
+        let can_comment = settings
+            .can_create_comments(identity.identity().claims().roles())
+            .await?;
+        if !can_comment {
+            context.response_mut().set_status(403);
+            return Ok(ResponseValue::empty());
+        }
 
         let settings_repo = context.service::<Repository<UserSettings>>()?;
         let display_name = settings_repo

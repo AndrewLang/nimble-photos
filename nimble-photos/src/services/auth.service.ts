@@ -27,6 +27,10 @@ export class AuthService {
         const user = this.currentUser();
         return user?.roles?.includes('admin') ?? false;
     });
+    readonly canAccessDashboard = computed(() => {
+        const roles = this.currentUser()?.roles ?? [];
+        return roles.includes('admin') || roles.includes('contributor');
+    });
 
     constructor() { }
 

@@ -148,7 +148,7 @@ async fn register_assigns_admin_role_to_first_user() {
 }
 
 #[tokio::test]
-async fn register_does_not_assign_admin_role_to_second_user() {
+async fn register_assigns_viewer_role_to_second_user() {
     let service = create_auth_service();
     let password = "password123";
 
@@ -168,6 +168,7 @@ async fn register_does_not_assign_admin_role_to_second_user() {
         .unwrap();
 
     assert!(!claims.roles().contains("admin"));
+    assert!(claims.roles().contains("viewer"));
 }
 
 #[tokio::test]

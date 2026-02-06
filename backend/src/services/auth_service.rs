@@ -89,7 +89,7 @@ impl AuthService {
             roles: if is_first_user {
                 Some("admin".to_string())
             } else {
-                None
+                Some("viewer".to_string())
             },
         };
 

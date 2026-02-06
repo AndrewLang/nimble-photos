@@ -24,7 +24,7 @@ export class DashboardComponent implements OnInit {
         })),
     );
 
-    private readonly sections: DashboardSystemSection[] = ['general', 'photo-manage', 'storage'];
+    private readonly sections: DashboardSystemSection[] = ['general', 'security', 'photo-manage', 'storage'];
 
     getSectionIcon(section: DashboardSystemSection): string {
         switch (section) {
@@ -34,6 +34,8 @@ export class DashboardComponent implements OnInit {
                 return 'sectionPhotoManage';
             case 'storage':
                 return 'sectionStorage';
+            case 'security':
+                return 'sectionDefault';
             default:
                 return 'sectionDefault';
         }
@@ -51,6 +53,8 @@ export class DashboardComponent implements OnInit {
                 return 'Photo Management';
             case 'storage':
                 return 'Storage Manage';
+            case 'security':
+                return 'Role & Security';
             default:
                 return 'Settings';
         }

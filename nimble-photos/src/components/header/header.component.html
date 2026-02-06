@@ -106,7 +106,7 @@
                             }}</p>
                         <p class="text-[0.65rem] text-slate-400 truncate mt-1">{{ authService.currentUser()?.email }}</p>
                     </div>
-                    @if (authService.isAdmin()) {
+                    @if (authService.canAccessDashboard()) {
                     <a routerLink="/dashboard" (click)="closeUserMenu()"
                         class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-white transition-colors text-decoration-none">
                         Dashboard
@@ -170,7 +170,7 @@
 
     <div class="flex flex-col gap-4">
         @if (authService.isAuthenticated()) {
-        @if (authService.isAdmin()) {
+        @if (authService.canAccessDashboard()) {
         <a routerLink="/dashboard" (click)="closeMenu()"
             class="text-center bg-indigo-600 hover:bg-indigo-500 text-white font-bold uppercase tracking-widest py-3 rounded-xl shadow-lg shadow-indigo-600/20 text-sm">
             Dashboard

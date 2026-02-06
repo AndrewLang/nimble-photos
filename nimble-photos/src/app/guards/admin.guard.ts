@@ -10,7 +10,6 @@ export class AdminGuard implements CanActivate {
   ) { }
 
   canActivate(): boolean | UrlTree {
-    return this.authService.isAdmin() ? true : this.router.parseUrl('/');
+    return this.authService.canAccessDashboard() ? true : this.router.parseUrl('/');
   }
 }
-

@@ -58,6 +58,7 @@ export const routes: Routes = [
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'general' },
             { path: 'general', loadComponent: () => import('../components/dashboard/general.setting.component').then(m => m.GeneralSettingComponent) },
+            { path: 'security', loadComponent: () => import('../components/dashboard/security.setting.component').then(m => m.SecuritySettingComponent) },
             { path: 'photo-manage', loadComponent: () => import('../components/dashboard/photo.manage.setting.component').then(m => m.PhotoManageSettingComponent) },
             { path: 'storage', loadComponent: () => import('../components/dashboard/storage.manage.setting.component').then(m => m.StorageManageSettingComponent) },
         ],

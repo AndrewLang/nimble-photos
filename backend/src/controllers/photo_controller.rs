@@ -11,6 +11,7 @@ use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
 use crate::entities::user_settings::UserSettings;
 use crate::repositories::photo::{PhotoRepository, TagRef};
+use crate::services::SettingService;
 
 use nimble_web::DataProvider;
 use nimble_web::Repository;
@@ -352,6 +353,14 @@ impl HttpHandler for CreatePhotoCommentHandler {
             .ok_or_else(|| PipelineError::message("identity not found"))?;
         let user_id = Uuid::parse_str(identity.identity().subject())
             .map_err(|_| PipelineError::message("invalid identity"))?;
+        let settings = context.service::<SettingService>()?;
+        let can_comment = settings
+            .can_create_comments(identity.identity().claims().roles())
+            .await?;
+        if !can_comment {
+            context.response_mut().set_status(403);
+            return Ok(ResponseValue::empty());
+        }
 
         let settings_repo = context.service::<Repository<UserSettings>>()?;
         let display_name = settings_repo

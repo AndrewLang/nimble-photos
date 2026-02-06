@@ -13,6 +13,7 @@ use nimble_web::controller::controller::Controller;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
+use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
@@ -23,19 +24,19 @@ impl Controller for DashboardController {
     fn routes() -> Vec<EndpointRoute> {
         vec![
             EndpointRoute::get("/api/dashboard/settings", ListSettingsHandler)
-                .with_policy(Policy::InRole("admin".to_string()))
+                .with_policy(Policy::Authenticated)
                 .build(),
             EndpointRoute::get("/api/dashboard/settings/{key}", GetSettingHandler)
-                .with_policy(Policy::InRole("admin".to_string()))
+                .with_policy(Policy::Authenticated)
                 .build(),
             EndpointRoute::put("/api/dashboard/settings/{key}", UpdateSettingHandler)
-                .with_policy(Policy::InRole("admin".to_string()))
+                .with_policy(Policy::Authenticated)
                 .build(),
             EndpointRoute::post(
                 "/api/dashboard/settings/site.logo/upload",
                 UploadLogoHandler,
             )
-            .with_policy(Policy::InRole("admin".to_string()))
+            .with_policy(Policy::Authenticated)
             .build(),
         ]
     }
@@ -47,6 +48,10 @@ struct ListSettingsHandler;
 impl HttpHandler for ListSettingsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let service = context.service::<SettingService>()?;
+        if !DashboardController::can_access_dashboard(context, &service).await? {
+            context.response_mut().set_status(403);
+            return Ok(ResponseValue::empty());
+        }
         let settings = service.list().await?;
         Ok(ResponseValue::json(settings))
     }
@@ -67,6 +72,10 @@ impl HttpHandler for UpdateSettingHandler {
             .ok_or_else(|| PipelineError::message("key parameter missing"))?;
 
         let service = context.service::<SettingService>()?;
+        if !DashboardController::can_update_setting(context, &service, key).await? {
+            context.response_mut().set_status(403);
+            return Ok(ResponseValue::empty());
+        }
         let updated = service.update(key, payload.value).await?;
 
         Ok(ResponseValue::json(updated))
@@ -84,6 +93,10 @@ impl HttpHandler for GetSettingHandler {
             .ok_or_else(|| PipelineError::message("key parameter missing"))?;
 
         let service = context.service::<SettingService>()?;
+        if !DashboardController::can_access_dashboard(context, &service).await? {
+            context.response_mut().set_status(403);
+            return Ok(ResponseValue::empty());
+        }
         let setting = service.get(key).await?;
 
         Ok(ResponseValue::json(setting))
@@ -149,8 +162,37 @@ impl HttpHandler for UploadLogoHandler {
 
         let logo_url = format!("/assets/logo/{}", filename);
         let service = context.service::<SettingService>()?;
+        if !DashboardController::can_update_setting(context, &service, "site.logo").await? {
+            context.response_mut().set_status(403);
+            return Ok(ResponseValue::empty());
+        }
         let updated = service.update("site.logo", json!(logo_url)).await?;
 
         Ok(ResponseValue::json(updated))
+    }
+}
+
+impl DashboardController {
+    async fn can_access_dashboard(
+        context: &HttpContext,
+        service: &SettingService,
+    ) -> Result<bool, PipelineError> {
+        let roles = context
+            .get::<IdentityContext>()
+            .map(|ctx| ctx.identity().claims().roles().clone())
+            .unwrap_or_default();
+        service.can_access_dashboard(&roles).await
+    }
+
+    async fn can_update_setting(
+        context: &HttpContext,
+        service: &SettingService,
+        key: &str,
+    ) -> Result<bool, PipelineError> {
+        let roles = context
+            .get::<IdentityContext>()
+            .map(|ctx| ctx.identity().claims().roles().clone())
+            .unwrap_or_default();
+        service.can_update_setting(&roles, key).await
     }
 }

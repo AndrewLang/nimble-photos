@@ -5,6 +5,7 @@ use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::middleware::Middleware;
 use nimble_web::pipeline::next::Next;
 use nimble_web::pipeline::pipeline::PipelineError;
+use std::collections::HashSet;
 
 pub struct PublicAccessMiddleware;
 
@@ -40,8 +41,23 @@ impl Middleware for PublicAccessMiddleware {
             }
 
             if method == "POST" && (path == "/api/photos" || path == "/api/photos/scan") {
+                if !authenticated {
+                    context.response_mut().set_status(401);
+                    return Ok(());
+                }
+
                 let uploads_enabled = settings.is_photo_upload_enabled().await?;
                 if !uploads_enabled {
+                    context.response_mut().set_status(403);
+                    return Ok(());
+                }
+
+                let roles = context
+                    .get::<IdentityContext>()
+                    .map(|ctx| ctx.identity().claims().roles().clone())
+                    .unwrap_or_else(HashSet::new);
+                let can_upload = settings.can_upload_photos(&roles).await?;
+                if !can_upload {
                     context.response_mut().set_status(403);
                     return Ok(());
                 }
