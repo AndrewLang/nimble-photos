@@ -11,6 +11,7 @@ use user::User;
 use user_settings::UserSettings;
 use uuid_id::EnsureUuidIdHooks;
 
+use crate::entities::album_hooks::AlbumHooks;
 use crate::repositories::photo::PhotoRepository;
 
 pub mod album;
@@ -35,7 +36,7 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
     ]);
     builder.use_entity_with_hooks(EnsureUuidIdHooks::<Photo>::new(), EntityOperation::all());
     builder.use_entity_with_hooks_and_policy(
-        album_hooks::AlbumHooks::new(),
+        AlbumHooks::new(),
         &[
             EntityOperation::List,
             EntityOperation::Get,
@@ -45,7 +46,7 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         Policy::Authenticated,
     );
     builder.use_entity_with_hooks_and_policy(
-        album_hooks::AlbumHooks::new(),
+        AlbumHooks::new(),
         &[EntityOperation::Delete],
         Policy::InRole("admin".to_string()),
     );

@@ -49,7 +49,7 @@ export class PhotoService {
 
   getAlbumComments(albumId: string): Observable<PagedModel<AlbumComment>> {
     return this.http
-      .get<PagedModel<AlbumComment>>(`${this.apiBase}/albums/${albumId}/comments`)
+      .get<PagedModel<AlbumComment>>(`${this.apiBase}/album/comments/${albumId}`)
       .pipe(
         catchError(() =>
           of({
@@ -63,24 +63,24 @@ export class PhotoService {
   }
 
   createAlbumComment(albumId: string, comment: string): Observable<AlbumComment> {
-    return this.http.post<AlbumComment>(`${this.apiBase}/albums/${albumId}/comments`, { comment });
+    return this.http.post<AlbumComment>(`${this.apiBase}/album/comments/${albumId}`, { comment });
   }
 
   updateAlbumCommentVisibility(albumId: string, commentId: string, hidden: boolean): Observable<AlbumComment> {
     return this.http.patch<AlbumComment>(
-      `${this.apiBase}/albums/${albumId}/comments/${commentId}/visibility`,
+      `${this.apiBase}/album/comments/visibility/${albumId}/${commentId}`,
       { hidden },
     );
   }
 
   getPhotoComments(photoId: string): Observable<PhotoComment[]> {
     return this.http
-      .get<PhotoComment[]>(`${this.apiBase}/photos/${photoId}/comments`)
+      .get<PhotoComment[]>(`${this.apiBase}/photos/comments/${photoId}`)
       .pipe(catchError(() => of([])));
   }
 
   createPhotoComment(photoId: string, comment: string): Observable<PhotoComment> {
-    return this.http.post<PhotoComment>(`${this.apiBase}/photos/${photoId}/comments`, { comment });
+    return this.http.post<PhotoComment>(`${this.apiBase}/photos/comments/${photoId}`, { comment });
   }
 
   updatePhotoComment(photoId: string, comment: string | null): Observable<PhotoMetadata | null> {

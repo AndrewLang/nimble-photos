@@ -39,8 +39,8 @@ impl Controller for PhotoController {
                 .build(),
             EndpointRoute::get("/api/photos/with-gps/{page}/{pageSize}", MapPhotosHandler).build(),
             EndpointRoute::get("/api/photos/{id}/metadata", PhotoMetadataHandler).build(),
-            EndpointRoute::get("/api/photos/{id}/comments", PhotoCommentsHandler).build(),
-            EndpointRoute::post("/api/photos/{id}/comments", CreatePhotoCommentHandler)
+            EndpointRoute::get("/api/photos/comments/{id}", PhotoCommentsHandler).build(),
+            EndpointRoute::post("/api/photos/comments/{id}", CreatePhotoCommentHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
             EndpointRoute::post("/api/photos/scan", ScanPhotoHandler)

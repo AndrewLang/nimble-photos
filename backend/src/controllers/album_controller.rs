@@ -35,12 +35,12 @@ impl Controller for AlbumController {
             )
             .build(),
             EndpointRoute::get("/api/albums/{page}/{pageSize}", ListAlbumsHandler).build(),
-            EndpointRoute::get("/api/albums/{id}/comments", AlbumCommentsHandler).build(),
-            EndpointRoute::post("/api/albums/{id}/comments", CreateAlbumCommentHandler)
+            EndpointRoute::get("/api/album/comments/{id}", AlbumCommentsHandler).build(),
+            EndpointRoute::post("/api/album/comments/{id}", CreateAlbumCommentHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
             EndpointRoute::put(
-                "/api/albums/{albumId}/comments/{commentId}/visibility",
+                "/api/album/comments/visibility/{albumId}/{commentId}",
                 UpdateAlbumCommentVisibilityHandler,
             )
             .with_policy(Policy::InRole("admin".to_string()))
@@ -185,6 +185,8 @@ impl HttpHandler for AlbumCommentsHandler {
         let album_id = Uuid::parse_str(album_id_param)
             .map_err(|_| PipelineError::message("invalid album id"))?;
 
+        log::info!("Fetching comments for album {}", album_id);
+
         let repository = context.service::<Repository<AlbumComment>>()?;
 
         let mut query = Query::<AlbumComment>::new();
@@ -236,6 +238,8 @@ impl HttpHandler for AlbumCommentsHandler {
             "total": total,
             "items": visible_comments.into_iter().map(AlbumCommentDto::from).collect::<Vec<_>>(),
         });
+
+        log::info!("Returning {} comments for album {}", total, album_id);
 
         Ok(ResponseValue::new(Json(response)))
     }
