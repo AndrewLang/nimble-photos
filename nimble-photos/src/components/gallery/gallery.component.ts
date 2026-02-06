@@ -46,6 +46,7 @@ export class GalleryComponent implements OnInit {
   private currentPage = 1;
   private readonly pageSize = 56;
   private hasMore = true;
+  private lastSelectedIndex: number | null = null;
 
   constructor(
     private readonly photoService: PhotoService,
@@ -117,14 +118,28 @@ export class GalleryComponent implements OnInit {
     }
 
     const current = this.selectedPhotos();
-    const index = current.findIndex(p => p.id === photo.id);
+    const photoIndex = this.photos().findIndex(p => p.id === photo.id);
     let next: Photo[];
 
-    if (index >= 0) {
-      next = [...current];
-      next.splice(index, 1);
+    if (event?.shiftKey && this.lastSelectedIndex !== null && photoIndex >= 0) {
+      const start = Math.min(this.lastSelectedIndex, photoIndex);
+      const end = Math.max(this.lastSelectedIndex, photoIndex);
+      const range = this.photos().slice(start, end + 1);
+      const selectedIds = new Set<string>(current.map(p => p.id));
+      range.forEach(p => selectedIds.add(p.id));
+      next = this.photos().filter(p => selectedIds.has(p.id));
     } else {
-      next = [...current, photo];
+      const index = current.findIndex(p => p.id === photo.id);
+      if (index >= 0) {
+        next = [...current];
+        next.splice(index, 1);
+      } else {
+        next = [...current, photo];
+      }
+    }
+
+    if (photoIndex >= 0) {
+      this.lastSelectedIndex = photoIndex;
     }
 
     this.selectionService.updateSelection(next);
@@ -136,6 +151,7 @@ export class GalleryComponent implements OnInit {
 
   onClearSelection(): void {
     this.selectionService.clearSelection();
+    this.lastSelectedIndex = null;
   }
 }
 

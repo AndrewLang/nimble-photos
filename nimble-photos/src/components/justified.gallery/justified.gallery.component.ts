@@ -147,6 +147,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     private readonly pageSize = 30;
     private hasMore = true;
     private isRestoring = false;
+    private lastSelectedIndex: number | null = null;
 
     constructor(
         private readonly photoService: PhotoService,
@@ -343,14 +344,29 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
         }
 
         const current = this.selectedPhotos();
-        const index = current.findIndex(p => p.id === photo.id);
+        const flatPhotos = this.flattenedPhotos();
+        const photoIndex = flatPhotos.findIndex(p => p.id === photo.id);
         let next: Photo[];
 
-        if (index >= 0) {
-            next = [...current];
-            next.splice(index, 1);
+        if (event?.shiftKey && this.lastSelectedIndex !== null && photoIndex >= 0) {
+            const start = Math.min(this.lastSelectedIndex, photoIndex);
+            const end = Math.max(this.lastSelectedIndex, photoIndex);
+            const range = flatPhotos.slice(start, end + 1);
+            const selectedIds = new Set<string>(current.map(p => p.id));
+            range.forEach(p => selectedIds.add(p.id));
+            next = flatPhotos.filter(p => selectedIds.has(p.id));
         } else {
-            next = [...current, photo];
+            const index = current.findIndex(p => p.id === photo.id);
+            if (index >= 0) {
+                next = [...current];
+                next.splice(index, 1);
+            } else {
+                next = [...current, photo];
+            }
+        }
+
+        if (photoIndex >= 0) {
+            this.lastSelectedIndex = photoIndex;
         }
 
         this.selectionService.updateSelection(next);
@@ -380,11 +396,13 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
 
         this.selectionService.updateSelection(next);
         this.selectionChange.emit(next);
+        this.lastSelectedIndex = null;
     }
 
     clearSelection() {
         this.selectionService.clearSelection();
         this.selectionChange.emit([]);
+        this.lastSelectedIndex = null;
     }
 
     isSelected(photoId: string): boolean {
@@ -395,6 +413,18 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
         const group = this._timeline().find(g => g.title === groupTitle);
         if (!group || group.photos.items.length === 0) return false;
         return group.photos.items.every(p => this.selectedIds().has(p.id));
+    }
+
+    private flattenedPhotos(): Photo[] {
+        const groups = this._timeline();
+        if (groups.length === 0) return [];
+        const result: Photo[] = [];
+        for (const group of groups) {
+            for (const photo of group.photos.items) {
+                result.push(photo);
+            }
+        }
+        return result;
     }
 }
 
