@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from './api.config';
-import { CreateStorageLocationRequest, StorageDiskInfo, StorageLocation } from '../models/storage.model';
+import { CreateStorageLocationRequest, StorageDiskInfo, StorageLocation, UpdateStorageLocationRequest } from '../models/storage.model';
 
 @Injectable({
     providedIn: 'root',
@@ -23,6 +23,14 @@ export class StorageService {
 
     createLocation(request: CreateStorageLocationRequest): Observable<StorageLocation> {
         return this.http.post<StorageLocation>(`${this.apiBase}/storage/locations`, request);
+    }
+
+    updateLocation(id: string, request: UpdateStorageLocationRequest): Observable<StorageLocation[]> {
+        return this.http.put<StorageLocation[]>(`${this.apiBase}/storage/locations/${id}`, request);
+    }
+
+    deleteLocation(id: string): Observable<StorageLocation[]> {
+        return this.http.delete<StorageLocation[]>(`${this.apiBase}/storage/locations/${id}`);
     }
 
     setDefault(id: string): Observable<StorageLocation[]> {

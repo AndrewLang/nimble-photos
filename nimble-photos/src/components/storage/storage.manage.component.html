@@ -1,0 +1,268 @@
+<div class="flex flex-col gap-8">
+    @if (showHeading) {
+    <div class="flex flex-col gap-4">
+        <h2 class="text-2xl font-semibold text-white md:text-3xl">Storage Manage</h2>
+        <p class="max-w-4xl text-sm text-slate-400">
+            Manage storage locations for uploads and generated assets.
+        </p>
+    </div>
+    }
+
+    @if (error()) {
+    <div class="rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-xs text-red-200">
+        {{ error() }}
+    </div>
+    }
+
+    <div class="grid gap-6">
+        <div class="space-y-6">
+            <div class="rounded-3xl border border-white/5 bg-slate-950/60 p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-sm font-semibold text-white">Named Storages</h3>
+                        <span class="text-xs text-slate-500">{{ locations().length }} total</span>
+                    </div>
+                    <button type="button" (click)="openCreate()" [disabled]="showCreateForm()"
+                        class="inline-flex items-center rounded-full bg-linear-to-r from-indigo-500 to-sky-500 px-5 py-2 text-[0.7rem] font-semibold uppercase tracking-wider text-white disabled:opacity-50">
+                        Create Storage
+                    </button>
+                </div>
+
+                @if (!locations().length) {
+                <div class="mt-6 rounded-2xl border border-white/10 bg-white/5 px-5 py-6 text-xs text-slate-400">
+                    No storage created.
+                </div>
+                } @else {
+                <div class="mt-4 grid gap-4">
+                    @for (location of locations(); track location.id) {
+                    <div
+                        class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-4">
+                        <div class="min-w-55 space-y-1.5">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="text-sm font-semibold text-white">{{ location.label }}</p>
+                                @if (location.isDefault) {
+                                <span
+                                    class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[0.6rem] uppercase tracking-widest text-emerald-300">
+                                    Default
+                                </span>
+                                }
+                            </div>
+                            <p class="text-[0.7rem] text-slate-500">{{ location.path }}</p>
+                            @if (location.disk) {
+                            <p class="mt-1 text-[0.7rem] text-slate-400">
+                                Disk {{ location.disk.mountPoint }} - {{ formatBytes(location.disk.availableBytes) }}
+                                free
+                                of {{ formatBytes(location.disk.totalBytes) }} total
+                                ({{ formatAvailablePercent(location.disk.availableBytes, location.disk.totalBytes) }}
+                                available)
+                            </p>
+                            }
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            @if (!location.isDefault) {
+                            <button type="button" (click)="setDefault(location)" [disabled]="saving()"
+                                class="rounded-full border border-white/10 px-3 py-2 text-[0.65rem] uppercase tracking-widest text-slate-300 hover:text-white">
+                                Set Default
+                            </button>
+                            }
+                            <button type="button" (click)="startEdit(location)"
+                                class="rounded-full border border-white/10 px-3 py-2 text-[0.65rem] uppercase tracking-widest text-slate-300 hover:text-white">
+                                Edit
+                            </button>
+                            <button type="button" (click)="deleteLocation(location)" [disabled]="saving()"
+                                class="rounded-full border border-red-500/30 px-3 py-2 text-[0.65rem] uppercase tracking-widest text-red-300 hover:text-white">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                    }
+                </div>
+
+                }
+            </div>
+
+            @if (showCreateForm()) {
+            <div class="rounded-3xl border border-white/5 bg-slate-950/60 p-6">
+                <h3 class="text-sm font-semibold text-white">Create Storage</h3>
+                <p class="text-xs text-slate-400 mt-1">
+                    Name the storage and choose a disk. The folder name will be created under the selected mount.
+                </p>
+
+                <form [formGroup]="storageForm" (ngSubmit)="createLocation()" class="mt-6 grid gap-4">
+                    <div class="space-y-2">
+                        <label for="storageLabel"
+                            class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Name</label>
+                        <input id="storageLabel" type="text" formControlName="label" placeholder="Primary Library"
+                            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Disk</label>
+                        <div class="relative">
+                            <button type="button" (click)="toggleDiskMenu()"
+                                class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
+                                <span>
+                                    @if (selectedDiskLabel().length) {
+                                    {{ selectedDiskLabel() }}
+                                    } @else {
+                                    Select a disk
+                                    }
+                                </span>
+                                <span class="text-slate-400">v</span>
+                            </button>
+                            <input type="hidden" formControlName="diskMount" />
+
+                            @if (diskMenuOpen()) {
+                            <div
+                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
+                                @if (!disks().length) {
+                                <div class="px-4 py-3 text-xs text-slate-500">No disks available</div>
+                                } @else {
+                                @for (disk of disks(); track disk.mountPoint) {
+                                <button type="button" (click)="selectDisk(disk)"
+                                    class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
+                                    <span>{{ disk.name }} ({{ disk.mountPoint }})</span>
+                                    <span class="text-slate-500">{{ formatBytes(disk.availableBytes) }} free / {{
+                                        formatBytes(disk.totalBytes) }} total</span>
+                                </button>
+                                }
+                                }
+                            </div>
+                            <div class="fixed inset-0 z-10" (click)="closeDiskMenu()"></div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="storageFolder"
+                            class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Folder</label>
+                        <input id="storageFolder" type="text" formControlName="folderName" placeholder="Nimble Photos"
+                            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                    </div>
+
+                    @if (selectedDiskLabel().length) {
+                    <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
+                        <div class="flex items-center justify-between">
+                            <span>Available</span>
+                            <span class="font-semibold text-white">{{ formatBytes(selectedDisk()!.availableBytes)
+                                }}</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span>Total</span>
+                            <span class="text-slate-300">{{ formatBytes(selectedDisk()!.totalBytes) }}</span>
+                        </div>
+                    </div>
+                    }
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button type="submit" [disabled]="storageForm.invalid || saving()"
+                            class="h-11 rounded-full bg-linear-to-r from-indigo-500 to-sky-500 px-6 text-xs font-semibold uppercase tracking-wider text-white shadow-lg shadow-indigo-500/20 transition-all hover:from-indigo-400 hover:to-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
+                            @if (saving()) {
+                            Saving...
+                            } @else {
+                            Create Storage
+                            }
+                        </button>
+                        <button type="button" (click)="cancelCreate()"
+                            class="h-11 rounded-full border border-white/10 px-6 text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-white">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+            }
+
+            @if (editingLocation()) {
+            <div class="rounded-3xl border border-white/5 bg-slate-950/60 p-6">
+                <h3 class="text-sm font-semibold text-white">Edit Storage</h3>
+                <p class="text-xs text-slate-400 mt-1">
+                    Update the storage label and location. The folder name will be set under the selected mount.
+                </p>
+
+                <form [formGroup]="editForm" (ngSubmit)="saveEdit(editingLocation()!)" class="mt-6 grid gap-4">
+                    <div class="space-y-2">
+                        <label for="editStorageLabel"
+                            class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Name</label>
+                        <input id="editStorageLabel" type="text" [formControl]="editForm.controls.label"
+                            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Disk</label>
+                        <div class="relative">
+                            <button type="button" (click)="toggleEditDiskMenu()"
+                                class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
+                                <span>
+                                    @if (editSelectedDiskLabel().length) {
+                                    {{ editSelectedDiskLabel() }}
+                                    } @else {
+                                    Select a disk
+                                    }
+                                </span>
+                                <span class="text-slate-400">v</span>
+                            </button>
+                            <input type="hidden" [formControl]="editForm.controls.diskMount" />
+
+                            @if (editDiskMenuOpen()) {
+                            <div
+                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
+                                @if (!disks().length) {
+                                <div class="px-4 py-3 text-xs text-slate-500">No disks available</div>
+                                } @else {
+                                @for (disk of disks(); track disk.mountPoint) {
+                                <button type="button" (click)="selectEditDisk(disk)"
+                                    class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
+                                    <span>{{ disk.name }} ({{ disk.mountPoint }})</span>
+                                    <span class="text-slate-500">{{ formatBytes(disk.availableBytes) }} free / {{
+                                        formatBytes(disk.totalBytes) }} total</span>
+                                </button>
+                                }
+                                }
+                            </div>
+                            <div class="fixed inset-0 z-10" (click)="closeEditDiskMenu()"></div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="editStorageFolder"
+                            class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Folder</label>
+                        <input id="editStorageFolder" type="text" [formControl]="editForm.controls.folderName"
+                            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                    </div>
+
+                    @if (editSelectedDiskLabel().length) {
+                    <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
+                        <div class="flex items-center justify-between">
+                            <span>Available</span>
+                            <span class="font-semibold text-white">{{ formatBytes(editSelectedDisk()!.availableBytes)
+                                }}</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span>Total</span>
+                            <span class="text-slate-300">{{ formatBytes(editSelectedDisk()!.totalBytes) }}</span>
+                        </div>
+                    </div>
+                    }
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button type="submit" [disabled]="editForm.invalid || saving()"
+                            class="h-11 rounded-full bg-linear-to-r from-indigo-500 to-sky-500 px-6 text-xs font-semibold uppercase tracking-wider text-white shadow-lg shadow-indigo-500/20 transition-all hover:from-indigo-400 hover:to-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
+                            @if (saving()) {
+                            Saving...
+                            } @else {
+                            Save Changes
+                            }
+                        </button>
+                        <button type="button" (click)="cancelEdit()"
+                            class="h-11 rounded-full border border-white/10 px-6 text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-white">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+            }
+        </div>
+    </div>
+</div>

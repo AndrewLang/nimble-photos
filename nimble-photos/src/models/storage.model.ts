@@ -19,3 +19,9 @@ export interface CreateStorageLocationRequest {
     path: string;
     isDefault?: boolean;
 }
+
+export interface UpdateStorageLocationRequest {
+    label?: string;
+    path?: string;
+    isDefault?: boolean;
+}

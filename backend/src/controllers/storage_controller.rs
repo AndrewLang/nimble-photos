@@ -54,7 +54,70 @@ pub struct CreateStoragePayload {
     pub is_default: Option<bool>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateStoragePayload {
+    pub label: Option<String>,
+    pub path: Option<String>,
+    pub is_default: Option<bool>,
+}
+
 pub struct StorageController;
+
+impl StorageController {
+    fn list_disks() -> Vec<DiskInfo> {
+        let disks = Disks::new_with_refreshed_list();
+
+        let mut items = disks
+            .list()
+            .iter()
+            .filter(|disk| !disk.is_removable())
+            .map(|disk| DiskInfo {
+                name: disk.name().to_string_lossy().to_string(),
+                mount_point: disk.mount_point().to_string_lossy().to_string(),
+                total_bytes: disk.total_space(),
+                available_bytes: disk.available_space(),
+            })
+            .collect::<Vec<_>>();
+
+        items.sort_by_key(|disk| Self::disk_sort_key(&disk.mount_point));
+        items
+    }
+
+    fn disk_sort_key(mount_point: &str) -> (u8, String) {
+        let normalized = mount_point.trim().to_ascii_lowercase();
+        let bytes = normalized.as_bytes();
+        if bytes.len() >= 2 && bytes[1] == b':' {
+            return (0, normalized);
+        }
+        (1, normalized)
+    }
+
+    fn match_disk(path: &str, disks: &[DiskInfo]) -> Option<DiskInfo> {
+        let path_lower = path.to_ascii_lowercase();
+        disks
+            .iter()
+            .filter(|disk| !disk.mount_point.is_empty())
+            .filter(|disk| path_lower.starts_with(&disk.mount_point.to_ascii_lowercase()))
+            .max_by_key(|disk| disk.mount_point.len())
+            .cloned()
+    }
+
+    async fn load_locations(service: &SettingService) -> Result<Vec<StorageLocation>, PipelineError> {
+        let setting = service.get("storage.locations").await?;
+        let value = setting.value;
+        serde_json::from_value(value).map_err(|_| PipelineError::message("Invalid storage settings"))
+    }
+
+    async fn save_locations(
+        service: &SettingService,
+        locations: &[StorageLocation],
+    ) -> Result<(), PipelineError> {
+        let value = json!(locations);
+        service.update("storage.locations", value).await?;
+        Ok(())
+    }
+}
 
 impl Controller for StorageController {
     fn routes() -> Vec<EndpointRoute> {
@@ -66,6 +129,12 @@ impl Controller for StorageController {
                 .with_policy(Policy::InRole("admin".to_string()))
                 .build(),
             EndpointRoute::post("/api/storage/locations", CreateStorageHandler)
+                .with_policy(Policy::InRole("admin".to_string()))
+                .build(),
+            EndpointRoute::put("/api/storage/locations/{id}", UpdateStorageHandler)
+                .with_policy(Policy::InRole("admin".to_string()))
+                .build(),
+            EndpointRoute::delete("/api/storage/locations/{id}", DeleteStorageHandler)
                 .with_policy(Policy::InRole("admin".to_string()))
                 .build(),
             EndpointRoute::put("/api/storage/locations/{id}/default", DefaultStorageHandler)
@@ -80,7 +149,7 @@ struct DisksHandler;
 #[async_trait]
 impl HttpHandler for DisksHandler {
     async fn invoke(&self, _context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        Ok(ResponseValue::json(list_disks()))
+        Ok(ResponseValue::json(StorageController::list_disks()))
     }
 }
 
@@ -90,13 +159,13 @@ struct ListStorageHandler;
 impl HttpHandler for ListStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let service = context.service::<SettingService>()?;
-        let locations = load_locations(&service).await?;
-        let disks = list_disks();
+        let locations = StorageController::load_locations(&service).await?;
+        let disks = StorageController::list_disks();
 
         let response = locations
             .into_iter()
             .map(|location| {
-                let disk = match_disk(&location.path, &disks);
+                let disk = StorageController::match_disk(&location.path, &disks);
                 StorageLocationResponse {
                     id: location.id,
                     label: location.label,
@@ -145,7 +214,7 @@ impl HttpHandler for CreateStorageHandler {
         }
 
         let service = context.service::<SettingService>()?;
-        let mut locations = load_locations(&service).await?;
+        let mut locations = StorageController::load_locations(&service).await?;
 
         if locations
             .iter()
@@ -174,9 +243,9 @@ impl HttpHandler for CreateStorageHandler {
         };
 
         locations.push(new_location.clone());
-        save_locations(&service, &locations).await?;
+        StorageController::save_locations(&service, &locations).await?;
 
-        let disk = match_disk(&new_location.path, &list_disks());
+        let disk = StorageController::match_disk(&new_location.path, &StorageController::list_disks());
 
         Ok(ResponseValue::json(StorageLocationResponse {
             id: new_location.id,
@@ -189,40 +258,89 @@ impl HttpHandler for CreateStorageHandler {
     }
 }
 
-struct DefaultStorageHandler;
+struct UpdateStorageHandler;
 
 #[async_trait]
-impl HttpHandler for DefaultStorageHandler {
+impl HttpHandler for UpdateStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let id = context
             .route()
             .and_then(|route| route.params().get("id"))
             .ok_or_else(|| PipelineError::message("id parameter missing"))?;
 
-        let service = context.service::<SettingService>()?;
-        let mut locations = load_locations(&service).await?;
-        let mut found = false;
+        let payload = context
+            .read_json::<UpdateStoragePayload>()
+            .map_err(|err| PipelineError::message(err.message()))?;
 
-        for location in locations.iter_mut() {
-            if location.id == *id {
-                location.is_default = true;
-                found = true;
-            } else {
-                location.is_default = false;
+        let service = context.service::<SettingService>()?;
+        let mut locations = StorageController::load_locations(&service).await?;
+        let index = locations
+            .iter()
+            .position(|location| location.id == *id)
+            .ok_or_else(|| PipelineError::message("Storage location not found"))?;
+
+        let current_id = locations[index].id.clone();
+
+        if let Some(label) = &payload.label {
+            let label_value = label.trim();
+            if label_value.is_empty() {
+                return Err(PipelineError::message("Storage label is required"));
             }
         }
 
-        if !found {
-            return Err(PipelineError::message("Storage location not found"));
+        if let Some(path) = &payload.path {
+            let path_value = path.trim();
+            if path_value.is_empty() {
+                return Err(PipelineError::message("Storage path is required"));
+            }
+            if !Path::new(path_value).exists() {
+                return Err(PipelineError::message("Storage path does not exist"));
+            }
+            if locations
+                .iter()
+                .any(|entry| entry.id != current_id && entry.path.eq_ignore_ascii_case(path_value))
+            {
+                return Err(PipelineError::message("Storage path already registered"));
+            }
         }
 
-        save_locations(&service, &locations).await?;
-        let disks = list_disks();
+        {
+            let location = &mut locations[index];
+
+            if let Some(label) = &payload.label {
+                location.label = label.trim().to_string();
+            }
+
+            if let Some(path) = &payload.path {
+                location.path = path.trim().to_string();
+            }
+
+            if let Some(is_default) = payload.is_default {
+                location.is_default = is_default;
+            }
+        }
+
+        if locations.iter().any(|location| location.is_default) {
+            if let Some(default_id) = locations
+                .iter()
+                .find(|location| location.is_default)
+                .map(|location| location.id.clone())
+            {
+                for location in locations.iter_mut() {
+                    location.is_default = location.id == default_id;
+                }
+            }
+        } else if let Some(first) = locations.first_mut() {
+            first.is_default = true;
+        }
+
+        StorageController::save_locations(&service, &locations).await?;
+        let disks = StorageController::list_disks();
 
         let response = locations
             .into_iter()
             .map(|location| {
-                let disk = match_disk(&location.path, &disks);
+                let disk = StorageController::match_disk(&location.path, &disks);
                 StorageLocationResponse {
                     id: location.id,
                     label: location.label,
@@ -238,55 +356,98 @@ impl HttpHandler for DefaultStorageHandler {
     }
 }
 
-fn list_disks() -> Vec<DiskInfo> {
-    let disks = Disks::new_with_refreshed_list();
+struct DefaultStorageHandler;
 
-    let mut items = disks
-        .list()
-        .iter()
-        .filter(|disk| !disk.is_removable())
-        .map(|disk| DiskInfo {
-            name: disk.name().to_string_lossy().to_string(),
-            mount_point: disk.mount_point().to_string_lossy().to_string(),
-            total_bytes: disk.total_space(),
-            available_bytes: disk.available_space(),
-        })
-        .collect::<Vec<_>>();
+#[async_trait]
+impl HttpHandler for DefaultStorageHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let id = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
 
-    items.sort_by_key(|disk| disk_sort_key(&disk.mount_point));
-    items
-}
+        let service = context.service::<SettingService>()?;
+        let mut locations = StorageController::load_locations(&service).await?;
+        let mut found = false;
 
-fn disk_sort_key(mount_point: &str) -> (u8, String) {
-    let normalized = mount_point.trim().to_ascii_lowercase();
-    let bytes = normalized.as_bytes();
-    if bytes.len() >= 2 && bytes[1] == b':' {
-        return (0, normalized);
+        for location in locations.iter_mut() {
+            if location.id == *id {
+                location.is_default = true;
+                found = true;
+            } else {
+                location.is_default = false;
+            }
+        }
+
+        if !found {
+            return Err(PipelineError::message("Storage location not found"));
+        }
+
+        StorageController::save_locations(&service, &locations).await?;
+        let disks = StorageController::list_disks();
+
+        let response = locations
+            .into_iter()
+            .map(|location| {
+                let disk = StorageController::match_disk(&location.path, &disks);
+                StorageLocationResponse {
+                    id: location.id,
+                    label: location.label,
+                    path: location.path,
+                    is_default: location.is_default,
+                    created_at: location.created_at,
+                    disk,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Ok(ResponseValue::json(response))
     }
-    (1, normalized)
 }
 
-fn match_disk(path: &str, disks: &[DiskInfo]) -> Option<DiskInfo> {
-    let path_lower = path.to_ascii_lowercase();
-    disks
-        .iter()
-        .filter(|disk| !disk.mount_point.is_empty())
-        .filter(|disk| path_lower.starts_with(&disk.mount_point.to_ascii_lowercase()))
-        .max_by_key(|disk| disk.mount_point.len())
-        .cloned()
-}
+struct DeleteStorageHandler;
 
-async fn load_locations(service: &SettingService) -> Result<Vec<StorageLocation>, PipelineError> {
-    let setting = service.get("storage.locations").await?;
-    let value = setting.value;
-    serde_json::from_value(value).map_err(|_| PipelineError::message("Invalid storage settings"))
-}
+#[async_trait]
+impl HttpHandler for DeleteStorageHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let id = context
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
 
-async fn save_locations(
-    service: &SettingService,
-    locations: &[StorageLocation],
-) -> Result<(), PipelineError> {
-    let value = json!(locations);
-    service.update("storage.locations", value).await?;
-    Ok(())
+        let service = context.service::<SettingService>()?;
+        let mut locations = StorageController::load_locations(&service).await?;
+        let original_len = locations.len();
+        locations.retain(|location| location.id != *id);
+
+        if locations.len() == original_len {
+            return Err(PipelineError::message("Storage location not found"));
+        }
+
+        if !locations.iter().any(|location| location.is_default) {
+            if let Some(first) = locations.first_mut() {
+                first.is_default = true;
+            }
+        }
+
+        StorageController::save_locations(&service, &locations).await?;
+        let disks = StorageController::list_disks();
+
+        let response = locations
+            .into_iter()
+            .map(|location| {
+                let disk = StorageController::match_disk(&location.path, &disks);
+                StorageLocationResponse {
+                    id: location.id,
+                    label: location.label,
+                    path: location.path,
+                    is_default: location.is_default,
+                    created_at: location.created_at,
+                    disk,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Ok(ResponseValue::json(response))
+    }
 }
