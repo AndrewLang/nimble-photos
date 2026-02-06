@@ -1,8 +1,10 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, OnInit } from '@angular/core';
 
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { catchError, of } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
+import { SettingsService } from '../../services/settings.service';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
@@ -14,25 +16,32 @@ import { SvgComponent } from '../svg/svg.component';
         class: 'flex flex-1 items-center justify-center p-6 bg-slate-950/40 relative overflow-hidden'
     }
 })
-export class RegisterComponent {
+export class RegisterComponent implements OnInit {
     private readonly fb = inject(FormBuilder);
     private readonly router = inject(Router);
     private readonly authService = inject(AuthService);
+    private readonly settingsService = inject(SettingsService);
 
     readonly loading = signal(false);
     readonly error = signal<string | null>(null);
+    readonly logoUrl = signal<string | null>(null);
 
     registerForm = this.fb.group({
         displayName: ['', [Validators.required, Validators.minLength(2)]],
         email: ['', [Validators.required, Validators.email]],
         password: ['', [Validators.required, Validators.minLength(6)]],
         confirmPassword: ['', [Validators.required]],
-        terms: [false, [Validators.requiredTrue]]
     }, {
         validators: this.passwordMatchValidator
     });
 
     constructor() { }
+
+    ngOnInit(): void {
+        this.settingsService.getLogoUrl()
+            .pipe(catchError(() => of(null)))
+            .subscribe(url => this.logoUrl.set(url));
+    }
 
     passwordMatchValidator(g: any) {
         return g.get('password').value === g.get('confirmPassword').value

@@ -2,7 +2,9 @@ import { Component, signal, inject, OnInit } from '@angular/core';
 
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { catchError, of } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
+import { SettingsService } from '../../services/settings.service';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
@@ -19,11 +21,13 @@ export class LoginComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     private readonly authService = inject(AuthService);
+    private readonly settingsService = inject(SettingsService);
 
     readonly loading = signal(false);
     readonly error = signal<string | null>(null);
     readonly success = signal<string | null>(null);
     readonly showPassword = signal(false);
+    readonly logoUrl = signal<string | null>(null);
 
     loginForm = this.fb.group({
         email: ['', [Validators.required, Validators.email]],
@@ -31,6 +35,10 @@ export class LoginComponent implements OnInit {
     });
 
     ngOnInit(): void {
+        this.settingsService.getLogoUrl()
+            .pipe(catchError(() => of(null)))
+            .subscribe(url => this.logoUrl.set(url));
+
         this.route.queryParams.subscribe(params => {
             if (params['registered']) {
                 this.success.set('Registration successful! Please sign in with your new account.');

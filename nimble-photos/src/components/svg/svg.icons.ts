@@ -204,7 +204,8 @@ export class SvgIcon {
 
   static readonly send = SvgIcon.register(
     new SvgIcon('send', SvgIcon.defaultViewBox, [
-      'M12 19l9 2-9-18-9 18 9-2zm0 0v-8',
+      'M4 12h14',
+      'M13 5l7 7-7 7',
     ])
   );
 
