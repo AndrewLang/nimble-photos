@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, inject, OnInit, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 
 import { FormBuilder } from '@angular/forms';
@@ -41,6 +41,8 @@ export class HeaderComponent implements OnInit {
   readonly siteLogo = signal<string | null>(null);
   readonly allowRegistration = signal(true);
 
+  @ViewChild('userMenuRoot') userMenuRoot?: ElementRef<HTMLElement>;
+
   constructor(
     public readonly selectionService: SelectionService,
     public readonly photoService: PhotoService,
@@ -68,6 +70,24 @@ export class HeaderComponent implements OnInit {
 
   toggleUserMenu() {
     this.isUserMenuOpen.update(v => !v);
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent) {
+    if (!this.isUserMenuOpen()) {
+      return;
+    }
+
+    const target = event.target as Node | null;
+    if (!target) {
+      return;
+    }
+
+    if (this.userMenuRoot?.nativeElement.contains(target)) {
+      return;
+    }
+
+    this.isUserMenuOpen.set(false);
   }
 
   closeMenu() {

@@ -82,7 +82,7 @@
 
         <div class="h-6 w-px bg-white/10 mx-2"></div>
 
-        <div class="relative">
+        <div class="relative" #userMenuRoot>
             <button (click)="toggleUserMenu()"
                 class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer">
                 <mtx-svg name="user" size="1.25rem"></mtx-svg>
@@ -102,10 +102,6 @@
                     <a routerLink="/dashboard" (click)="closeUserMenu()"
                         class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-white transition-colors text-decoration-none">
                         Dashboard
-                    </a>
-                    <a routerLink="/settings" (click)="closeUserMenu()"
-                        class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-white transition-colors text-decoration-none">
-                        Settings
                     </a>
                     <div class="h-px w-full bg-white/5 px-4"></div>
                     <button (click)="logout()"
@@ -128,7 +124,6 @@
                 </div>
             </div>
 
-            <div class="fixed inset-0 z-[-1]" (click)="closeUserMenu()"></div>
             }
         </div>
     </div>
