@@ -1,26 +1,24 @@
-﻿<div class="flex flex-1 flex-col md:flex-row min-h-0 overflow-hidden bg-slate-950 text-slate-100">
+<div class="flex flex-1 flex-row min-h-0 overflow-hidden bg-slate-950 text-slate-100">
 
-    <aside class="w-full border-white/10 bg-slate-900/80 p-2 backdrop-blur-2xl transition md:w-80 md:border-r">
-        <div class="px-4 py-2 mb-4">
-            <div class="flex items-center gap-4 mb-8">
+    <aside class="w-20 border-white/10 bg-slate-900/80 p-2 backdrop-blur-2xl transition lg:w-80 lg:border-r">
+        <div class="px-3 py-2 mb-4 lg:px-4">
+            <div class="flex items-center justify-center gap-0 mb-8 lg:justify-start lg:gap-4">
                 <div
-                    class="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/20">
-                    <mtx-svg name="userCircle" size="1.5rem" className="text-indigo-400"></mtx-svg>
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/20">
+                    <mtx-svg name="userCircle" size="2rem" className="text-indigo-400 mt-2"></mtx-svg>
                 </div>
-                <div>
+                <div class="hidden lg:block">
                     <h2 class="text-sm font-semibold text-white">Administrator</h2>
                     <p class="text-xs text-slate-400">Settings & Preferences</p>
                 </div>
             </div>
-
- 
         </div>
 
         <nav class="space-y-1">
             @for (section of navSections(); track section.section) {
             <a [routerLink]="['/dashboard', section.section]" routerLinkActive #rla="routerLinkActive"
                 [routerLinkActiveOptions]="{ exact: true }"
-                class="group relative flex w-full items-center gap-3 rounded-md px-4 py-2 text-left text-sm transition-all duration-200"
+                class="group relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-all duration-200 lg:px-4 lg:justify-start justify-center [--nav-icon-size:1.6rem] lg:[--nav-icon-size:1rem]"
                 [class.bg-white/5]="rla.isActive" [class.text-white]="rla.isActive"
                 [class.text-slate-400]="!rla.isActive" [class.hover:bg-white/5]="!rla.isActive">
 
@@ -28,16 +26,16 @@
                 <div class="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-indigo-500"></div>
                 }
 
-                <mtx-svg [name]="getSectionIcon(section.section)" size="1rem"
+                <mtx-svg [name]="getSectionIcon(section.section)" size="var(--nav-icon-size)"
                     [className]="rla.isActive ? 'text-indigo-400 transition-colors' : 'text-slate-400 transition-colors'"></mtx-svg>
 
-                <span class="flex-1 font-medium">{{ section.label }}</span>
+                <span class="hidden lg:inline flex-1 font-medium">{{ section.label }}</span>
             </a>
             }
         </nav>
     </aside>
 
-    <main class="w-full flex-1 lg:px-4 xl:px-24 py-6 overflow-y-auto bg-slate-950">
+    <main class="w-full flex-1 px-2 lg:px-4 xl:px-24 py-6 overflow-y-auto bg-slate-950">
         <router-outlet></router-outlet>
     </main>
 </div>
