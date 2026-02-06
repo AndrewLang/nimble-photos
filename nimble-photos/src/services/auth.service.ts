@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { jwtDecode } from 'jwt-decode';
-import { map, Observable, switchMap, tap } from 'rxjs';
+import { catchError, finalize, map, Observable, shareReplay, switchMap, tap, throwError } from 'rxjs';
 import { LoginRequest, LoginResponse, RegisterRequest, RegistrationStatus } from '../models/auth.model';
 import { JwtClaims } from '../models/jwt-claims.model';
 import { User } from '../models/user.model';
@@ -19,6 +19,7 @@ export class AuthService {
     private readonly TOKEN_KEY = 'mtx_access_token';
     private readonly REFRESH_TOKEN_KEY = 'mtx_refresh_token';
     private readonly USER_KEY = 'mtx_user';
+    private refreshInFlightRequest: Observable<string> | null = null;
 
     readonly currentUser = signal<User | null>(this.getStoredUser());
     readonly isAuthenticated = computed(() => !!this.currentUser());
@@ -80,7 +81,7 @@ export class AuthService {
     }
 
     logout(): void {
-        const refreshToken = localStorage.getItem(this.REFRESH_TOKEN_KEY);
+        const refreshToken = this.getRefreshToken();
         if (refreshToken) {
             this.http.post(`${this.apiBase}/auth/logout`, { refreshToken }).subscribe({
                 next: () => this.clearLocalSession(),
@@ -89,6 +90,38 @@ export class AuthService {
         } else {
             this.clearLocalSession();
         }
+    }
+
+    refreshAccessToken(): Observable<string> {
+        const refreshToken = this.getRefreshToken();
+        if (!refreshToken) {
+            return throwError(() => new Error('Refresh token not found.'));
+        }
+
+        if (!this.refreshInFlightRequest) {
+            this.refreshInFlightRequest = this.http
+                .post<LoginResponse>(`${this.apiBase}/auth/refresh`, { refreshToken })
+                .pipe(
+                    tap((response) => {
+                        this.setTokens(response.accessToken, response.refreshToken);
+                    }),
+                    map(response => response.accessToken),
+                    catchError(err => {
+                        this.clearLocalSession();
+                        return throwError(() => err);
+                    }),
+                    finalize(() => {
+                        this.refreshInFlightRequest = null;
+                    }),
+                    shareReplay(1)
+                );
+        }
+
+        return this.refreshInFlightRequest;
+    }
+
+    handleAuthFailure(): void {
+        this.clearLocalSession();
     }
 
     private clearLocalSession(): void {
@@ -124,5 +157,9 @@ export class AuthService {
 
     getAccessToken(): string | null {
         return localStorage.getItem(this.TOKEN_KEY);
+    }
+
+    getRefreshToken(): string | null {
+        return localStorage.getItem(this.REFRESH_TOKEN_KEY);
     }
 }
