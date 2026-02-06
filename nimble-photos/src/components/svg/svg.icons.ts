@@ -297,4 +297,20 @@ export class SvgIcon {
     ])
   );
 
+  static readonly panelRightClose = SvgIcon.register(
+    new SvgIcon('panelRightClose', SvgIcon.defaultViewBox, [
+      'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z',
+      'M15 3v18',
+      'm9 9 3 3-3 3',
+    ])
+  );
+
+  static readonly panelLeftClose = SvgIcon.register(
+    new SvgIcon('panelLeftClose', SvgIcon.defaultViewBox, [
+      'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z',
+      'M9 3v18',
+      'm15 9-3 3 3 3',
+    ])
+  );
+
 }

@@ -39,6 +39,7 @@ export class PhotoDetailComponent implements OnInit {
     readonly commentsLoading = signal(false);
     readonly commentsError = signal<string | null>(null);
     readonly metadataExpanded = signal(false);
+    readonly sidebarHidden = signal(false);
     readonly commentEditorVisible = signal(false);
     readonly allowComments = signal(true);
     readonly formatBytes = (size?: number) => Formatter.formatBytes(size, { zeroLabel: 'n/a' });
@@ -168,6 +169,10 @@ export class PhotoDetailComponent implements OnInit {
 
     toggleMetadata(): void {
         this.metadataExpanded.update(value => !value);
+    }
+
+    toggleSidebar(): void {
+        this.sidebarHidden.update(value => !value);
     }
 
     addReaction(emoji: string): void {

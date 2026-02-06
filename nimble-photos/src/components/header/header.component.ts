@@ -51,6 +51,7 @@ export class HeaderComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
+    this.setBrowserTitle(this.siteTitle());
     this.loadSiteSettings();
     this.route.queryParams.subscribe(params => {
       if (params['registered']) {
@@ -238,6 +239,7 @@ export class HeaderComponent implements OnInit {
         console.log('Site Title Setting:', setting);
         if (typeof setting?.value === 'string' && setting.value.trim().length) {
           this.siteTitle.set(setting.value);
+          this.setBrowserTitle(setting.value);
         }
       });
 
@@ -292,5 +294,9 @@ export class HeaderComponent implements OnInit {
     link.type = 'image/png';
     link.href = url;
     head.appendChild(link);
+  }
+
+  private setBrowserTitle(title: string): void {
+    this.document.title = title;
   }
 }
