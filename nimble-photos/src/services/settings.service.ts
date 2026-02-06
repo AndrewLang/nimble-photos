@@ -34,18 +34,27 @@ export class SettingsService {
     getLogoUrl(): Observable<string | null> {
         return this.getSettingByName('site.logo').pipe(
             map((setting) => {
-                console.log('Raw Logo URL Setting:', setting);
-                const value = `${this.apiBase}${setting?.value}`;
-                console.log('Logo URL Setting:', value);
+                const raw = typeof setting?.value === 'string' ? setting.value : '';
+                const value = this.buildLogoUrl(raw);
                 return typeof value === 'string' && value.trim().length ? value : null;
             }),
         );
     }
 
     buildLogoUrl(path: string): string {
-        if (typeof path === 'string' && path.trim().length) {
-            return `${this.apiBase}${path}`;
+        if (typeof path !== 'string') {
+            return '';
         }
-        return '';
+        const trimmed = path.trim();
+        if (!trimmed.length) {
+            return '';
+        }
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+            return trimmed;
+        }
+        if (trimmed.startsWith(this.apiBase)) {
+            return trimmed;
+        }
+        return `${this.apiBase}${trimmed}`;
     }
 }

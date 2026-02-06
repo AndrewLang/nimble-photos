@@ -28,7 +28,7 @@ export class DashboardSettingsService {
     }
 
     getSectionSettings(section: DashboardSystemSection): DashboardSetting[] {
-        return this.settings().filter(setting => setting.section === section);
+        return this.settings().filter(setting => setting.section === section && setting.key !== 'storage.locations');
     }
 
     getSectionLabel(section: DashboardSystemSection): string {
@@ -172,4 +172,3 @@ export class DashboardSettingsService {
         }
     }
 }
-

@@ -1,19 +1,22 @@
-﻿import { Component, Input, OnInit, inject } from '@angular/core';
+import { Component, Input, OnInit, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { DashboardSetting, DashboardSystemSection } from '../../models/dashboard.settings.model';
 import { DashboardSettingsService } from '../../services/dashboard.setting.service';
 import { SvgComponent } from '../svg/svg.component';
+import { LogoEditorComponent } from '../shared/logo-editor/logo.editor.component';
 
 @Component({
     selector: 'mtx-dashboard-section-setting',
-    imports: [FormsModule, SvgComponent],
+    imports: [FormsModule, SvgComponent, LogoEditorComponent],
     templateUrl: './dashboard.section.setting.component.html',
 })
 export class DashboardSectionSettingComponent implements OnInit {
     @Input({ required: true }) section!: DashboardSystemSection;
 
     readonly store = inject(DashboardSettingsService);
+
+    readonly logoSetting = computed(() => this.store.getSettingByName('site.logo'));
 
     ngOnInit(): void {
         this.store.ensureLoaded();
@@ -41,6 +44,28 @@ export class DashboardSectionSettingComponent implements OnInit {
 
     getSectionSettings(): DashboardSetting[] {
         return this.store.getSectionSettings(this.section);
+    }
+
+    getVisibleSettings(): DashboardSetting[] {
+        return this.getSectionSettings().filter(setting => setting.key !== 'site.logo');
+    }
+
+    showLogoEditor(): boolean {
+        return this.section === 'general' && !!this.logoSetting();
+    }
+
+    onLogoChanged(path: string): void {
+        const setting = this.logoSetting();
+        if (!setting) {
+            return;
+        }
+        this.store.setLocalValue(setting.key, path);
+        this.store.saveSetting(setting);
+    }
+
+    getLogoPath(): string {
+        const value = this.logoSetting()?.value;
+        return typeof value === 'string' ? value : '';
     }
 
     private getFallbackLabel(): string {
