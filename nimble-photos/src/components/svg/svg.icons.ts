@@ -119,7 +119,7 @@ export class SvgIcon {
 
   static readonly checkSolid = SvgIcon.register(
     new SvgIcon('checkSolid', '0 0 20 20', [
-      '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L8 12.586l7.293-7.293a1 1 0 0 1 1.414 0z" clip-rule="evenodd" />',
+      '<path fill="currentColor" fill-rule="evenodd" d="M16.707 5.293a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L8 12.586l7.293-7.293a1 1 0 0 1 1.414 0z" clip-rule="evenodd" />',
     ])
   );
 
@@ -131,7 +131,8 @@ export class SvgIcon {
 
   static readonly closeSolid = SvgIcon.register(
     new SvgIcon('closeSolid', '0 0 20 20', [
-      '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414z" clip-rule="evenodd" />',
+      'M5 5l10 10',
+      'M15 5l-10 10',
     ])
   );
 
@@ -293,7 +294,7 @@ export class SvgIcon {
 
   static readonly chevronDownSolid = SvgIcon.register(
     new SvgIcon('chevronDownSolid', '0 0 20 20', [
-      '<path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.586l3.71-3.356a.75.75 0 0 1 1.02 1.097l-4 3.615a.75.75 0 0 1-1.02 0l-4-3.615a.75.75 0 0 1 .02-1.057z" clip-rule="evenodd" />',
+      '<path fill="currentColor" fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.586l3.71-3.356a.75.75 0 0 1 1.02 1.097l-4 3.615a.75.75 0 0 1-1.02 0l-4-3.615a.75.75 0 0 1 .02-1.057z" clip-rule="evenodd" />',
     ])
   );
 

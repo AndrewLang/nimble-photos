@@ -20,38 +20,42 @@
 
     @if (selectionService.hasSelection()) {
     <div
-        class="absolute left-1/2 -translate-x-1/2 z-[60] bg-transparent text-white px-2 py-2 rounded-full flex items-center gap-2 animate-in fade-in zoom-in-95 duration-300">
+        class="absolute left-1/2 -translate-x-1/2 z-60 bg-transparent text-white px-2 py-2 rounded-full flex items-center gap-2 animate-in fade-in zoom-in-95 duration-300">
         <div class="flex items-center gap-2 pl-3 pr-2 border-r border-white/20">
             <button (click)="clearSelection()" class="p-1.5 hover:bg-white/10 rounded-full transition-colors"
                 title="Clear Selection">
                 <mtx-svg name="closeSolid"></mtx-svg>
             </button>
-            <span class="text-xs font-bold uppercase tracking-[0.1em] whitespace-nowrap">{{
+            <span class="text-xs font-bold uppercase tracking-widest whitespace-nowrap">{{
                 selectionService.selectedCount() }} <span class="hidden md:inline">selected</span></span>
         </div>
 
         <div class="flex items-center gap-2 pr-1">
             <button (click)="createAlbum()"
+                title="Create Album"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
                 <mtx-svg name="plus"></mtx-svg>
-                <span class="hidden sm:inline">Create Album</span>
+                <span class="hidden xl:inline whitespace-nowrap">Create Album</span>
             </button>
             <button (click)="addToAlbum()"
+                title="Add to Album"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
                 <mtx-svg name="folderPlus"></mtx-svg>
-                <span class="hidden sm:inline">Add to Album</span>
+                <span class="hidden xl:inline whitespace-nowrap">Add to Album</span>
             </button>
 
             <button (click)="tagPhotos()"
+                title="Tag Photos"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
                 <mtx-svg name="tag"></mtx-svg>
-                <span class="hidden sm:inline">Tag Photos</span>
+                <span class="hidden xl:inline whitespace-nowrap">Tag Photos</span>
             </button>
 
             <button (click)="downloadSelected()"
+                title="Download"
                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
                 <mtx-svg name="download"></mtx-svg>
-                <span class="hidden sm:inline">Download</span>
+                <span class="hidden xl:inline whitespace-nowrap">Download</span>
             </button>
         </div>
     </div>
@@ -186,4 +190,3 @@
     </div>
 </div>
 }
-
