@@ -35,6 +35,7 @@ export class PhotoManageSettingComponent implements OnInit {
     readonly tagVisibilityError = signal<string | null>(null);
     readonly savingTagVisibility = signal(false);
     readonly tagVisibilitySaved = signal(false);
+    readonly activeTab = signal<'upload' | 'visibility'>('upload');
     readonly supportedExtensions = [
         'jpg',
         'jpeg',
@@ -164,6 +165,10 @@ export class PhotoManageSettingComponent implements OnInit {
                 this.uploading.set(false);
             },
         });
+    }
+
+    setActiveTab(tab: 'upload' | 'visibility'): void {
+        this.activeTab.set(tab);
     }
 
     async openStorageSelector(): Promise<void> {
