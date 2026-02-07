@@ -39,7 +39,12 @@ pub trait PhotoRepository: Send + Sync {
     async fn list_all_tags(&self, is_admin: bool) -> DataResult<Vec<Tag>>;
     async fn get_tags_by_ids(&self, ids: &[i64], is_admin: bool) -> DataResult<Vec<Tag>>;
     async fn upsert_tag(&self, name: &str, visibility: Option<i16>) -> DataResult<Tag>;
-    async fn set_photo_tags(&self, photo_id: Uuid, tag_refs: &[TagRef]) -> DataResult<()>;
+    async fn set_photo_tags(
+        &self,
+        photo_id: Uuid,
+        tag_refs: &[TagRef],
+        created_by_user_id: Option<Uuid>,
+    ) -> DataResult<()>;
     async fn add_photo_tag(&self, photo_id: Uuid, tag_name: &str) -> DataResult<()>;
     async fn remove_photo_tag(&self, photo_id: Uuid, tag_name_or_id: &str) -> DataResult<bool>;
     async fn get_photo_tags(&self, photo_id: Uuid, is_admin: bool) -> DataResult<Vec<Tag>>;
@@ -58,7 +63,12 @@ pub trait PhotoRepository: Send + Sync {
         is_admin: bool,
     ) -> DataResult<Page<Photo>>;
 
-    async fn set_album_tags(&self, album_id: Uuid, tag_refs: &[TagRef]) -> DataResult<()>;
+    async fn set_album_tags(
+        &self,
+        album_id: Uuid,
+        tag_refs: &[TagRef],
+        created_by_user_id: Option<Uuid>,
+    ) -> DataResult<()>;
     async fn get_album_tags(&self, album_id: Uuid, is_admin: bool) -> DataResult<Vec<Tag>>;
 }
 
@@ -493,7 +503,12 @@ impl PhotoRepository for PostgresPhotoRepository {
             .map_err(|e| DataError::Provider(e.to_string()))
     }
 
-    async fn set_photo_tags(&self, photo_id: Uuid, tag_refs: &[TagRef]) -> DataResult<()> {
+    async fn set_photo_tags(
+        &self,
+        photo_id: Uuid,
+        tag_refs: &[TagRef],
+        created_by_user_id: Option<Uuid>,
+    ) -> DataResult<()> {
         let ids = self.resolve_tag_ids(tag_refs, 0).await?;
         let mut tx = self
             .pool
@@ -509,10 +524,11 @@ impl PhotoRepository for PostgresPhotoRepository {
 
         for tag_id in ids {
             sqlx::query(
-                "INSERT INTO photo_tags (photo_id, tag_id, created_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING",
+                "INSERT INTO photo_tags (photo_id, tag_id, created_at, created_by_user_id) VALUES ($1, $2, NOW(), $3) ON CONFLICT DO NOTHING",
             )
             .bind(photo_id)
             .bind(tag_id as i64)
+            .bind(created_by_user_id)
             .execute(&mut *tx)
             .await
             .map_err(|e| DataError::Provider(e.to_string()))?;
@@ -750,7 +766,12 @@ impl PhotoRepository for PostgresPhotoRepository {
         Ok(Page::new(items, total.max(0) as u64, page_value, limit))
     }
 
-    async fn set_album_tags(&self, album_id: Uuid, tag_refs: &[TagRef]) -> DataResult<()> {
+    async fn set_album_tags(
+        &self,
+        album_id: Uuid,
+        tag_refs: &[TagRef],
+        created_by_user_id: Option<Uuid>,
+    ) -> DataResult<()> {
         let ids = self.resolve_tag_ids(tag_refs, 0).await?;
         let mut tx = self
             .pool
@@ -766,10 +787,11 @@ impl PhotoRepository for PostgresPhotoRepository {
 
         for tag_id in ids {
             sqlx::query(
-                "INSERT INTO album_tags (album_id, tag_id, created_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING",
+                "INSERT INTO album_tags (album_id, tag_id, created_at, created_by_user_id) VALUES ($1, $2, NOW(), $3) ON CONFLICT DO NOTHING",
             )
             .bind(album_id)
             .bind(tag_id as i64)
+            .bind(created_by_user_id)
             .execute(&mut *tx)
             .await
             .map_err(|e| DataError::Provider(e.to_string()))?;

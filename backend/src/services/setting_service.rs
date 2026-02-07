@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde_json::{Value as JsonValue, json};
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
 use crate::dtos::dashboard_settings_dto::{SettingDto, SettingOptionDto, SettingSection};
@@ -21,6 +21,7 @@ impl SettingService {
     const ACTION_SETTINGS_GENERAL_UPDATE: &'static str = "settings.general.update";
     const ACTION_PHOTOS_UPLOAD: &'static str = "photos.upload";
     const ACTION_COMMENTS_CREATE: &'static str = "comments.create";
+    const VIEWER_HIDDEN_TAGS_KEY: &'static str = "photo.manage.viewerHiddenTags";
 
     pub fn new(repository: Arc<Repository<Setting>>) -> Self {
         Self {
@@ -151,6 +152,13 @@ impl SettingService {
         self.get_bool_setting("photo.manage.uploadsEnabled").await
     }
 
+    pub async fn viewer_hidden_tags(&self) -> Result<HashSet<String>, PipelineError> {
+        let tags = self
+            .get_string_array_setting(Self::VIEWER_HIDDEN_TAGS_KEY)
+            .await?;
+        Ok(tags.into_iter().map(|tag| tag.to_lowercase()).collect())
+    }
+
     pub async fn can_access_dashboard(
         &self,
         roles: &HashSet<String>,
@@ -191,6 +199,9 @@ impl SettingService {
                 .is_action_allowed(roles, Self::ACTION_SETTINGS_GENERAL_UPDATE)
                 .await;
         }
+        if roles.contains("contributor") && definition.section == SettingSection::PhotoManage {
+            return self.is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD).await;
+        }
 
         Ok(false)
     }
@@ -217,6 +228,51 @@ impl SettingService {
             .find(|def| def.key == key)
             .and_then(|def| def.default_value.as_bool())
             .unwrap_or(false)
+    }
+
+    async fn get_string_array_setting(&self, key: &str) -> Result<Vec<String>, PipelineError> {
+        let owned_key = key.to_string();
+        let entry = self.repository.get(&owned_key).await.map_err(|e| {
+            let msg = format!("Failed to load setting {}: {:?}", owned_key, e);
+            PipelineError::message(&msg)
+        })?;
+
+        if let Some(stored) = entry {
+            if let Some(parsed) = Self::parse_value(&stored.value) {
+                let values = Self::parse_string_array(&parsed);
+                if !values.is_empty() {
+                    return Ok(values);
+                }
+            }
+        }
+
+        let defaults = self
+            .definitions
+            .iter()
+            .find(|def| def.key == key)
+            .map(|def| Self::parse_string_array(&def.default_value))
+            .unwrap_or_default();
+        Ok(defaults)
+    }
+
+    fn parse_string_array(value: &JsonValue) -> Vec<String> {
+        let Some(raw_values) = value.as_array() else {
+            return Vec::new();
+        };
+
+        let mut dedup = BTreeSet::<String>::new();
+        for item in raw_values {
+            let Some(text) = item.as_str() else {
+                continue;
+            };
+            let normalized = text.trim();
+            if normalized.is_empty() {
+                continue;
+            }
+            dedup.insert(normalized.to_string());
+        }
+
+        dedup.into_iter().collect()
     }
 
     async fn role_permissions_config(&self) -> Result<JsonValue, PipelineError> {
@@ -439,6 +495,16 @@ impl SettingService {
                 group: SettingSection::PhotoManage.slug(),
                 value_type: SettingValueType::Boolean,
                 default_value: json!(true),
+                options: None,
+            },
+            SettingDefinition {
+                key: "photo.manage.viewerHiddenTags",
+                label: "Viewer hidden tags",
+                description: "Photos with these tags are hidden from users with the viewer role.",
+                section: SettingSection::PhotoManage,
+                group: SettingSection::PhotoManage.slug(),
+                value_type: SettingValueType::Json,
+                default_value: json!([]),
                 options: None,
             },
             SettingDefinition {

@@ -10,6 +10,7 @@ use chrono::Utc;
 use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
+use std::collections::HashSet;
 use uuid::Uuid;
 
 use nimble_web::controller::controller::Controller;
@@ -121,6 +122,8 @@ impl HttpHandler for AlbumPhotosHandler {
                         .get_by_ids(slice, can_view_admin_only)
                         .await
                         .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+                    let hidden_tags = AlbumController::viewer_hidden_tags(context).await?;
+                    photos = AlbumController::filter_photos_for_viewer(photos, &hidden_tags);
                 }
             }
         }
@@ -229,10 +232,14 @@ impl HttpHandler for ReplaceAlbumTagsHandler {
             .read_json::<ReplaceAlbumTagsPayload>()
             .map_err(|e| PipelineError::message(e.message()))?;
         let refs = AlbumController::to_tag_refs(&payload.tags)?;
+        let current_user_id = context
+            .get::<IdentityContext>()
+            .and_then(|ctx| Uuid::parse_str(ctx.identity().subject()).ok())
+            .ok_or_else(|| PipelineError::message("invalid identity"))?;
 
         let repository = context.service::<Box<dyn PhotoRepository>>()?;
         repository
-            .set_album_tags(album_id, &refs)
+            .set_album_tags(album_id, &refs, Some(current_user_id))
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
         let tags = repository
@@ -473,5 +480,44 @@ impl AlbumController {
             }
         }
         Ok(refs)
+    }
+
+    fn is_viewer(context: &HttpContext) -> bool {
+        context
+            .get::<IdentityContext>()
+            .map(|ctx| {
+                let identity = ctx.identity();
+                let roles = identity.claims().roles();
+                roles.contains("viewer") && !roles.contains("admin")
+            })
+            .unwrap_or(false)
+    }
+
+    async fn viewer_hidden_tags(context: &HttpContext) -> Result<HashSet<String>, PipelineError> {
+        if !Self::is_viewer(context) {
+            return Ok(HashSet::new());
+        }
+        let settings = context.service::<SettingService>()?;
+        settings.viewer_hidden_tags().await
+    }
+
+    fn filter_photos_for_viewer(photos: Vec<crate::entities::photo::Photo>, hidden_tags: &HashSet<String>) -> Vec<crate::entities::photo::Photo> {
+        if hidden_tags.is_empty() {
+            return photos;
+        }
+
+        photos
+            .into_iter()
+            .filter(|photo| {
+                !photo
+                    .tags
+                    .as_ref()
+                    .map(|tags| {
+                        tags.iter()
+                            .any(|tag| hidden_tags.contains(&tag.trim().to_lowercase()))
+                    })
+                    .unwrap_or(false)
+            })
+            .collect()
     }
 }
