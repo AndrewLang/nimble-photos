@@ -1,6 +1,7 @@
 pub mod admin_user_service;
 pub mod auth_service;
 pub mod encrypt_service;
+pub mod exif_service;
 pub mod id_generation_service;
 pub mod photo_service;
 pub mod setting_service;
@@ -8,6 +9,7 @@ pub mod setting_service;
 pub use admin_user_service::AdminUserService;
 pub use auth_service::AuthService;
 pub use encrypt_service::EncryptService;
+pub use exif_service::ExifService;
 pub use id_generation_service::IdGenerationService;
 pub use photo_service::PhotoService;
 pub use setting_service::SettingService;
@@ -30,6 +32,7 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|_| IdGenerationService::new());
 
     builder.register_singleton(|_| PhotoService::new());
+    builder.register_singleton(|_| ExifService::new());
 
     builder.register_singleton(|provider| {
         let config = provider.get::<Configuration>();

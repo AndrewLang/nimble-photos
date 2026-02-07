@@ -7,6 +7,8 @@
 - **Name Rule**: Use complete words for variable names, functions, and classes. Avoid abbreviations unless they are widely known.
 - **No Magic Numbers**: Do not use magic numbers in the code. Use constants instead.
 - **No Magic Strings**: Do not use magic strings in the code. Use constants instead.
+- **Unit tests**: All unit tests should create in tests folder.
+- **OOP first**: Prefer OOP approach first, avoid floating fns as much as possible.
 
 ## Frontend (Angular)
 - **Modern DI**: Use the `inject()` function for Dependency Injection instead of constructor injection.
