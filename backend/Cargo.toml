@@ -3,6 +3,10 @@ name = "nimble-photos"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = [".", "crates/nimble-web", "crates/rawthumb"]
+resolver = "2"
+
 [dependencies]
 nimble-web = { path = "./crates/nimble-web", features = ["postgres"] }
 tokio = { version = "1.49", features = ["full"] }
