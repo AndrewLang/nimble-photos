@@ -152,7 +152,7 @@ export class PhotoManageSettingComponent implements OnInit {
         this.uploadError.set(null);
         this.uploadSuccess.set(false);
 
-        this.photoService.uploadPhotos(files).subscribe({
+        this.photoService.uploadPhotos(files, this.selectedStorage()?.id).subscribe({
             next: () => {
                 this.uploadSuccess.set(true);
                 this.selectedFiles.set([]);

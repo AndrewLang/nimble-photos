@@ -1,11 +1,12 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::result::Result;
 use std::collections::HashSet;
 use uuid::Uuid;
 
+use crate::controllers::storage_controller::StorageLocation;
 use crate::dtos::photo_comment_dto::PhotoCommentDto;
 use crate::dtos::photo_dtos::{PhotoLoc, TimelineGroup};
 use crate::entities::exif::ExifModel;
@@ -13,7 +14,7 @@ use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
 use crate::entities::user_settings::UserSettings;
 use crate::repositories::photo::{PhotoRepository, TagRef};
-use crate::services::SettingService;
+use crate::services::{PhotoUploadService, SettingService};
 
 use nimble_web::DataProvider;
 use nimble_web::data::paging::Page;
@@ -23,6 +24,7 @@ use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
+use nimble_web::http::request_body::RequestBody;
 use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::FileResponse;
@@ -43,6 +45,9 @@ impl Controller for PhotoController {
             EndpointRoute::get("/api/photos/timeline/year-offset/{year}", YearOffsetHandler)
                 .build(),
             EndpointRoute::get("/api/photos/with-gps/{page}/{pageSize}", MapPhotosHandler).build(),
+            EndpointRoute::post("/api/photos", UploadPhotosHandler)
+                .with_policy(Policy::Authenticated)
+                .build(),
             EndpointRoute::get("/api/photos", PhotosQueryHandler).build(),
             EndpointRoute::get("/api/photos/{id}/metadata", PhotoMetadataHandler).build(),
             EndpointRoute::get("/api/photos/{id}/tags", PhotoTagListHandler).build(),
@@ -70,6 +75,81 @@ struct ScanPhotoHandler;
 impl HttpHandler for ScanPhotoHandler {
     async fn invoke(&self, _context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         Ok(ResponseValue::empty())
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UploadFileResponse {
+    file_name: String,
+    relative_path: String,
+    byte_size: usize,
+    content_type: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UploadPhotosResponse {
+    storage_id: String,
+    storage_path: String,
+    uploaded_count: usize,
+    files: Vec<UploadFileResponse>,
+}
+
+struct UploadPhotosHandler;
+
+#[async_trait]
+impl HttpHandler for UploadPhotosHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let settings = context.service::<SettingService>()?;
+        if !PhotoController::can_upload_photos(context, &settings).await? {
+            context.response_mut().set_status(403);
+            return Ok(ResponseValue::empty());
+        }
+
+        let uploads_enabled = settings.is_photo_upload_enabled().await?;
+        if !uploads_enabled {
+            context.response_mut().set_status(403);
+            return Ok(ResponseValue::empty());
+        }
+
+        let upload_service = context.service::<PhotoUploadService>()?;
+        let content_type_header = upload_service
+            .require_content_type(context.request().headers().get("content-type"))
+            .map_err(|error| PipelineError::message(&error.to_string()))?;
+        let request_body = PhotoController::read_request_body_bytes(context)?;
+        let files = upload_service
+            .parse_multipart_files(content_type_header, request_body)
+            .await
+            .map_err(|error| PipelineError::message(&error.to_string()))?;
+
+        if files.is_empty() {
+            return Err(PipelineError::message("No files found in upload request"));
+        }
+
+        let storage_query_id = context.request().query_param("storageId");
+        let storage = PhotoController::resolve_upload_storage(&settings, storage_query_id.as_deref()).await?;
+        let saved_files = upload_service
+            .persist_to_storage_temp(Path::new(&storage.path), files)
+            .await
+            .map_err(|error| PipelineError::message(&error.to_string()))?;
+
+        let response = UploadPhotosResponse {
+            storage_id: storage.id,
+            storage_path: storage.path,
+            uploaded_count: saved_files.len(),
+            files: saved_files
+                .into_iter()
+                .map(|item| UploadFileResponse {
+                    file_name: item.file_name,
+                    relative_path: item.relative_path,
+                    byte_size: item.byte_size,
+                    content_type: item.content_type,
+                })
+                .collect(),
+        };
+
+        Ok(ResponseValue::json(response))
     }
 }
 
@@ -641,6 +721,69 @@ impl PhotoController {
         }
         let settings = context.service::<SettingService>()?;
         settings.viewer_hidden_tags().await
+    }
+
+    async fn can_upload_photos(
+        context: &HttpContext,
+        service: &SettingService,
+    ) -> Result<bool, PipelineError> {
+        let roles = context
+            .get::<IdentityContext>()
+            .map(|ctx| ctx.identity().claims().roles().clone())
+            .unwrap_or_default();
+        service.can_upload_photos(&roles).await
+    }
+
+    fn read_request_body_bytes(context: &HttpContext) -> Result<Vec<u8>, PipelineError> {
+        match context.request().body() {
+            RequestBody::Empty => Ok(Vec::new()),
+            RequestBody::Text(text) => Ok(text.as_bytes().to_vec()),
+            RequestBody::Bytes(bytes) => Ok(bytes.clone()),
+            RequestBody::Stream(stream) => {
+                let mut guard = stream
+                    .lock()
+                    .map_err(|_| PipelineError::message("request body stream lock error"))?;
+                let mut collected = Vec::<u8>::new();
+                loop {
+                    let next_chunk = guard
+                        .read_chunk()
+                        .map_err(|error| PipelineError::message(&error.to_string()))?;
+                    match next_chunk {
+                        Some(chunk) => collected.extend_from_slice(&chunk),
+                        None => break,
+                    }
+                }
+                Ok(collected)
+            }
+        }
+    }
+
+    async fn resolve_upload_storage(
+        service: &SettingService,
+        storage_id: Option<&str>,
+    ) -> Result<StorageLocation, PipelineError> {
+        let storage_setting = service.get("storage.locations").await?;
+        let locations: Vec<StorageLocation> = serde_json::from_value(storage_setting.value)
+            .map_err(|_| PipelineError::message("Invalid storage settings"))?;
+
+        if locations.is_empty() {
+            return Err(PipelineError::message("No storage location configured"));
+        }
+
+        if let Some(requested_storage_id) = storage_id {
+            let selected = locations
+                .into_iter()
+                .find(|location| location.id == requested_storage_id)
+                .ok_or_else(|| PipelineError::message("Requested storage location not found"))?;
+            return Ok(selected);
+        }
+
+        locations
+            .iter()
+            .find(|location| location.is_default)
+            .cloned()
+            .or_else(|| locations.into_iter().next())
+            .ok_or_else(|| PipelineError::message("No storage location configured"))
     }
 
     fn filter_photo_page_for_viewer(

@@ -27,3 +27,4 @@ crates/nimble-web/.env
 
 # Uploaded assets
 /data/
+/target_test_isolated/

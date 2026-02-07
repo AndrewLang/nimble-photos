@@ -1,4 +1,4 @@
-﻿import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
 import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 
@@ -28,10 +28,11 @@ export class PhotoService {
       .pipe(map((response) => this.mapPhotoPage(response)));
   }
 
-  uploadPhotos(files: File[]): Observable<void> {
+  uploadPhotos(files: File[], storageId?: string): Observable<void> {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file, file.name));
-    return this.http.post<void>(`${this.apiBase}/photos`, formData);
+    const params = storageId ? new HttpParams().set('storageId', storageId) : undefined;
+    return this.http.post<void>(`${this.apiBase}/photos`, formData, { params });
   }
 
   getPhotoById(id: string): Observable<Photo | null> {
@@ -357,3 +358,4 @@ export class PhotoService {
     return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   }
 }
+
