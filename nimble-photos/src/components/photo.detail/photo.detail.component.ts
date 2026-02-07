@@ -34,7 +34,7 @@ export class PhotoDetailComponent implements OnInit {
     readonly metadataExpanded = signal(false);
     readonly sidebarHidden = signal(false);
     readonly commentEditorVisible = signal(false);
-    readonly allowComments = signal(true);
+    readonly allowComments = signal(false);
     readonly formatBytes = (size?: number) => Formatter.formatBytes(size, { zeroLabel: 'n/a' });
 
     private albumId: string | null = null;
@@ -125,7 +125,7 @@ export class PhotoDetailComponent implements OnInit {
 
     saveComment(): void {
         const photo = this.photo();
-        if (!photo || !this.authService.isAuthenticated()) {
+        if (!photo || !this.authService.isAuthenticated() || !this.allowComments()) {
             return;
         }
 

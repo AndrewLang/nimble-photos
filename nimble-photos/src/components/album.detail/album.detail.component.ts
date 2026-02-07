@@ -50,7 +50,7 @@ export class AlbumDetailComponent implements OnInit {
     readonly commentEditorVisible = signal(false);
     readonly maxCommentLength = MAX_COMMENT_LENGTH;
     readonly isAuthenticated = computed(() => this.authService.isAuthenticated());
-    readonly allowComments = signal(true);
+    readonly allowComments = signal(false);
     readonly sidebarOpen = signal(false);
 
     constructor() { }
@@ -73,7 +73,14 @@ export class AlbumDetailComponent implements OnInit {
                 catchError(() => of(null))
             )
             .subscribe(setting => {
-                const enabled = typeof setting?.value === 'boolean' ? setting.value : true;
+                const raw = setting?.value;
+                const enabled = typeof raw === 'boolean'
+                    ? raw
+                    : typeof raw === 'string'
+                        ? raw.toLowerCase() === 'true'
+                        : typeof raw === 'number'
+                            ? raw !== 0
+                            : false;
                 this.allowComments.set(enabled);
                 if (!enabled) {
                     this.commentEditorVisible.set(false);
@@ -120,7 +127,7 @@ export class AlbumDetailComponent implements OnInit {
 
     saveAlbumComment(): void {
         const album = this.album();
-        if (!album || !this.authService.isAuthenticated()) {
+        if (!album || !this.authService.isAuthenticated() || !this.allowComments()) {
             return;
         }
 
