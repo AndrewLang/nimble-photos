@@ -1,5 +1,6 @@
 pub mod admin_user_service;
 pub mod auth_service;
+pub mod background_task_runner;
 pub mod encrypt_service;
 pub mod exif_service;
 pub mod hash_service;
@@ -7,9 +8,11 @@ pub mod id_generation_service;
 pub mod image_process_service;
 pub mod photo_service;
 pub mod setting_service;
+pub mod task_descriptor;
 
 pub use admin_user_service::AdminUserService;
 pub use auth_service::AuthService;
+pub use background_task_runner::BackgroundTaskRunner;
 pub use encrypt_service::EncryptService;
 pub use exif_service::ExifService;
 pub use hash_service::HashService;
@@ -17,6 +20,7 @@ pub use id_generation_service::IdGenerationService;
 pub use image_process_service::ImageProcessService;
 pub use photo_service::PhotoService;
 pub use setting_service::SettingService;
+pub use task_descriptor::TaskDescriptor;
 
 use std::sync::Arc;
 
@@ -39,6 +43,18 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|_| ExifService::new());
     builder.register_singleton(|_| HashService::new());
     builder.register_singleton(|_| ImageProcessService::new());
+    builder.register_singleton(|provider| {
+        let configuration = provider.get::<Configuration>();
+        let default_parallelism = std::thread::available_parallelism()
+            .map(|value| value.get())
+            .unwrap_or(4);
+        let configured_parallelism = configuration
+            .get("background.parallelism")
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(default_parallelism);
+        BackgroundTaskRunner::new(configured_parallelism)
+    });
 
     builder.register_singleton(|provider| {
         let config = provider.get::<Configuration>();
