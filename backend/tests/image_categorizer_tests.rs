@@ -30,6 +30,34 @@ fn write_test_file(path: &Path, contents: &[u8]) {
     fs::write(path, contents).expect("failed to write test file");
 }
 
+fn write_exif_test_file(path: &Path, datetime: &str) {
+    let mut datetime_bytes = datetime.as_bytes().to_vec();
+    datetime_bytes.push(0);
+
+    let ifd0_offset = 8u32;
+    let exif_ifd_offset = ifd0_offset + 2 + 12 + 4;
+    let datetime_offset = exif_ifd_offset + 2 + 12 + 4;
+
+    let mut buffer = Vec::new();
+    buffer.extend_from_slice(b"II*\0");
+    buffer.extend_from_slice(&ifd0_offset.to_le_bytes());
+    buffer.extend_from_slice(&1u16.to_le_bytes());
+    buffer.extend_from_slice(&0x8769u16.to_le_bytes());
+    buffer.extend_from_slice(&4u16.to_le_bytes());
+    buffer.extend_from_slice(&1u32.to_le_bytes());
+    buffer.extend_from_slice(&exif_ifd_offset.to_le_bytes());
+    buffer.extend_from_slice(&0u32.to_le_bytes());
+    buffer.extend_from_slice(&1u16.to_le_bytes());
+    buffer.extend_from_slice(&0x9003u16.to_le_bytes());
+    buffer.extend_from_slice(&2u16.to_le_bytes());
+    buffer.extend_from_slice(&(datetime_bytes.len() as u32).to_le_bytes());
+    buffer.extend_from_slice(&datetime_offset.to_le_bytes());
+    buffer.extend_from_slice(&0u32.to_le_bytes());
+    buffer.extend_from_slice(&datetime_bytes);
+
+    write_test_file(path, &buffer);
+}
+
 #[test]
 fn hash_categorizer_moves_file_into_hashed_buckets() {
     let root = unique_temp_dir("hash");
@@ -64,7 +92,7 @@ fn hash_categorizer_moves_file_into_hashed_buckets() {
 }
 
 #[test]
-fn date_categorizer_uses_date_taken_or_file_metadata() {
+fn date_categorizer_prefers_request_then_exif_then_file_metadata() {
     let root = unique_temp_dir("date");
     let destination_root = root.join("storage");
     fs::create_dir_all(&destination_root).expect("failed to create destination root");
@@ -84,6 +112,20 @@ fn date_categorizer_uses_date_taken_or_file_metadata() {
     assert!(
         result.relative_path.starts_with("2024-01-02/"),
         "date folder should match provided date"
+    );
+
+    let exif_source = root.join("with_exif.tiff");
+    write_exif_test_file(&exif_source, "2023:05:06 07:08:09");
+    let exif_request =
+        CategorizeRequest::new(&exif_source, &destination_root, "from_exif.tiff");
+    let exif_result = categorizer
+        .categorize(&exif_request)
+        .expect("categorize with exif failed");
+    assert!(
+        exif_result
+            .relative_path
+            .starts_with("2023-05-06/"),
+        "date folder should match EXIF timestamp"
     );
 
     let source_without_date = root.join("without_date.jpg");

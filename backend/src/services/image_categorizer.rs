@@ -1,8 +1,10 @@
 use anyhow::{Context, Result, anyhow};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use exif::{Field, Reader, Tag, Value};
 use std::collections::{HashMap, hash_map::Entry};
 use std::ffi::OsStr;
 use std::fs;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -140,19 +142,75 @@ impl DateImageCategorizer {
     }
 
     fn determine_bucket(&self, request: &CategorizeRequest<'_>) -> Result<String> {
+        let date = self.resolve_date(request)?;
+        Ok(date.format("%Y-%m-%d").to_string())
+    }
+
+    fn resolve_date(&self, request: &CategorizeRequest<'_>) -> Result<DateTime<Utc>> {
         if let Some(date_taken) = request.date_taken() {
-            return Ok(date_taken.format("%Y-%m-%d").to_string());
+            return Ok(date_taken);
         }
 
-        let metadata = fs::metadata(request.source_file())?;
+        if let Some(exif_date) = self.date_from_exif(request)? {
+            return Ok(exif_date);
+        }
 
+        self.file_timestamp(request)
+    }
+
+    fn date_from_exif(&self, request: &CategorizeRequest<'_>) -> Result<Option<DateTime<Utc>>> {
+        let file = fs::File::open(request.source_file())?;
+        let mut reader = BufReader::new(file);
+        let exif = match Reader::new().read_from_container(&mut reader) {
+            Ok(exif) => exif,
+            Err(_) => return Ok(None),
+        };
+
+        for tag in [
+            Tag::DateTimeOriginal,
+            Tag::DateTimeDigitized,
+            Tag::DateTime,
+        ] {
+            if let Some(field) = exif.fields().find(|field| field.tag == tag) {
+                if let Some(text) = Self::field_ascii(field) {
+                    if let Some(parsed) = Self::parse_exif_datetime(&text) {
+                        return Ok(Some(parsed));
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    fn file_timestamp(&self, request: &CategorizeRequest<'_>) -> Result<DateTime<Utc>> {
+        let metadata = fs::metadata(request.source_file())?;
         let system_time = metadata
             .created()
             .or_else(|_| metadata.modified())
             .unwrap_or_else(|_| std::time::SystemTime::now());
+        Ok(system_time.into())
+    }
 
-        let datetime: DateTime<Utc> = system_time.into();
-        Ok(datetime.format("%Y-%m-%d").to_string())
+    fn field_ascii(field: &Field) -> Option<String> {
+        match &field.value {
+            Value::Ascii(values) => values
+                .iter()
+                .find_map(|entry| std::str::from_utf8(entry).ok())
+                .map(|value| value.trim_matches('\0').trim().to_string())
+                .filter(|value| !value.is_empty()),
+            _ => None,
+        }
+    }
+
+    fn parse_exif_datetime(raw: &str) -> Option<DateTime<Utc>> {
+        let raw = raw.trim_matches('\0').trim();
+        if raw.is_empty() {
+            return None;
+        }
+
+        let naive = NaiveDateTime::parse_from_str(raw, "%Y:%m:%d %H:%M:%S").ok()?;
+        Some(naive.and_utc())
     }
 }
 
