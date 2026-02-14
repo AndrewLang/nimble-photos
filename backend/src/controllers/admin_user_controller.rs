@@ -96,5 +96,7 @@ fn current_user_id(context: &HttpContext) -> Result<Uuid, PipelineError> {
 }
 
 fn contains_admin_role(roles: &[String]) -> bool {
-    roles.iter().any(|role| role.trim().eq_ignore_ascii_case("admin"))
+    roles
+        .iter()
+        .any(|role| role.trim().eq_ignore_ascii_case("admin"))
 }

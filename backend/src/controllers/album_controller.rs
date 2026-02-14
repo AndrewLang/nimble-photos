@@ -501,7 +501,10 @@ impl AlbumController {
         settings.viewer_hidden_tags().await
     }
 
-    fn filter_photos_for_viewer(photos: Vec<crate::entities::photo::Photo>, hidden_tags: &HashSet<String>) -> Vec<crate::entities::photo::Photo> {
+    fn filter_photos_for_viewer(
+        photos: Vec<crate::entities::photo::Photo>,
+        hidden_tags: &HashSet<String>,
+    ) -> Vec<crate::entities::photo::Photo> {
         if hidden_tags.is_empty() {
             return photos;
         }

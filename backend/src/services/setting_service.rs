@@ -200,7 +200,9 @@ impl SettingService {
                 .await;
         }
         if roles.contains("contributor") && definition.section == SettingSection::PhotoManage {
-            return self.is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD).await;
+            return self
+                .is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD)
+                .await;
         }
 
         Ok(false)

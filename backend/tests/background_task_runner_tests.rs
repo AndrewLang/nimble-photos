@@ -88,6 +88,7 @@ async fn stop_finishes_running_tasks_and_rejects_new_tasks() {
     assert_eq!(runner.running_count(), 0);
     assert_eq!(runner.queued_count(), 0);
 
-    let enqueue_after_stop = runner.enqueue(TaskDescriptor::new("rejected-task", async move { Ok(()) }));
+    let enqueue_after_stop =
+        runner.enqueue(TaskDescriptor::new("rejected-task", async move { Ok(()) }));
     assert!(enqueue_after_stop.is_err());
 }

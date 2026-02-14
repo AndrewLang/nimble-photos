@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod controllers;
+mod domain;
 mod dtos;
 mod entities;
 mod middleware;
