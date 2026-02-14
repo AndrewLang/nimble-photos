@@ -23,62 +23,8 @@ import { SvgIcon } from './svg.icons';
         }
     </svg>
     `
-    // templateUrl: './svg.component.html',
-    // styles: [`
-    //     .mtx-svg svg {
-    //         width: 100% !important;
-    //         height: 100% !important;
-    //         display: block;
-    //     }
-    // `],
 })
 export class SvgComponent {
-    // private readonly sanitizer = inject(DomSanitizer);
-    // private readonly iconName = signal<string>('');
-
-    // @Input() set name(value: string) {
-    //     this.iconName.set(value ?? '');
-    // }
-
-    // @Input() size: string = '1.25rem';
-    // @Input() className = '';
-    // @Input() ariaLabel?: string;
-
-    // readonly svgContent = computed<SafeHtml>(() => {
-    //     const svg = SvgIcon.get(this.iconName());
-    //     return this.sanitizer.bypassSecurityTrustHtml(this.normalizeSvg(svg));
-    // });
-
-    // private normalizeSvg(raw: string): string {
-    //     if (!raw) {
-    //         return '';
-    //     }
-
-    //     if (typeof DOMParser === 'undefined') {
-    //         return raw;
-    //     }
-
-    //     try {
-    //         const parser = new DOMParser();
-    //         const doc = parser.parseFromString(raw, 'image/svg+xml');
-    //         const svg = doc.querySelector('svg');
-    //         if (!svg) {
-    //             return raw;
-    //         }
-
-    //         svg.removeAttribute('width');
-    //         svg.removeAttribute('height');
-    //         svg.removeAttribute('class');
-    //         svg.setAttribute('width', '100%');
-    //         svg.setAttribute('height', '100%');
-    //         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-
-    //         return svg.outerHTML;
-    //     } catch {
-    //         return raw;
-    //     }
-    // }
-
     private readonly iconName = signal<string>('');
     @Input() set name(value: string) {
         this.iconName.set(value ?? '');

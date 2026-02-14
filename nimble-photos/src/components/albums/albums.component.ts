@@ -25,9 +25,23 @@ export class AlbumsComponent implements OnInit {
     private readonly dialogService = inject(DialogService);
 
     readonly albums = signal<Album[]>([]);
+    readonly searchQuery = signal('');
     readonly loading = signal(false);
 
     readonly isAdmin = computed(() => this.authService.isAdmin());
+    readonly filteredAlbums = computed(() => {
+        const query = this.searchQuery().trim().toLowerCase();
+        if (!query) {
+            return this.albums();
+        }
+
+        return this.albums().filter((album) => {
+            const name = album.name?.toLowerCase() ?? '';
+            const description = album.description?.toLowerCase() ?? '';
+            const category = album.category?.toLowerCase() ?? '';
+            return name.includes(query) || description.includes(query) || category.includes(query);
+        });
+    });
 
     constructor() { }
 
@@ -80,6 +94,11 @@ export class AlbumsComponent implements OnInit {
                 });
             }
         });
+    }
+
+    onSearchInput(event: Event): void {
+        const input = event.target as HTMLInputElement | null;
+        this.searchQuery.set(input?.value ?? '');
     }
 }
 
