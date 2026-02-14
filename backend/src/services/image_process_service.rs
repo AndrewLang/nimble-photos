@@ -24,7 +24,11 @@ impl ImageProcessService {
         input_path: P,
         output_path: Q,
     ) -> Result<()> {
-        self.generate_from_file(input_path.as_ref(), output_path.as_ref(), Self::THUMBNAIL_MAX_BORDER)
+        self.generate_from_file(
+            input_path.as_ref(),
+            output_path.as_ref(),
+            Self::THUMBNAIL_MAX_BORDER,
+        )
     }
 
     pub fn generate_preview_from_file<P: AsRef<Path>, Q: AsRef<Path>>(
@@ -32,10 +36,19 @@ impl ImageProcessService {
         input_path: P,
         output_path: Q,
     ) -> Result<()> {
-        self.generate_from_file(input_path.as_ref(), output_path.as_ref(), Self::PREVIEW_MAX_BORDER)
+        self.generate_from_file(
+            input_path.as_ref(),
+            output_path.as_ref(),
+            Self::PREVIEW_MAX_BORDER,
+        )
     }
 
-    fn generate_from_file(&self, input_path: &Path, output_path: &Path, max_border: u32) -> Result<()> {
+    fn generate_from_file(
+        &self,
+        input_path: &Path,
+        output_path: &Path,
+        max_border: u32,
+    ) -> Result<()> {
         Self::ensure_parent_directory(output_path)?;
 
         if self.is_raw_file(input_path) {
@@ -45,7 +58,12 @@ impl ImageProcessService {
         self.generate_standard_image(input_path, output_path, max_border)
     }
 
-    fn generate_raw_image(&self, input_path: &Path, output_path: &Path, max_border: u32) -> Result<()> {
+    fn generate_raw_image(
+        &self,
+        input_path: &Path,
+        output_path: &Path,
+        max_border: u32,
+    ) -> Result<()> {
         let exporter_config = ExportConfig::default()
             .with_auto_rotate(true)
             .with_max_border(Some(max_border));
@@ -70,15 +88,11 @@ impl ImageProcessService {
     }
 
     fn is_raw_file(&self, input_path: &Path) -> bool {
-        let extension = input_path
+        input_path
             .extension()
             .and_then(|value| value.to_str())
-            .map(|value| value.to_ascii_lowercase());
-
-        match extension {
-            Some(value) => Self::RAW_EXTENSIONS.contains(&value.as_str()),
-            None => false,
-        }
+            .map(|value| Self::is_raw_extension(value))
+            .unwrap_or(false)
     }
 
     fn ensure_parent_directory(output_path: &Path) -> Result<()> {
@@ -92,5 +106,11 @@ impl ImageProcessService {
 
     pub fn output_format_extension(&self) -> &'static str {
         Self::OUTPUT_FORMAT_EXTENSION
+    }
+
+    pub fn is_raw_extension(extension: &str) -> bool {
+        Self::RAW_EXTENSIONS
+            .iter()
+            .any(|candidate| candidate.eq_ignore_ascii_case(extension))
     }
 }

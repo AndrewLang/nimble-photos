@@ -6,12 +6,14 @@ use tokio::fs;
 
 pub struct PhotoUploadService;
 
+#[derive(Clone, Debug)]
 pub struct UploadFilePayload {
     pub file_name: String,
     pub content_type: Option<String>,
     pub bytes: Vec<u8>,
 }
 
+#[derive(Clone, Debug)]
 pub struct StoredUploadFile {
     pub file_name: String,
     pub relative_path: String,
@@ -34,7 +36,8 @@ impl PhotoUploadService {
         body_bytes: Vec<u8>,
     ) -> Result<Vec<UploadFilePayload>> {
         let boundary = multer::parse_boundary(content_type)?;
-        let body_stream = stream::once(async move { Ok::<Bytes, std::io::Error>(Bytes::from(body_bytes)) });
+        let body_stream =
+            stream::once(async move { Ok::<Bytes, std::io::Error>(Bytes::from(body_bytes)) });
         let mut multipart = multer::Multipart::new(body_stream, boundary);
 
         let mut files = Vec::<UploadFilePayload>::new();
@@ -96,7 +99,11 @@ impl PhotoUploadService {
         let sanitized = base_name
             .chars()
             .map(|character| {
-                if character.is_ascii_alphanumeric() || character == '.' || character == '-' || character == '_' {
+                if character.is_ascii_alphanumeric()
+                    || character == '.'
+                    || character == '-'
+                    || character == '_'
+                {
                     character
                 } else {
                     '_'

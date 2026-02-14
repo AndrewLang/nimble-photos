@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::Path;
 use std::result::Result;
-use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::controllers::storage_controller::StorageLocation;
@@ -14,12 +14,14 @@ use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
 use crate::entities::user_settings::UserSettings;
 use crate::repositories::photo::{PhotoRepository, TagRef};
-use crate::services::{PhotoUploadService, SettingService};
+use crate::services::{
+    ImageProcessPipeline, ImageStorageLocation, PhotoUploadService, SettingService,
+};
 
 use nimble_web::DataProvider;
-use nimble_web::data::paging::Page;
 use nimble_web::Repository;
 use nimble_web::controller::controller::Controller;
+use nimble_web::data::paging::Page;
 use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection, Value};
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
@@ -128,11 +130,23 @@ impl HttpHandler for UploadPhotosHandler {
         }
 
         let storage_query_id = context.request().query_param("storageId");
-        let storage = PhotoController::resolve_upload_storage(&settings, storage_query_id.as_deref()).await?;
+        let storage =
+            PhotoController::resolve_upload_storage(&settings, storage_query_id.as_deref()).await?;
         let saved_files = upload_service
             .persist_to_storage_temp(Path::new(&storage.path), files)
             .await
             .map_err(|error| PipelineError::message(&error.to_string()))?;
+
+        if !saved_files.is_empty() {
+            let pipeline = context.service::<ImageProcessPipeline>()?;
+            let storage_info: ImageStorageLocation = (&storage).into();
+            pipeline
+                .enqueue_uploaded_files(storage_info, saved_files.clone())
+                .map_err(|error| {
+                    log::error!("Failed to enqueue image pipeline: {:?}", error);
+                    PipelineError::message("Failed to schedule image processing tasks")
+                })?;
+        }
 
         let response = UploadPhotosResponse {
             storage_id: storage.id,
@@ -174,16 +188,32 @@ impl HttpHandler for ThumbnailHandler {
             .or_else(|| config.get("thumbnail.basepath"))
             .unwrap_or("./thumbnails");
 
-        let path = Path::new(base)
+        let base_path = Path::new(base);
+        let jpeg_path = base_path
+            .join(&hash[0..2])
+            .join(&hash[2..4])
+            .join(format!("{hash}.jpg"));
+        let webp_path = base_path
             .join(&hash[0..2])
             .join(&hash[2..4])
             .join(format!("{hash}.webp"));
 
-        log::debug!("Thumbnail path resolved to: {}", path.to_string_lossy());
+        let (resolved_path, content_type) = if jpeg_path.exists() {
+            (jpeg_path, "image/jpeg")
+        } else if webp_path.exists() {
+            (webp_path, "image/webp")
+        } else {
+            return Err(PipelineError::message("thumbnail not found"));
+        };
+
+        log::debug!(
+            "Thumbnail path resolved to: {}",
+            resolved_path.to_string_lossy()
+        );
 
         Ok(ResponseValue::new(
-            FileResponse::from_path(path)
-                .with_content_type("image/webp")
+            FileResponse::from_path(resolved_path)
+                .with_content_type(content_type)
                 .with_header("Cache-Control", "public, max-age=31536000, immutable"),
         ))
     }
@@ -237,7 +267,9 @@ impl HttpHandler for TimelineHandler {
                 let page = group.photos;
                 let filtered = PhotoController::filter_photos_for_viewer(page.items, &hidden_tags)
                     .into_iter()
-                    .filter(|photo| PhotoController::photo_matches_search_tags(photo, &search_tags, match_all))
+                    .filter(|photo| {
+                        PhotoController::photo_matches_search_tags(photo, &search_tags, match_all)
+                    })
                     .collect::<Vec<_>>();
                 let filtered_total = filtered.len() as u64;
                 TimelineGroup {
@@ -373,7 +405,8 @@ impl HttpHandler for PhotosQueryHandler {
                 .get_photos_page(page, page_size, PhotoController::is_admin(context))
                 .await
                 .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-            let page_result = PhotoController::filter_photo_page_for_viewer(page_result, &hidden_tags);
+            let page_result =
+                PhotoController::filter_photo_page_for_viewer(page_result, &hidden_tags);
             return Ok(ResponseValue::new(Json(page_result)));
         }
 
@@ -823,10 +856,7 @@ impl PhotoController {
             .collect()
     }
 
-    fn photo_has_hidden_tag(
-        tags: Option<&Vec<String>>,
-        hidden_tags: &HashSet<String>,
-    ) -> bool {
+    fn photo_has_hidden_tag(tags: Option<&Vec<String>>, hidden_tags: &HashSet<String>) -> bool {
         tags.map(|items| {
             items
                 .iter()
@@ -843,7 +873,11 @@ impl PhotoController {
         let photo_tags = photo
             .tags
             .as_ref()
-            .map(|tags| tags.iter().map(|tag| tag.trim().to_lowercase()).collect::<HashSet<_>>())
+            .map(|tags| {
+                tags.iter()
+                    .map(|tag| tag.trim().to_lowercase())
+                    .collect::<HashSet<_>>()
+            })
             .unwrap_or_default();
 
         if match_all {
@@ -851,5 +885,16 @@ impl PhotoController {
         } else {
             search_tags.iter().any(|tag| photo_tags.contains(tag))
         }
+    }
+}
+
+impl From<&StorageLocation> for ImageStorageLocation {
+    fn from(storage: &StorageLocation) -> Self {
+        ImageStorageLocation::new(
+            storage.id.clone(),
+            storage.label.clone(),
+            &storage.path,
+            storage.created_at.clone(),
+        )
     }
 }

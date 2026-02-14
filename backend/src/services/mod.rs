@@ -5,9 +5,11 @@ pub mod encrypt_service;
 pub mod exif_service;
 pub mod hash_service;
 pub mod id_generation_service;
+pub mod image_categorizer;
+pub mod image_pipeline;
 pub mod image_process_service;
-pub mod photo_upload_service;
 pub mod photo_service;
+pub mod photo_upload_service;
 pub mod setting_service;
 pub mod task_descriptor;
 
@@ -18,15 +20,19 @@ pub use encrypt_service::EncryptService;
 pub use exif_service::ExifService;
 pub use hash_service::HashService;
 pub use id_generation_service::IdGenerationService;
+pub use image_pipeline::ImageProcessPipeline;
+pub use image_pipeline::ImageStorageLocation;
 pub use image_process_service::ImageProcessService;
-pub use photo_upload_service::PhotoUploadService;
 pub use photo_service::PhotoService;
+pub use photo_upload_service::PhotoUploadService;
 pub use setting_service::SettingService;
 pub use task_descriptor::TaskDescriptor;
 
 use std::sync::Arc;
 
-use crate::entities::{setting::Setting, user::User, user_settings::UserSettings};
+use crate::entities::{
+    exif::ExifModel, photo::Photo, setting::Setting, user::User, user_settings::UserSettings,
+};
 use nimble_web::AppBuilder;
 use nimble_web::config::Configuration;
 use nimble_web::data::repository::Repository;
@@ -56,7 +62,31 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
             .and_then(|value| value.parse::<usize>().ok())
             .filter(|value| *value > 0)
             .unwrap_or(default_parallelism);
-        BackgroundTaskRunner::new(configured_parallelism)
+        let runner = BackgroundTaskRunner::new(configured_parallelism);
+        runner
+            .start()
+            .expect("Failed to start background task runner");
+        runner
+    });
+
+    builder.register_singleton(|provider| {
+        let runner = provider.get::<BackgroundTaskRunner>();
+        let hash_service = provider.get::<HashService>();
+        let exif_service = provider.get::<ExifService>();
+        let image_service = provider.get::<ImageProcessService>();
+        let photo_repo = provider.get::<Repository<Photo>>();
+        let exif_repo = provider.get::<Repository<ExifModel>>();
+        let configuration = provider.get::<Configuration>();
+
+        ImageProcessPipeline::new(
+            Arc::clone(&runner),
+            Arc::clone(&hash_service),
+            Arc::clone(&exif_service),
+            Arc::clone(&image_service),
+            Arc::clone(&photo_repo),
+            Arc::clone(&exif_repo),
+            configuration.as_ref().clone(),
+        )
     });
 
     builder.register_singleton(|provider| {
