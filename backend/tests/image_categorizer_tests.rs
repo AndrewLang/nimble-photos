@@ -1,9 +1,14 @@
+use anyhow::{Result, anyhow};
 use chrono::{TimeZone, Utc};
 use nimble_photos::services::hash_service::HashService;
-use nimble_photos::services::image_categorizer::{CategorizeRequest, ImageCategorizerRegistry};
+use nimble_photos::services::image_categorizer::{
+    CategorizeRequest, CategorizeResult, ImageCategorizer, ImageCategorizerRegistry,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
 
 fn unique_temp_dir(name: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now()
@@ -107,4 +112,50 @@ fn registry_caches_instances_per_name() {
         Arc::ptr_eq(&first, &second),
         "registry should cache categorizer instances"
     );
+}
+
+struct CountingCategorizer;
+
+impl ImageCategorizer for CountingCategorizer {
+    fn name(&self) -> &'static str {
+        "count"
+    }
+
+    fn categorize(&self, _request: &CategorizeRequest<'_>) -> Result<CategorizeResult> {
+        Err(anyhow!("not used in tests"))
+    }
+}
+
+#[test]
+fn registry_only_constructs_instance_once_even_with_parallel_requests() {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let mut registry = ImageCategorizerRegistry::new();
+    {
+        let counter = Arc::clone(&counter);
+        registry.register_factory(
+            "count",
+            Box::new(move || {
+                counter.fetch_add(1, Ordering::SeqCst);
+                Arc::new(CountingCategorizer) as Arc<dyn ImageCategorizer>
+            }),
+        );
+    }
+
+    let registry = Arc::new(registry);
+    let mut handles = Vec::new();
+    for _ in 0..8 {
+        let registry = Arc::clone(&registry);
+        handles.push(thread::spawn(move || registry.get("count")));
+    }
+
+    let baseline = registry.get("count").expect("categorizer missing");
+    for handle in handles {
+        let categorizer = handle
+            .join()
+            .expect("thread panicked")
+            .expect("categorizer creation failed");
+        assert!(Arc::ptr_eq(&baseline, &categorizer));
+    }
+
+    assert_eq!(1, counter.load(Ordering::SeqCst));
 }

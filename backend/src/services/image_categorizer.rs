@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
-use std::collections::HashMap;
+use std::collections::{HashMap, hash_map::Entry};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -42,13 +42,7 @@ impl ImageCategorizerRegistry {
 
     pub fn get(&self, name: &str) -> Result<Arc<dyn ImageCategorizer>> {
         let key = name.to_ascii_lowercase();
-        if let Some(existing) = self
-            .instances
-            .lock()
-            .map_err(|_| anyhow!("categorizer registry poisoned"))?
-            .get(&key)
-            .cloned()
-        {
+        if let Some(existing) = self.try_get_cached(&key)? {
             return Ok(existing);
         }
 
@@ -58,12 +52,27 @@ impl ImageCategorizerRegistry {
             .ok_or_else(|| anyhow!("Image categorizer `{}` not registered", name))?;
         let instance = factory();
 
-        self.instances
+        let mut cache = self
+            .instances
+            .lock()
+            .map_err(|_| anyhow!("categorizer registry poisoned"))?;
+
+        Ok(match cache.entry(key) {
+            Entry::Occupied(existing) => existing.get().clone(),
+            Entry::Vacant(slot) => {
+                slot.insert(instance.clone());
+                instance
+            }
+        })
+    }
+
+    fn try_get_cached(&self, key: &str) -> Result<Option<Arc<dyn ImageCategorizer>>> {
+        Ok(self
+            .instances
             .lock()
             .map_err(|_| anyhow!("categorizer registry poisoned"))?
-            .insert(key, instance.clone());
-
-        Ok(instance)
+            .get(key)
+            .cloned())
     }
 }
 
