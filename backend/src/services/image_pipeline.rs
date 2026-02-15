@@ -149,6 +149,13 @@ impl ImageProcessContext {
         self.thumbnail_dimensions = Some(dimensions);
     }
 
+    fn thumbnail_output_path(&self, extension: &str) -> Result<PathBuf> {
+        let hash = self
+            .hash()
+            .ok_or_else(|| anyhow!("hash must be available before thumbnail generation"))?;
+        Ok(self.hashed_output_path(&self.thumbnail_root, hash, extension))
+    }
+
     fn thumbnail_relative_path(&self) -> Result<Option<String>> {
         match &self.thumbnail_path {
             Some(path) => Ok(Some(relative_path(&self.thumbnail_root, path)?)),
@@ -159,6 +166,13 @@ impl ImageProcessContext {
     fn set_preview(&mut self, path: PathBuf, dimensions: (u32, u32)) {
         self.preview_path = Some(path);
         self.preview_dimensions = Some(dimensions);
+    }
+
+    fn preview_output_path(&self, extension: &str) -> Result<PathBuf> {
+        let hash = self
+            .hash()
+            .ok_or_else(|| anyhow!("hash must be available before preview generation"))?;
+        Ok(self.hashed_output_path(&self.preview_root, hash, extension))
     }
 
     fn set_image_dimensions(&mut self, dimensions: (u32, u32)) {
@@ -179,6 +193,13 @@ impl ImageProcessContext {
             .extension()
             .and_then(|value| value.to_str())
             .map(|value| value.to_ascii_lowercase())
+    }
+
+    fn hashed_output_path(&self, root: &Path, hash: &str, extension: &str) -> PathBuf {
+        let (first, second) = hash_segments(hash);
+        root.join(&first)
+            .join(&second)
+            .join(format!("{}.{}", hash, extension))
     }
 }
 
@@ -244,28 +265,18 @@ impl ImageProcessStep for ComputeHashStep {
 
 struct GenerateThumbnailStep {
     service: Arc<ImageProcessService>,
-    root: PathBuf,
 }
 
 impl GenerateThumbnailStep {
-    fn new(service: Arc<ImageProcessService>, root: PathBuf) -> Self {
-        Self { service, root }
+    fn new(service: Arc<ImageProcessService>) -> Self {
+        Self { service }
     }
 }
 
 #[async_trait]
 impl ImageProcessStep for GenerateThumbnailStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        let hash = context
-            .hash()
-            .ok_or_else(|| anyhow!("hash must be computed before thumbnail generation"))?
-            .to_string();
-        let (first, second) = hash_segments(&hash);
-        let output_path = self.root.join(&first).join(&second).join(format!(
-            "{}.{}",
-            hash,
-            self.service.output_format_extension()
-        ));
+        let output_path = context.thumbnail_output_path(self.service.output_format_extension())?;
         if let Some(parent) = output_path.parent() {
             task::spawn_blocking({
                 let parent = parent.to_path_buf();
@@ -299,28 +310,18 @@ impl ImageProcessStep for GenerateThumbnailStep {
 
 struct GeneratePreviewStep {
     service: Arc<ImageProcessService>,
-    root: PathBuf,
 }
 
 impl GeneratePreviewStep {
-    fn new(service: Arc<ImageProcessService>, root: PathBuf) -> Self {
-        Self { service, root }
+    fn new(service: Arc<ImageProcessService>) -> Self {
+        Self { service }
     }
 }
 
 #[async_trait]
 impl ImageProcessStep for GeneratePreviewStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        let hash = context
-            .hash()
-            .ok_or_else(|| anyhow!("hash must be computed before preview generation"))?
-            .to_string();
-        let (first, second) = hash_segments(&hash);
-        let output_path = self.root.join(&first).join(&second).join(format!(
-            "{}.{}",
-            hash,
-            self.service.output_format_extension()
-        ));
+        let output_path = context.preview_output_path(self.service.output_format_extension())?;
         if let Some(parent) = output_path.parent() {
             task::spawn_blocking({
                 let parent = parent.to_path_buf();
@@ -516,11 +517,9 @@ impl ImageProcessPipeline {
             Arc::new(ComputeHashStep::new(hash_service.clone())),
             Arc::new(GenerateThumbnailStep::new(
                 image_service.clone(),
-                thumbnail_root.clone(),
             )),
             Arc::new(GeneratePreviewStep::new(
                 image_service,
-                preview_root.clone(),
             )),
             Arc::new(CategorizeImageStep::new(registry, categorizer_name.clone())),
             Arc::new(PersistMetadataStep::new(photo_repo, exif_repo)),
@@ -577,6 +576,61 @@ impl ImageProcessPipeline {
 
     pub async fn process_now(&self, request: ImageProcessRequest) -> Result<()> {
         self.run_steps(request).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::photo_upload_service::StoredUploadFile;
+
+    fn sample_context() -> ImageProcessContext {
+        let storage = ImageStorageLocation::new(
+            "storage-test",
+            "Test",
+            std::env::temp_dir().join("storage-root"),
+            "2026-02-14T00:00:00Z",
+        );
+        let file = StoredUploadFile {
+            file_name: "sample.dng".to_string(),
+            relative_path: "incoming/sample.dng".to_string(),
+            byte_size: 42,
+            content_type: Some("image/x-adobe-dng".to_string()),
+        };
+        let request = ImageProcessRequest::from_upload(storage, file);
+        let thumbnail_root = std::env::temp_dir().join("thumb-root-test");
+        let preview_root = std::env::temp_dir().join("preview-root-test");
+        ImageProcessContext::new(request, thumbnail_root, preview_root)
+    }
+
+    #[test]
+    fn thumbnail_output_path_uses_hash_segments() -> Result<()> {
+        let mut context = sample_context();
+        context.set_hash("abcd1234".to_string());
+        let output = context.thumbnail_output_path("webp")?;
+        let expected = context
+            .thumbnail_root
+            .join("ab")
+            .join("cd")
+            .join("abcd1234.webp");
+        assert_eq!(output, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn preview_output_path_requires_hash() {
+        let mut context = sample_context();
+        assert!(context.preview_output_path("webp").is_err());
+        context.set_hash("beefcafe".to_string());
+        let output = context
+            .preview_output_path("webp")
+            .expect("hash should enable preview path");
+        let expected = context
+            .preview_root
+            .join("be")
+            .join("ef")
+            .join("beefcafe.webp");
+        assert_eq!(output, expected);
     }
 }
 
