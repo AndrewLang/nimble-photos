@@ -1,13 +1,12 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use exif::{Field, Reader, Tag, Value};
 use std::collections::{HashMap, hash_map::Entry};
-use std::ffi::OsStr;
 use std::fs;
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use super::file_service::FileService;
 use super::hash_service::HashService;
 
 pub use crate::domain::image_categorizer::{CategorizeRequest, CategorizeResult, ImageCategorizer};
@@ -27,13 +26,22 @@ impl ImageCategorizerRegistry {
         }
     }
 
-    pub fn with_defaults(hash_service: Arc<HashService>) -> Self {
+    pub fn with_defaults(hash_service: Arc<HashService>, file_service: Arc<FileService>) -> Self {
         let mut registry = Self::new();
         registry.register_factory("hash", {
             let hash_service = Arc::clone(&hash_service);
-            Box::new(move || Arc::new(HashImageCategorizer::new(Arc::clone(&hash_service))))
+            let file_service = Arc::clone(&file_service);
+            Box::new(move || {
+                Arc::new(HashImageCategorizer::new(
+                    Arc::clone(&hash_service),
+                    Arc::clone(&file_service),
+                ))
+            })
         });
-        registry.register_factory("date", Box::new(|| Arc::new(DateImageCategorizer::new())));
+        registry.register_factory("date", {
+            let file_service = Arc::clone(&file_service);
+            Box::new(move || Arc::new(DateImageCategorizer::new(Arc::clone(&file_service))))
+        });
         registry
     }
 
@@ -80,11 +88,15 @@ impl ImageCategorizerRegistry {
 
 struct HashImageCategorizer {
     hash_service: Arc<HashService>,
+    file_service: Arc<FileService>,
 }
 
 impl HashImageCategorizer {
-    fn new(hash_service: Arc<HashService>) -> Self {
-        Self { hash_service }
+    fn new(hash_service: Arc<HashService>, file_service: Arc<FileService>) -> Self {
+        Self {
+            hash_service,
+            file_service,
+        }
     }
 
     fn ensure_hash(&self, request: &CategorizeRequest<'_>) -> Result<String> {
@@ -121,11 +133,17 @@ impl ImageCategorizer for HashImageCategorizer {
         let hash = self.ensure_hash(request)?;
         let (first, second) = Self::hashed_subfolders(&hash);
         let destination_dir = request.destination_root().join(first).join(second);
-        let final_path = destination_dir.join(target_file_name(request));
+        let file_name = self
+            .file_service
+            .target_file_name(request.file_name(), request.source_file());
+        let final_path = destination_dir.join(file_name);
 
-        move_file(request.source_file(), &final_path)?;
+        self.file_service
+            .move_file(request.source_file(), &final_path)?;
 
-        let relative_path = relative_path(request.destination_root(), &final_path)?;
+        let relative_path = self
+            .file_service
+            .relative_path(request.destination_root(), &final_path)?;
         Ok(CategorizeResult {
             final_path,
             relative_path,
@@ -134,11 +152,13 @@ impl ImageCategorizer for HashImageCategorizer {
     }
 }
 
-struct DateImageCategorizer;
+struct DateImageCategorizer {
+    file_service: Arc<FileService>,
+}
 
 impl DateImageCategorizer {
-    fn new() -> Self {
-        Self
+    fn new(file_service: Arc<FileService>) -> Self {
+        Self { file_service }
     }
 
     fn determine_bucket(&self, request: &CategorizeRequest<'_>) -> Result<String> {
@@ -166,11 +186,7 @@ impl DateImageCategorizer {
             Err(_) => return Ok(None),
         };
 
-        for tag in [
-            Tag::DateTimeOriginal,
-            Tag::DateTimeDigitized,
-            Tag::DateTime,
-        ] {
+        for tag in [Tag::DateTimeOriginal, Tag::DateTimeDigitized, Tag::DateTime] {
             if let Some(field) = exif.fields().find(|field| field.tag == tag) {
                 if let Some(text) = Self::field_ascii(field) {
                     if let Some(parsed) = Self::parse_exif_datetime(&text) {
@@ -222,53 +238,19 @@ impl ImageCategorizer for DateImageCategorizer {
     fn categorize(&self, request: &CategorizeRequest<'_>) -> Result<CategorizeResult> {
         let folder = self.determine_bucket(request)?;
         let destination_dir = request.destination_root().join(folder);
-        let final_path = destination_dir.join(target_file_name(request));
-        move_file(request.source_file(), &final_path)?;
-        let relative_path = relative_path(request.destination_root(), &final_path)?;
+        let file_name = self
+            .file_service
+            .target_file_name(request.file_name(), request.source_file());
+        let final_path = destination_dir.join(file_name);
+        self.file_service
+            .move_file(request.source_file(), &final_path)?;
+        let relative_path = self
+            .file_service
+            .relative_path(request.destination_root(), &final_path)?;
         Ok(CategorizeResult {
             final_path,
             relative_path,
             hash: None,
         })
     }
-}
-
-fn target_file_name(request: &CategorizeRequest<'_>) -> PathBuf {
-    let provided = request.file_name();
-    let fallback = request
-        .source_file()
-        .file_name()
-        .and_then(OsStr::to_str)
-        .unwrap_or("image");
-    PathBuf::from(if provided.trim().is_empty() {
-        fallback
-    } else {
-        provided
-    })
-}
-
-fn move_file(source: &Path, destination: &Path) -> Result<()> {
-    if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    match fs::rename(source, destination) {
-        Ok(_) => Ok(()),
-        Err(_) => {
-            fs::copy(source, destination)?;
-            fs::remove_file(source)?;
-            Ok(())
-        }
-    }
-}
-
-fn relative_path(base: &Path, full: &Path) -> Result<String> {
-    let relative = full
-        .strip_prefix(base)
-        .with_context(|| format!("{} is not inside {}", full.display(), base.display()))?;
-    let mut segments = Vec::new();
-    for component in relative.components() {
-        segments.push(component.as_os_str().to_string_lossy().to_string());
-    }
-    Ok(segments.join("/"))
 }

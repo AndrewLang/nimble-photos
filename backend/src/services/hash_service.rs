@@ -29,7 +29,6 @@ impl HashService {
         if len > CHUNK {
             hasher.update(&data[len - CHUNK.min(len)..]);
         }
-        hasher.update(&len.to_le_bytes());
         Self::finalize_hash(hasher, len, file_date)
     }
 

@@ -3,6 +3,7 @@ use image::{ImageBuffer, Rgb};
 use nimble_photos::entities::{exif::ExifModel, photo::Photo};
 use nimble_photos::services::background_task_runner::BackgroundTaskRunner;
 use nimble_photos::services::exif_service::ExifService;
+use nimble_photos::services::file_service::FileService;
 use nimble_photos::services::hash_service::HashService;
 use nimble_photos::services::image_pipeline::{
     ImageProcessPipeline, ImageProcessRequest, ImageStorageLocation,
@@ -105,6 +106,7 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
     let hash_service = Arc::new(HashService::new());
     let exif_service = Arc::new(ExifService::new());
     let image_service = Arc::new(ImageProcessService::new());
+    let file_service = Arc::new(FileService::new());
     let runner = Arc::new(BackgroundTaskRunner::new(2));
     let photo_repo = Arc::new(Repository::new(Box::new(MemoryRepository::<Photo>::new())));
     let exif_repo = Arc::new(Repository::new(Box::new(
@@ -118,12 +120,13 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
         image_service,
         Arc::clone(&photo_repo),
         Arc::clone(&exif_repo),
+        Arc::clone(&file_service),
         test_configuration(&thumbnail_root, &preview_root),
     );
 
     let request = ImageProcessRequest::from_upload(storage.clone(), stored_file.clone());
     pipeline
-        .process_now(request)
+        .process(request)
         .await
         .expect("pipeline processing failed");
 

@@ -1,6 +1,7 @@
 use crate::entities::{exif::ExifModel, photo::Photo};
 use crate::services::background_task_runner::BackgroundTaskRunner;
 use crate::services::exif_service::ExifService;
+use crate::services::file_service::FileService;
 use crate::services::hash_service::HashService;
 use crate::services::image_categorizer::{CategorizeRequest, ImageCategorizerRegistry};
 use crate::services::image_process_service::ImageProcessService;
@@ -71,6 +72,7 @@ impl ImageProcessRequest {
 pub struct ImageProcessContext {
     request: ImageProcessRequest,
     source_path: PathBuf,
+    file_service: Arc<FileService>,
     final_path: Option<PathBuf>,
     relative_final_path: Option<String>,
     hash: Option<String>,
@@ -86,11 +88,17 @@ pub struct ImageProcessContext {
 }
 
 impl ImageProcessContext {
-    fn new(request: ImageProcessRequest, thumbnail_root: PathBuf, preview_root: PathBuf) -> Self {
+    fn new(
+        request: ImageProcessRequest,
+        thumbnail_root: PathBuf,
+        preview_root: PathBuf,
+        file_service: Arc<FileService>,
+    ) -> Self {
         let source_path = request.source_path();
         Self {
             request,
             source_path,
+            file_service,
             final_path: None,
             relative_final_path: None,
             hash: None,
@@ -150,15 +158,15 @@ impl ImageProcessContext {
     }
 
     fn thumbnail_output_path(&self, extension: &str) -> Result<PathBuf> {
-        let hash = self
-            .hash()
-            .ok_or_else(|| anyhow!("hash must be available before thumbnail generation"))?;
-        Ok(self.hashed_output_path(&self.thumbnail_root, hash, extension))
+        thumbnail_output_path_from_hash(&self.thumbnail_root, self.hash(), extension)
     }
 
     fn thumbnail_relative_path(&self) -> Result<Option<String>> {
         match &self.thumbnail_path {
-            Some(path) => Ok(Some(relative_path(&self.thumbnail_root, path)?)),
+            Some(path) => Ok(Some(
+                self.file_service
+                    .relative_path(&self.thumbnail_root, path)?,
+            )),
             None => Ok(None),
         }
     }
@@ -169,10 +177,7 @@ impl ImageProcessContext {
     }
 
     fn preview_output_path(&self, extension: &str) -> Result<PathBuf> {
-        let hash = self
-            .hash()
-            .ok_or_else(|| anyhow!("hash must be available before preview generation"))?;
-        Ok(self.hashed_output_path(&self.preview_root, hash, extension))
+        preview_output_path_from_hash(&self.preview_root, self.hash(), extension)
     }
 
     fn set_image_dimensions(&mut self, dimensions: (u32, u32)) {
@@ -195,12 +200,6 @@ impl ImageProcessContext {
             .map(|value| value.to_ascii_lowercase())
     }
 
-    fn hashed_output_path(&self, root: &Path, hash: &str, extension: &str) -> PathBuf {
-        let (first, second) = hash_segments(hash);
-        root.join(&first)
-            .join(&second)
-            .join(format!("{}.{}", hash, extension))
-    }
 }
 
 #[async_trait]
@@ -479,6 +478,7 @@ pub struct ImageProcessPipeline {
     steps: Vec<Arc<dyn ImageProcessStep>>,
     thumbnail_root: PathBuf,
     preview_root: PathBuf,
+    file_service: Arc<FileService>,
 }
 
 impl ImageProcessPipeline {
@@ -490,6 +490,7 @@ impl ImageProcessPipeline {
         image_service: Arc<ImageProcessService>,
         photo_repo: Arc<Repository<Photo>>,
         exif_repo: Arc<Repository<ExifModel>>,
+        file_service: Arc<FileService>,
         configuration: Configuration,
     ) -> Self {
         let thumbnail_root = config_path(
@@ -510,17 +511,14 @@ impl ImageProcessPipeline {
 
         let registry = Arc::new(ImageCategorizerRegistry::with_defaults(
             hash_service.clone(),
+            Arc::clone(&file_service),
         ));
 
         let steps: Vec<Arc<dyn ImageProcessStep>> = vec![
             Arc::new(ExtractExifStep::new(exif_service)),
             Arc::new(ComputeHashStep::new(hash_service.clone())),
-            Arc::new(GenerateThumbnailStep::new(
-                image_service.clone(),
-            )),
-            Arc::new(GeneratePreviewStep::new(
-                image_service,
-            )),
+            Arc::new(GenerateThumbnailStep::new(image_service.clone())),
+            Arc::new(GeneratePreviewStep::new(image_service)),
             Arc::new(CategorizeImageStep::new(registry, categorizer_name.clone())),
             Arc::new(PersistMetadataStep::new(photo_repo, exif_repo)),
         ];
@@ -530,6 +528,7 @@ impl ImageProcessPipeline {
             steps,
             thumbnail_root,
             preview_root,
+            file_service,
         }
     }
 
@@ -567,6 +566,7 @@ impl ImageProcessPipeline {
             request,
             self.thumbnail_root.clone(),
             self.preview_root.clone(),
+            Arc::clone(&self.file_service),
         );
         for step in &self.steps {
             step.execute(&mut context).await?;
@@ -574,64 +574,35 @@ impl ImageProcessPipeline {
         Ok(())
     }
 
-    pub async fn process_now(&self, request: ImageProcessRequest) -> Result<()> {
+    pub async fn process(&self, request: ImageProcessRequest) -> Result<()> {
         self.run_steps(request).await
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::services::photo_upload_service::StoredUploadFile;
+pub fn thumbnail_output_path_from_hash(
+    thumbnail_root: &Path,
+    hash: Option<&str>,
+    extension: &str,
+) -> Result<PathBuf> {
+    output_path_from_hash(
+        thumbnail_root,
+        hash,
+        extension,
+        "hash must be available before thumbnail generation",
+    )
+}
 
-    fn sample_context() -> ImageProcessContext {
-        let storage = ImageStorageLocation::new(
-            "storage-test",
-            "Test",
-            std::env::temp_dir().join("storage-root"),
-            "2026-02-14T00:00:00Z",
-        );
-        let file = StoredUploadFile {
-            file_name: "sample.dng".to_string(),
-            relative_path: "incoming/sample.dng".to_string(),
-            byte_size: 42,
-            content_type: Some("image/x-adobe-dng".to_string()),
-        };
-        let request = ImageProcessRequest::from_upload(storage, file);
-        let thumbnail_root = std::env::temp_dir().join("thumb-root-test");
-        let preview_root = std::env::temp_dir().join("preview-root-test");
-        ImageProcessContext::new(request, thumbnail_root, preview_root)
-    }
-
-    #[test]
-    fn thumbnail_output_path_uses_hash_segments() -> Result<()> {
-        let mut context = sample_context();
-        context.set_hash("abcd1234".to_string());
-        let output = context.thumbnail_output_path("webp")?;
-        let expected = context
-            .thumbnail_root
-            .join("ab")
-            .join("cd")
-            .join("abcd1234.webp");
-        assert_eq!(output, expected);
-        Ok(())
-    }
-
-    #[test]
-    fn preview_output_path_requires_hash() {
-        let mut context = sample_context();
-        assert!(context.preview_output_path("webp").is_err());
-        context.set_hash("beefcafe".to_string());
-        let output = context
-            .preview_output_path("webp")
-            .expect("hash should enable preview path");
-        let expected = context
-            .preview_root
-            .join("be")
-            .join("ef")
-            .join("beefcafe.webp");
-        assert_eq!(output, expected);
-    }
+pub fn preview_output_path_from_hash(
+    preview_root: &Path,
+    hash: Option<&str>,
+    extension: &str,
+) -> Result<PathBuf> {
+    output_path_from_hash(
+        preview_root,
+        hash,
+        extension,
+        "hash must be available before preview generation",
+    )
 }
 
 fn normalize_path(path: PathBuf) -> PathBuf {
@@ -653,15 +624,21 @@ fn config_path(config: &Configuration, keys: &[&str], fallback: &str) -> PathBuf
     normalize_path(PathBuf::from(fallback))
 }
 
-fn relative_path(base: &Path, path: &Path) -> Result<String> {
-    let relative = path
-        .strip_prefix(base)
-        .with_context(|| format!("{} is not inside {}", path.display(), base.display()))?;
-    let mut components = Vec::new();
-    for component in relative.components() {
-        components.push(component.as_os_str().to_string_lossy().to_string());
-    }
-    Ok(components.join("/"))
+fn output_path_from_hash(
+    root: &Path,
+    hash: Option<&str>,
+    extension: &str,
+    missing_hash_message: &str,
+) -> Result<PathBuf> {
+    let hash = hash.ok_or_else(|| anyhow!("{}", missing_hash_message))?;
+    Ok(hashed_output_path(root, hash, extension))
+}
+
+fn hashed_output_path(root: &Path, hash: &str, extension: &str) -> PathBuf {
+    let (first, second) = hash_segments(hash);
+    root.join(&first)
+        .join(&second)
+        .join(format!("{}.{}", hash, extension))
 }
 
 fn hash_segments(hash: &str) -> (String, String) {

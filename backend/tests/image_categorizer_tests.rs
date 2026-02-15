@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use chrono::{TimeZone, Utc};
+use nimble_photos::services::file_service::FileService;
 use nimble_photos::services::hash_service::HashService;
 use nimble_photos::services::image_categorizer::{
     CategorizeRequest, CategorizeResult, ImageCategorizer, ImageCategorizerRegistry,
@@ -66,7 +67,10 @@ fn hash_categorizer_moves_file_into_hashed_buckets() {
     fs::create_dir_all(&destination_root).expect("failed to create destination root");
     write_test_file(&source, b"hello world");
 
-    let registry = ImageCategorizerRegistry::with_defaults(Arc::new(HashService::new()));
+    let registry = ImageCategorizerRegistry::with_defaults(
+        Arc::new(HashService::new()),
+        Arc::new(FileService::new()),
+    );
     let categorizer = registry.get("hash").expect("hash categorizer missing");
 
     let request = CategorizeRequest::new(&source, &destination_root, "photo.bin");
@@ -99,7 +103,10 @@ fn date_categorizer_prefers_request_then_exif_then_file_metadata() {
     let source_with_date = root.join("with_date.jpg");
     write_test_file(&source_with_date, b"a photo with date");
 
-    let registry = ImageCategorizerRegistry::with_defaults(Arc::new(HashService::new()));
+    let registry = ImageCategorizerRegistry::with_defaults(
+        Arc::new(HashService::new()),
+        Arc::new(FileService::new()),
+    );
     let categorizer = registry.get("date").expect("date categorizer missing");
 
     let date_taken = Utc.with_ymd_and_hms(2024, 1, 2, 3, 4, 5).unwrap();
@@ -116,15 +123,12 @@ fn date_categorizer_prefers_request_then_exif_then_file_metadata() {
 
     let exif_source = root.join("with_exif.tiff");
     write_exif_test_file(&exif_source, "2023:05:06 07:08:09");
-    let exif_request =
-        CategorizeRequest::new(&exif_source, &destination_root, "from_exif.tiff");
+    let exif_request = CategorizeRequest::new(&exif_source, &destination_root, "from_exif.tiff");
     let exif_result = categorizer
         .categorize(&exif_request)
         .expect("categorize with exif failed");
     assert!(
-        exif_result
-            .relative_path
-            .starts_with("2023-05-06/"),
+        exif_result.relative_path.starts_with("2023-05-06/"),
         "date folder should match EXIF timestamp"
     );
 
@@ -147,7 +151,10 @@ fn date_categorizer_prefers_request_then_exif_then_file_metadata() {
 
 #[test]
 fn registry_caches_instances_per_name() {
-    let registry = ImageCategorizerRegistry::with_defaults(Arc::new(HashService::new()));
+    let registry = ImageCategorizerRegistry::with_defaults(
+        Arc::new(HashService::new()),
+        Arc::new(FileService::new()),
+    );
     let first = registry.get("hash").expect("hash categorizer missing");
     let second = registry.get("hash").expect("hash categorizer missing");
     assert!(

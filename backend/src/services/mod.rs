@@ -3,6 +3,7 @@ pub mod auth_service;
 pub mod background_task_runner;
 pub mod encrypt_service;
 pub mod exif_service;
+pub mod file_service;
 pub mod hash_service;
 pub mod id_generation_service;
 pub mod image_categorizer;
@@ -18,6 +19,7 @@ pub use auth_service::AuthService;
 pub use background_task_runner::BackgroundTaskRunner;
 pub use encrypt_service::EncryptService;
 pub use exif_service::ExifService;
+pub use file_service::FileService;
 pub use hash_service::HashService;
 pub use id_generation_service::IdGenerationService;
 pub use image_pipeline::ImageProcessPipeline;
@@ -50,6 +52,7 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|_| PhotoService::new());
     builder.register_singleton(|_| ExifService::new());
     builder.register_singleton(|_| HashService::new());
+    builder.register_singleton(|_| FileService::new());
     builder.register_singleton(|_| ImageProcessService::new());
     builder.register_singleton(|_| PhotoUploadService::new());
     builder.register_singleton(|provider| {
@@ -72,6 +75,7 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|provider| {
         let runner = provider.get::<BackgroundTaskRunner>();
         let hash_service = provider.get::<HashService>();
+        let file_service = provider.get::<FileService>();
         let exif_service = provider.get::<ExifService>();
         let image_service = provider.get::<ImageProcessService>();
         let photo_repo = provider.get::<Repository<Photo>>();
@@ -85,6 +89,7 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
             Arc::clone(&image_service),
             Arc::clone(&photo_repo),
             Arc::clone(&exif_repo),
+            Arc::clone(&file_service),
             configuration.as_ref().clone(),
         )
     });
