@@ -14,6 +14,8 @@ use uuid_id::EnsureUuidIdHooks;
 use crate::entities::album_hooks::AlbumHooks;
 use crate::repositories::photo::PhotoRepository;
 
+pub use storage_location::ImageStorageLocation;
+
 pub mod album;
 pub mod album_comment;
 pub mod album_hooks;
@@ -21,6 +23,7 @@ pub mod exif;
 pub mod photo;
 pub mod photo_comment;
 pub mod setting;
+pub mod storage_location;
 pub mod tag;
 pub mod user;
 pub mod user_settings;

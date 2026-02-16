@@ -2,21 +2,20 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::result::Result;
 use uuid::Uuid;
 
 use crate::controllers::storage_controller::StorageLocation;
 use crate::dtos::photo_comment_dto::PhotoCommentDto;
 use crate::dtos::photo_dtos::{PhotoLoc, TimelineGroup};
+use crate::entities::ImageStorageLocation;
 use crate::entities::exif::ExifModel;
 use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
 use crate::entities::user_settings::UserSettings;
 use crate::repositories::photo::{PhotoRepository, TagRef};
-use crate::services::{
-    ImageProcessPipeline, ImageStorageLocation, PhotoUploadService, SettingService,
-};
+use crate::services::{ImageProcessPipeline, PhotoUploadService, SettingService};
 
 use nimble_web::DataProvider;
 use nimble_web::Repository;
@@ -141,7 +140,7 @@ impl HttpHandler for UploadPhotosHandler {
             let pipeline = context.service::<ImageProcessPipeline>()?;
             let storage_info: ImageStorageLocation = (&storage).into();
             pipeline
-                .enqueue_uploaded_files(storage_info, saved_files.clone())
+                .enqueue_files(storage_info, saved_files.clone())
                 .map_err(|error| {
                     log::error!("Failed to enqueue image pipeline: {:?}", error);
                     PipelineError::message("Failed to schedule image processing tasks")
@@ -182,29 +181,55 @@ impl HttpHandler for ThumbnailHandler {
             return Err(PipelineError::message("invalid thumbnail hash"));
         }
 
+        let mut thumbnail_roots = Vec::<PathBuf>::new();
+        if let Ok(settings) = context.service::<SettingService>() {
+            if let Ok(storage_setting) = settings.get("storage.locations").await {
+                if let Ok(locations) =
+                    serde_json::from_value::<Vec<StorageLocation>>(storage_setting.value)
+                {
+                    for location in locations {
+                        let path = Path::new(&location.path).join("thumbnails");
+                        if !thumbnail_roots.contains(&path) {
+                            thumbnail_roots.push(path);
+                        }
+                    }
+                }
+            }
+        }
+
         let config = context.config();
-        let base = config
+        let legacy_base = config
             .get("thumbnail.base.path")
             .or_else(|| config.get("thumbnail.basepath"))
             .unwrap_or("./thumbnails");
+        let legacy_path = Path::new(legacy_base).to_path_buf();
+        if !thumbnail_roots.contains(&legacy_path) {
+            thumbnail_roots.push(legacy_path);
+        }
 
-        let base_path = Path::new(base);
-        let jpeg_path = base_path
-            .join(&hash[0..2])
-            .join(&hash[2..4])
-            .join(format!("{hash}.jpg"));
-        let webp_path = base_path
-            .join(&hash[0..2])
-            .join(&hash[2..4])
-            .join(format!("{hash}.webp"));
+        let mut resolved: Option<(PathBuf, &'static str)> = None;
+        for root in &thumbnail_roots {
+            let jpeg_path = root
+                .join(&hash[0..2])
+                .join(&hash[2..4])
+                .join(format!("{hash}.jpg"));
+            if jpeg_path.exists() {
+                resolved = Some((jpeg_path, "image/jpeg"));
+                break;
+            }
 
-        let (resolved_path, content_type) = if jpeg_path.exists() {
-            (jpeg_path, "image/jpeg")
-        } else if webp_path.exists() {
-            (webp_path, "image/webp")
-        } else {
-            return Err(PipelineError::message("thumbnail not found"));
-        };
+            let webp_path = root
+                .join(&hash[0..2])
+                .join(&hash[2..4])
+                .join(format!("{hash}.webp"));
+            if webp_path.exists() {
+                resolved = Some((webp_path, "image/webp"));
+                break;
+            }
+        }
+
+        let (resolved_path, content_type) =
+            resolved.ok_or_else(|| PipelineError::message("thumbnail not found"))?;
 
         log::debug!(
             "Thumbnail path resolved to: {}",

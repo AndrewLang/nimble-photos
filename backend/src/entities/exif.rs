@@ -1,4 +1,5 @@
 use super::uuid_id::HasOptionalUuidId;
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use nimble_web::Entity;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -307,6 +308,50 @@ pub struct ExifModel {
     pub photographic_sensitivity: Option<u32>,
     pub interop_index: Option<String>,
     pub interop_version: Option<String>,
+}
+
+impl ExifModel {
+    pub fn get_date_taken(&self) -> Option<DateTime<Utc>> {
+        let candidates = [
+            self.datetime_original.as_deref(),
+            self.datetime.as_deref(),
+            self.datetime_digitized.as_deref(),
+        ];
+
+        for candidate in candidates.into_iter().flatten() {
+            if let Some(parsed) = Self::parse_exif_timestamp(candidate) {
+                return Some(parsed);
+            }
+        }
+
+        None
+    }
+
+    pub fn get_width(&self) -> Option<u32> {
+        self.image_width.or(self.pixel_x_dimension)
+    }
+
+    pub fn get_height(&self) -> Option<u32> {
+        self.image_length.or(self.pixel_y_dimension)
+    }
+
+    fn parse_exif_timestamp(raw: &str) -> Option<DateTime<Utc>> {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        let formats = ["%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"];
+        for format in &formats {
+            if let Ok(naive) = NaiveDateTime::parse_from_str(trimmed, format) {
+                return Some(Utc.from_utc_datetime(&naive));
+            }
+        }
+
+        DateTime::parse_from_rfc3339(trimmed)
+            .map(|dt| dt.with_timezone(&Utc))
+            .ok()
+    }
 }
 
 impl Entity for ExifModel {

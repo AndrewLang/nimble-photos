@@ -1,16 +1,18 @@
 use chrono::Utc;
 use image::{ImageBuffer, Rgb};
+use nimble_photos::entities::ImageStorageLocation;
 use nimble_photos::entities::{exif::ExifModel, photo::Photo};
 use nimble_photos::services::background_task_runner::BackgroundTaskRunner;
 use nimble_photos::services::exif_service::ExifService;
 use nimble_photos::services::file_service::FileService;
 use nimble_photos::services::hash_service::HashService;
 use nimble_photos::services::image_pipeline::{
-    ImageProcessPipeline, ImageProcessRequest, ImageStorageLocation,
+    ImageProcessPayload, ImageProcessPipeline, ImageProcessPipelineContext,
 };
-use nimble_photos::services::image_process_service::ImageProcessService;
 use nimble_photos::services::photo_upload_service::StoredUploadFile;
+use nimble_photos::services::{PreviewExtractor, ThumbnailExtractor};
 use nimble_web::DataProvider;
+use nimble_web::ServiceContainer;
 use nimble_web::config::Configuration;
 use nimble_web::data::memory_repository::MemoryRepository;
 use nimble_web::data::query_builder::QueryBuilder;
@@ -81,8 +83,8 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
     let storage_root = root.join("storage");
     let temp_root = storage_root.join("temp");
     fs::create_dir_all(&temp_root).expect("failed to create storage temp directory");
-    let thumbnail_root = root.join("thumbnails");
-    let preview_root = root.join("previews");
+    let thumbnail_root = storage_root.join("thumbnails");
+    let preview_root = storage_root.join("previews");
 
     let file_name = "photo.jpg";
     let temp_file = temp_root.join(file_name);
@@ -105,7 +107,8 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
 
     let hash_service = Arc::new(HashService::new());
     let exif_service = Arc::new(ExifService::new());
-    let image_service = Arc::new(ImageProcessService::new());
+    let thumbnail_extractor = Arc::new(ThumbnailExtractor::new());
+    let preview_extractor = Arc::new(PreviewExtractor::new());
     let file_service = Arc::new(FileService::new());
     let runner = Arc::new(BackgroundTaskRunner::new(2));
     let photo_repo = Arc::new(Repository::new(Box::new(MemoryRepository::<Photo>::new())));
@@ -113,18 +116,22 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
         MemoryRepository::<ExifModel>::new(),
     )));
 
-    let pipeline = ImageProcessPipeline::new(
-        runner,
-        hash_service,
-        exif_service,
-        image_service,
-        Arc::clone(&photo_repo),
-        Arc::clone(&exif_repo),
-        Arc::clone(&file_service),
-        test_configuration(&thumbnail_root, &preview_root),
-    );
+    let mut container = ServiceContainer::new();
+    container.register_instance::<Arc<BackgroundTaskRunner>>(Arc::clone(&runner));
+    container.register_instance::<Arc<HashService>>(Arc::clone(&hash_service));
+    container.register_instance::<Arc<ExifService>>(Arc::clone(&exif_service));
+    container.register_instance::<Arc<ThumbnailExtractor>>(Arc::clone(&thumbnail_extractor));
+    container.register_instance::<Arc<PreviewExtractor>>(Arc::clone(&preview_extractor));
+    container.register_instance::<Arc<Repository<Photo>>>(Arc::clone(&photo_repo));
+    container.register_instance::<Arc<Repository<ExifModel>>>(Arc::clone(&exif_repo));
+    container.register_instance::<Arc<FileService>>(Arc::clone(&file_service));
 
-    let request = ImageProcessRequest::from_upload(storage.clone(), stored_file.clone());
+    let pipeline = ImageProcessPipeline::new(ImageProcessPipelineContext::new(
+        Arc::new(container.build()),
+        test_configuration(&thumbnail_root, &preview_root),
+    ));
+
+    let request = ImageProcessPayload::from_upload(storage.clone(), stored_file.clone());
     pipeline
         .process(request)
         .await
@@ -148,6 +155,14 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
 
     let final_path = storage_root.join(&photo.path);
     assert!(final_path.exists(), "final categorized file should exist");
+    assert!(
+        final_path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .map(|value| value == file_name)
+            .unwrap_or(false),
+        "categorized file should keep original file name"
+    );
 
     let thumbnail_path = thumbnail_root.join(photo.thumbnail_path.clone().unwrap());
     assert!(
@@ -161,4 +176,64 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
         exif_models[0].image_id, photo.id,
         "exif metadata must reference the photo"
     );
+}
+
+#[test]
+fn enqueue_uploaded_files_schedules_task_for_each_file() {
+    let runner = Arc::new(BackgroundTaskRunner::new(2));
+    let hash_service = Arc::new(HashService::new());
+    let exif_service = Arc::new(ExifService::new());
+    let thumbnail_extractor = Arc::new(ThumbnailExtractor::new());
+    let preview_extractor = Arc::new(PreviewExtractor::new());
+    let photo_repo = Arc::new(Repository::new(Box::new(MemoryRepository::<Photo>::new())));
+    let exif_repo = Arc::new(Repository::new(Box::new(
+        MemoryRepository::<ExifModel>::new(),
+    )));
+    let file_service = Arc::new(FileService::new());
+    let storage_root = std::env::temp_dir().join("pipeline-enqueue");
+    let thumbnail_root = storage_root.join("thumbnails");
+    let preview_root = storage_root.join("previews");
+
+    let mut container = ServiceContainer::new();
+    container.register_instance::<Arc<BackgroundTaskRunner>>(Arc::clone(&runner));
+    container.register_instance::<Arc<HashService>>(hash_service);
+    container.register_instance::<Arc<ExifService>>(exif_service);
+    container.register_instance::<Arc<ThumbnailExtractor>>(thumbnail_extractor);
+    container.register_instance::<Arc<PreviewExtractor>>(preview_extractor);
+    container.register_instance::<Arc<Repository<Photo>>>(photo_repo);
+    container.register_instance::<Arc<Repository<ExifModel>>>(exif_repo);
+    container.register_instance::<Arc<FileService>>(file_service);
+
+    let pipeline = ImageProcessPipeline::new(ImageProcessPipelineContext::new(
+        Arc::new(container.build()),
+        test_configuration(&thumbnail_root, &preview_root),
+    ));
+
+    let storage = ImageStorageLocation::new(
+        "enqueue-storage",
+        "Enqueue",
+        &storage_root,
+        Utc::now().to_rfc3339(),
+    );
+    let files = vec![
+        StoredUploadFile {
+            file_name: "first.jpg".to_string(),
+            relative_path: "temp/first.jpg".to_string(),
+            byte_size: 512,
+            content_type: Some("image/jpeg".to_string()),
+        },
+        StoredUploadFile {
+            file_name: "second.jpg".to_string(),
+            relative_path: "temp/second.jpg".to_string(),
+            byte_size: 1024,
+            content_type: Some("image/jpeg".to_string()),
+        },
+    ];
+    let file_count = files.len();
+
+    pipeline
+        .enqueue_files(storage, files)
+        .expect("enqueue should succeed");
+
+    assert_eq!(runner.queued_count(), file_count);
 }

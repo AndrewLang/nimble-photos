@@ -1,13 +1,13 @@
 import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 
+import { Formatter } from '../../models/formatters';
 import { StorageLocation } from '../../models/storage.model';
 import { DashboardSettingsService } from '../../services/dashboard.setting.service';
 import { DialogService } from '../../services/dialog.service';
 import { PhotoService } from '../../services/photo.service';
 import { StorageService } from '../../services/storage.service';
 import { StorageSelectorComponent } from '../storage/storage.selector.component';
-import { Formatter } from '../../models/formatters';
 import { ActionSelectorComponent } from './action.selector.component';
 
 @Component({
@@ -37,17 +37,8 @@ export class PhotoManageSettingComponent implements OnInit {
     readonly tagVisibilitySaved = signal(false);
     readonly activeTab = signal<'upload' | 'visibility'>('upload');
     readonly supportedExtensions = [
-        'jpg',
-        'jpeg',
-        'png',
-        'heic',
-        'heif',
-        'webp',
-        'gif',
-        'tiff',
-        'bmp',
-        'raw',
-        'dng',
+        'jpg', 'jpeg', 'png', 'heic', 'heif', 'webp', 'gif', 'tiff', 'bmp',
+        "cr2", "cr3", "nef", "arw", "dng", "orf", "raf", "rw2", "pef", "srw",
     ];
 
     readonly title = computed(() => {

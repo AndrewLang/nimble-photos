@@ -107,6 +107,7 @@ impl BackgroundTaskRunner {
         self.queued_task_count.load(Ordering::SeqCst)
     }
 }
+
 struct WorkerRuntime {
     queue: Arc<Mutex<VecDeque<TaskDescriptor>>>,
     running_task_count: Arc<AtomicUsize>,

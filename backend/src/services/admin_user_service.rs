@@ -42,12 +42,12 @@ impl AdminUserService {
             .map_err(|_| PipelineError::message("data error"))?
             .ok_or_else(|| PipelineError::message("user not found"))?;
 
-        let normalized = normalize_roles(incoming_roles);
+        let normalized = Self::normalize_roles(incoming_roles);
         if normalized.is_empty() {
             return Err(PipelineError::message("At least one role is required"));
         }
 
-        let existing_roles = parse_roles(user.roles.as_deref());
+        let existing_roles = Self::parse_roles(user.roles.as_deref());
         let removing_admin = existing_roles.iter().any(|role| role == "admin")
             && !normalized.iter().any(|role| role == "admin");
         if removing_admin && !self.has_other_admin(user_id).await? {
@@ -76,38 +76,38 @@ impl AdminUserService {
 
         Ok(page.items.iter().any(|user| {
             user.id != user_id
-                && parse_roles(user.roles.as_deref())
+                && Self::parse_roles(user.roles.as_deref())
                     .iter()
                     .any(|role| role == "admin")
         }))
     }
-}
 
-fn parse_roles(raw: Option<&str>) -> Vec<String> {
-    raw.unwrap_or_default()
-        .split(',')
-        .map(|role| role.trim())
-        .filter(|role| !role.is_empty())
-        .map(ToString::to_string)
-        .collect()
-}
-
-fn normalize_roles(roles: Vec<String>) -> Vec<String> {
-    let mut normalized: Vec<String> = Vec::new();
-    for role in roles {
-        let value = role.trim().to_ascii_lowercase();
-        if value.is_empty() {
-            continue;
-        }
-        if !value
-            .chars()
-            .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-' || ch == '_')
-        {
-            continue;
-        }
-        if !normalized.contains(&value) {
-            normalized.push(value);
-        }
+    fn parse_roles(raw: Option<&str>) -> Vec<String> {
+        raw.unwrap_or_default()
+            .split(',')
+            .map(|role| role.trim())
+            .filter(|role| !role.is_empty())
+            .map(ToString::to_string)
+            .collect()
     }
-    normalized
+
+    fn normalize_roles(roles: Vec<String>) -> Vec<String> {
+        let mut normalized: Vec<String> = Vec::new();
+        for role in roles {
+            let value = role.trim().to_ascii_lowercase();
+            if value.is_empty() {
+                continue;
+            }
+            if !value
+                .chars()
+                .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-' || ch == '_')
+            {
+                continue;
+            }
+            if !normalized.contains(&value) {
+                normalized.push(value);
+            }
+        }
+        normalized
+    }
 }

@@ -1,16 +1,16 @@
 use image::{ImageBuffer, Rgb};
-use nimble_photos::services::ImageProcessService;
+use nimble_photos::services::{PreviewExtractor, ThumbnailExtractor};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-struct ImageProcessServiceTestContext {
+struct ImageExtractorTestContext {
     root: PathBuf,
 }
 
-impl ImageProcessServiceTestContext {
+impl ImageExtractorTestContext {
     const SOURCE_WIDTH: u32 = 3000;
     const SOURCE_HEIGHT: u32 = 2000;
     const THUMBNAIL_MAX_BORDER: u32 = 400;
@@ -40,7 +40,7 @@ impl ImageProcessServiceTestContext {
     }
 
     fn thumbnail_output_path(&self) -> PathBuf {
-        self.root.join("thumbnail.jpg")
+        self.root.join("thumbnail.webp")
     }
 
     fn preview_output_path(&self) -> PathBuf {
@@ -48,7 +48,7 @@ impl ImageProcessServiceTestContext {
     }
 
     fn parallel_thumbnail_output_path(&self, index: usize) -> PathBuf {
-        self.root.join(format!("thumbnail_{index}.jpg"))
+        self.root.join(format!("thumbnail_{index}.webp"))
     }
 
     fn create_source_image(&self) {
@@ -82,72 +82,72 @@ impl ImageProcessServiceTestContext {
     }
 }
 
-impl Drop for ImageProcessServiceTestContext {
+impl Drop for ImageExtractorTestContext {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.root);
     }
 }
 
 #[test]
-fn generate_thumbnail_from_file_creates_jpeg_with_thumbnail_size() {
-    let context = ImageProcessServiceTestContext::new();
+fn thumbnail_extractor_creates_webp_with_thumbnail_size() {
+    let context = ImageExtractorTestContext::new();
     context.create_source_image();
-    let service = ImageProcessService::new();
+    let extractor = ThumbnailExtractor::new();
     let output = context.thumbnail_output_path();
 
-    service
-        .generate_thumbnail_from_file(context.source_image_path(), &output)
+    extractor
+        .extract_to(context.source_image_path(), &output)
         .expect("thumbnail generation failed");
 
     assert!(output.exists());
-    let dimensions = ImageProcessServiceTestContext::image_dimensions(&output);
-    assert!(dimensions.0 <= ImageProcessServiceTestContext::THUMBNAIL_MAX_BORDER);
-    assert!(dimensions.1 <= ImageProcessServiceTestContext::THUMBNAIL_MAX_BORDER);
+    let dimensions = ImageExtractorTestContext::image_dimensions(&output);
+    assert!(dimensions.0 <= ImageExtractorTestContext::THUMBNAIL_MAX_BORDER);
+    assert!(dimensions.1 <= ImageExtractorTestContext::THUMBNAIL_MAX_BORDER);
 }
 
 #[test]
-fn generate_preview_from_file_creates_jpeg_with_preview_size() {
-    let context = ImageProcessServiceTestContext::new();
+fn preview_extractor_creates_jpeg_with_preview_size() {
+    let context = ImageExtractorTestContext::new();
     context.create_source_image();
-    let service = ImageProcessService::new();
+    let extractor = PreviewExtractor::new();
     let output = context.preview_output_path();
 
-    service
-        .generate_preview_from_file(context.source_image_path(), &output)
+    extractor
+        .extract_to(context.source_image_path(), &output)
         .expect("preview generation failed");
 
     assert!(output.exists());
-    let dimensions = ImageProcessServiceTestContext::image_dimensions(&output);
-    assert!(dimensions.0 <= ImageProcessServiceTestContext::PREVIEW_MAX_BORDER);
-    assert!(dimensions.1 <= ImageProcessServiceTestContext::PREVIEW_MAX_BORDER);
+    let dimensions = ImageExtractorTestContext::image_dimensions(&output);
+    assert!(dimensions.0 <= ImageExtractorTestContext::PREVIEW_MAX_BORDER);
+    assert!(dimensions.1 <= ImageExtractorTestContext::PREVIEW_MAX_BORDER);
 }
 
 #[test]
-fn generate_thumbnail_from_raw_file_returns_error_for_invalid_raw_content() {
-    let context = ImageProcessServiceTestContext::new();
+fn thumbnail_extractor_returns_error_for_invalid_raw_content() {
+    let context = ImageExtractorTestContext::new();
     context.create_invalid_raw_image();
-    let service = ImageProcessService::new();
+    let extractor = ThumbnailExtractor::new();
     let output = context.thumbnail_output_path();
 
-    let result = service.generate_thumbnail_from_file(context.raw_image_path(), &output);
+    let result = extractor.extract_to(context.raw_image_path(), &output);
 
     assert!(result.is_err());
 }
 
 #[test]
-fn image_process_service_supports_parallel_thumbnail_generation() {
-    let context = Arc::new(ImageProcessServiceTestContext::new());
+fn thumbnail_extractor_supports_parallel_generation() {
+    let context = Arc::new(ImageExtractorTestContext::new());
     context.create_source_image();
-    let service = Arc::new(ImageProcessService::new());
+    let extractor = Arc::new(ThumbnailExtractor::new());
 
-    let handles: Vec<_> = (0..ImageProcessServiceTestContext::PARALLEL_TASK_COUNT)
+    let handles: Vec<_> = (0..ImageExtractorTestContext::PARALLEL_TASK_COUNT)
         .map(|index| {
-            let service_clone = Arc::clone(&service);
+            let extractor_clone = Arc::clone(&extractor);
             let context_clone = Arc::clone(&context);
             thread::spawn(move || {
                 let output = context_clone.parallel_thumbnail_output_path(index);
-                service_clone
-                    .generate_thumbnail_from_file(context_clone.source_image_path(), &output)
+                extractor_clone
+                    .extract_to(context_clone.source_image_path(), &output)
                     .expect("parallel thumbnail generation failed");
                 output
             })

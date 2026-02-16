@@ -1,3 +1,7 @@
+mod image_process_constants;
+mod image_process_context;
+mod image_process_step;
+
 pub mod admin_user_service;
 pub mod auth_service;
 pub mod background_task_runner;
@@ -8,11 +12,13 @@ pub mod hash_service;
 pub mod id_generation_service;
 pub mod image_categorizer;
 pub mod image_pipeline;
-pub mod image_process_service;
+pub mod image_process_steps;
 pub mod photo_service;
 pub mod photo_upload_service;
+pub mod preview_extractor;
 pub mod setting_service;
 pub mod task_descriptor;
+pub mod thumbnail_extractor;
 
 pub use admin_user_service::AdminUserService;
 pub use auth_service::AuthService;
@@ -23,18 +29,19 @@ pub use file_service::FileService;
 pub use hash_service::HashService;
 pub use id_generation_service::IdGenerationService;
 pub use image_pipeline::ImageProcessPipeline;
-pub use image_pipeline::ImageStorageLocation;
-pub use image_process_service::ImageProcessService;
+pub use image_pipeline::ImageProcessPipelineContext;
 pub use photo_service::PhotoService;
 pub use photo_upload_service::PhotoUploadService;
+pub use preview_extractor::PreviewExtractor;
 pub use setting_service::SettingService;
 pub use task_descriptor::TaskDescriptor;
+pub use thumbnail_extractor::ThumbnailExtractor;
+
+use crate::services::image_categorizer::ImageCategorizerRegistry;
 
 use std::sync::Arc;
 
-use crate::entities::{
-    exif::ExifModel, photo::Photo, setting::Setting, user::User, user_settings::UserSettings,
-};
+use crate::entities::{setting::Setting, user::User, user_settings::UserSettings};
 use nimble_web::AppBuilder;
 use nimble_web::config::Configuration;
 use nimble_web::data::repository::Repository;
@@ -46,16 +53,14 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
         let config = provider.get::<Configuration>();
         EncryptService::new(&config).expect("Failed to create EncryptService")
     });
-
     builder.register_singleton(|_| IdGenerationService::new());
-
     builder.register_singleton(|_| PhotoService::new());
     builder.register_singleton(|_| ExifService::new());
     builder.register_singleton(|_| HashService::new());
     builder.register_singleton(|_| FileService::new());
-    builder.register_singleton(|_| ImageProcessService::new());
     builder.register_singleton(|_| PhotoUploadService::new());
     builder.register_singleton(|provider| {
+        log::info!("Initializing BackgroundTaskRunner...");
         let configuration = provider.get::<Configuration>();
         let default_parallelism = std::thread::available_parallelism()
             .map(|value| value.get())
@@ -69,31 +74,21 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
         runner
             .start()
             .expect("Failed to start background task runner");
+        log::info!(
+            "BackgroundTaskRunner started with parallelism: {}",
+            configured_parallelism
+        );
         runner
     });
-
+    builder.register_singleton(|_| ThumbnailExtractor::new());
+    builder.register_singleton(|_| PreviewExtractor::new());
     builder.register_singleton(|provider| {
-        let runner = provider.get::<BackgroundTaskRunner>();
-        let hash_service = provider.get::<HashService>();
-        let file_service = provider.get::<FileService>();
-        let exif_service = provider.get::<ExifService>();
-        let image_service = provider.get::<ImageProcessService>();
-        let photo_repo = provider.get::<Repository<Photo>>();
-        let exif_repo = provider.get::<Repository<ExifModel>>();
-        let configuration = provider.get::<Configuration>();
-
-        ImageProcessPipeline::new(
-            Arc::clone(&runner),
-            Arc::clone(&hash_service),
-            Arc::clone(&exif_service),
-            Arc::clone(&image_service),
-            Arc::clone(&photo_repo),
-            Arc::clone(&exif_repo),
-            Arc::clone(&file_service),
-            configuration.as_ref().clone(),
-        )
+        let configuration = provider.get::<Configuration>().as_ref().clone();
+        ImageProcessPipeline::new(ImageProcessPipelineContext::new(
+            Arc::clone(&provider),
+            configuration,
+        ))
     });
-
     builder.register_singleton(|provider| {
         let config = provider.get::<Configuration>();
         let secret = config
@@ -105,7 +100,6 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
         let service = JwtTokenService::new(secret, issuer);
         Arc::new(service) as Arc<dyn TokenService>
     });
-
     builder.register_singleton(|provider| {
         let repo = provider.get::<Repository<User>>();
         let settings_repo = provider.get::<Repository<UserSettings>>();
@@ -119,16 +113,15 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
             tokens.as_ref().clone(),
         )
     });
-
     builder.register_singleton(|provider| {
         let settings_repo = provider.get::<Repository<Setting>>();
         SettingService::new(settings_repo)
     });
-
     builder.register_singleton(|provider| {
         let repo = provider.get::<Repository<User>>();
         AdminUserService::new(repo)
     });
+    builder.register_singleton(|provider| ImageCategorizerRegistry::with_defaults(provider));
 
     builder
 }

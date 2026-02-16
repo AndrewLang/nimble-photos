@@ -1,5 +1,5 @@
 <header
-    class="sticky top-0 w-full h-[56px] flex items-center justify-between gap-4 border-b border-white/5 bg-slate-950/80 px-4 md:px-6 py-2 backdrop-blur-xl z-50">
+    class="sticky top-0 w-full h-14 flex items-center justify-between gap-4 border-b border-white/5 bg-slate-950/80 px-4 md:px-6 py-2 backdrop-blur-xl z-50">
 
     <div class="flex items-center gap-3 md:gap-4 z-50">
         <a routerLink="/" (click)="closeMenu()">
@@ -13,7 +13,7 @@
             </div>
         </a>
         <div class="hidden sm:block">
-            <p class="text-xs md:text-sm font-semibold uppercase tracking-[0.2em] text-slate-200">{{ siteTitle() }}</p>
+            <p class="text-xs md:text-sm font-semibold uppercase tracking-widest text-slate-200">{{ siteTitle() }}</p>
             <p class="text-[0.6rem] md:text-xs font-light text-slate-400">{{ siteTagline() }}</p>
         </div>
     </div>

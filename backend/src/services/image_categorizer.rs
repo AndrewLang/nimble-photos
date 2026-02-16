@@ -1,48 +1,87 @@
 use anyhow::{Result, anyhow};
-use chrono::{DateTime, NaiveDateTime, Utc};
-use exif::{Field, Reader, Tag, Value};
+use chrono::{DateTime, Utc};
+use nimble_web::ServiceProvider;
 use std::collections::{HashMap, hash_map::Entry};
-use std::fs;
-use std::io::BufReader;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::file_service::FileService;
 use super::hash_service::HashService;
+use crate::models::property_map::PropertyMap;
+use crate::services::image_process_constants::ImageProcessKeys;
 
-pub use crate::domain::image_categorizer::{CategorizeRequest, CategorizeResult, ImageCategorizer};
+#[derive(Debug)]
+pub struct CategorizeRequest<'a> {
+    source_file: &'a Path,
+    properties: &'a PropertyMap,
+}
+
+impl<'a> CategorizeRequest<'a> {
+    pub fn new(source_file: &'a Path, properties: &'a PropertyMap) -> Self {
+        Self {
+            source_file,
+            properties,
+        }
+    }
+
+    pub fn source_file(&self) -> &Path {
+        self.source_file
+    }
+
+    pub fn properties(&self) -> &'a PropertyMap {
+        self.properties
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CategorizeResult {
+    pub final_path: PathBuf,
+    pub hash: Option<String>,
+}
+
+pub trait ImageCategorizer: Send + Sync {
+    fn name(&self) -> &'static str;
+    fn categorize(&self, request: &CategorizeRequest<'_>) -> Result<CategorizeResult>;
+}
 
 type CategorizerFactory = Box<dyn Fn() -> Arc<dyn ImageCategorizer> + Send + Sync>;
 
 pub struct ImageCategorizerRegistry {
+    services: Arc<ServiceProvider>,
     factories: HashMap<String, CategorizerFactory>,
     instances: Mutex<HashMap<String, Arc<dyn ImageCategorizer>>>,
 }
 
 impl ImageCategorizerRegistry {
-    pub fn new() -> Self {
+    pub fn new(services: Arc<ServiceProvider>) -> Self {
         Self {
+            services: services.clone(),
             factories: HashMap::new(),
             instances: Mutex::new(HashMap::new()),
         }
     }
 
-    pub fn with_defaults(hash_service: Arc<HashService>, file_service: Arc<FileService>) -> Self {
-        let mut registry = Self::new();
+    pub fn with_defaults(services: Arc<ServiceProvider>) -> Self {
+        let mut registry = Self::new(services.clone());
+
+        let services_for_hash = services.clone();
         registry.register_factory("hash", {
-            let hash_service = Arc::clone(&hash_service);
-            let file_service = Arc::clone(&file_service);
-            Box::new(move || {
-                Arc::new(HashImageCategorizer::new(
-                    Arc::clone(&hash_service),
-                    Arc::clone(&file_service),
-                ))
-            })
+            Box::new(move || Arc::new(HashImageCategorizer::new(services_for_hash.clone())))
         });
+
+        let services_for_date = services.clone();
         registry.register_factory("date", {
-            let file_service = Arc::clone(&file_service);
-            Box::new(move || Arc::new(DateImageCategorizer::new(Arc::clone(&file_service))))
+            Box::new(move || Arc::new(DateImageCategorizer::new(services_for_date.clone())))
         });
+
         registry
+    }
+
+    pub fn register_categorizer(&mut self, categorizer: Arc<dyn ImageCategorizer>) {
+        let name = categorizer.name().to_ascii_lowercase();
+        self.factories
+            .insert(name.clone(), Box::new(move || categorizer.clone()));
+        log::info!("Registered image categorizer: {}", name);
     }
 
     pub fn register_factory(&mut self, name: impl Into<String>, factory: CategorizerFactory) {
@@ -86,41 +125,26 @@ impl ImageCategorizerRegistry {
     }
 }
 
-struct HashImageCategorizer {
+pub(crate) struct HashImageCategorizer {
+    services: Arc<ServiceProvider>,
     hash_service: Arc<HashService>,
     file_service: Arc<FileService>,
 }
 
 impl HashImageCategorizer {
-    fn new(hash_service: Arc<HashService>, file_service: Arc<FileService>) -> Self {
+    pub(crate) fn new(services: Arc<ServiceProvider>) -> Self {
+        log::debug!("Initializing HashImageCategorizer...");
+        let hash_service = services.get::<HashService>();
+        let file_service = services.get::<FileService>();
         Self {
+            services,
             hash_service,
             file_service,
         }
     }
 
-    fn ensure_hash(&self, request: &CategorizeRequest<'_>) -> Result<String> {
-        if let Some(hash) = request.known_hash() {
-            return Ok(hash.to_string());
-        }
-
-        let path = request
-            .source_file()
-            .to_str()
-            .ok_or_else(|| anyhow!("source file path is not valid UTF-8"))?;
-        self.hash_service
-            .compute_file(path)
-            .map_err(|err| anyhow!(err))
-    }
-
-    fn hashed_subfolders(hash: &str) -> (&str, &str) {
-        if hash.len() >= 4 {
-            (&hash[0..2], &hash[2..4])
-        } else if hash.len() >= 2 {
-            (&hash[0..2], &hash[0..2])
-        } else {
-            ("00", "00")
-        }
+    fn output_file(&self, root: &PathBuf, hash: &str, file_name: &str) -> PathBuf {
+        root.join(&hash[0..2]).join(&hash[2..4]).join(file_name)
     }
 }
 
@@ -130,103 +154,72 @@ impl ImageCategorizer for HashImageCategorizer {
     }
 
     fn categorize(&self, request: &CategorizeRequest<'_>) -> Result<CategorizeResult> {
-        let hash = self.ensure_hash(request)?;
-        let (first, second) = Self::hashed_subfolders(&hash);
-        let destination_dir = request.destination_root().join(first).join(second);
-        let file_name = self
-            .file_service
-            .target_file_name(request.file_name(), request.source_file());
-        let final_path = destination_dir.join(file_name);
+        let hash = request
+            .properties
+            .get_by_alias(ImageProcessKeys::HASH)
+            .map(|value: &String| value.as_str())
+            .map(|value| value.to_string())
+            .ok_or_else(|| anyhow!("failed to determine hash for categorization"))?;
+
+        let file_name = request
+            .source_file()
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| anyhow!("invalid file name"))?;
+
+        let working_dir = request
+            .properties
+            .get_by_alias::<PathBuf>(ImageProcessKeys::WORKING_DIRECTORY)
+            .ok_or_else(|| {
+                anyhow!("working directory not found in properties for categorization")
+            })?;
+
+        let output_path = self.output_file(working_dir, &hash, file_name);
+        log::debug!(
+            "Categorizing image by hash, hash: {}, file name: {}, working directory: {}, output path: {}",
+            hash,
+            file_name,
+            working_dir.clone().display(),
+            output_path.clone().display()
+        );
 
         self.file_service
-            .move_file(request.source_file(), &final_path)?;
+            .move_file(request.source_file(), &output_path)?;
 
-        let relative_path = self
-            .file_service
-            .relative_path(request.destination_root(), &final_path)?;
         Ok(CategorizeResult {
-            final_path,
-            relative_path,
-            hash: Some(hash),
+            final_path: output_path,
+            hash: Some(hash.to_string()),
         })
     }
 }
 
-struct DateImageCategorizer {
+pub(crate) struct DateImageCategorizer {
+    services: Arc<ServiceProvider>,
     file_service: Arc<FileService>,
 }
 
 impl DateImageCategorizer {
-    fn new(file_service: Arc<FileService>) -> Self {
-        Self { file_service }
-    }
-
-    fn determine_bucket(&self, request: &CategorizeRequest<'_>) -> Result<String> {
-        let date = self.resolve_date(request)?;
-        Ok(date.format("%Y-%m-%d").to_string())
-    }
-
-    fn resolve_date(&self, request: &CategorizeRequest<'_>) -> Result<DateTime<Utc>> {
-        if let Some(date_taken) = request.date_taken() {
-            return Ok(date_taken);
-        }
-
-        if let Some(exif_date) = self.date_from_exif(request)? {
-            return Ok(exif_date);
-        }
-
-        self.file_timestamp(request)
-    }
-
-    fn date_from_exif(&self, request: &CategorizeRequest<'_>) -> Result<Option<DateTime<Utc>>> {
-        let file = fs::File::open(request.source_file())?;
-        let mut reader = BufReader::new(file);
-        let exif = match Reader::new().read_from_container(&mut reader) {
-            Ok(exif) => exif,
-            Err(_) => return Ok(None),
-        };
-
-        for tag in [Tag::DateTimeOriginal, Tag::DateTimeDigitized, Tag::DateTime] {
-            if let Some(field) = exif.fields().find(|field| field.tag == tag) {
-                if let Some(text) = Self::field_ascii(field) {
-                    if let Some(parsed) = Self::parse_exif_datetime(&text) {
-                        return Ok(Some(parsed));
-                    }
-                }
-            }
-        }
-
-        Ok(None)
-    }
-
-    fn file_timestamp(&self, request: &CategorizeRequest<'_>) -> Result<DateTime<Utc>> {
-        let metadata = fs::metadata(request.source_file())?;
-        let system_time = metadata
-            .created()
-            .or_else(|_| metadata.modified())
-            .unwrap_or_else(|_| std::time::SystemTime::now());
-        Ok(system_time.into())
-    }
-
-    fn field_ascii(field: &Field) -> Option<String> {
-        match &field.value {
-            Value::Ascii(values) => values
-                .iter()
-                .find_map(|entry| std::str::from_utf8(entry).ok())
-                .map(|value| value.trim_matches('\0').trim().to_string())
-                .filter(|value| !value.is_empty()),
-            _ => None,
+    pub(crate) fn new(services: Arc<ServiceProvider>) -> Self {
+        let file_service = services.get::<FileService>();
+        Self {
+            services,
+            file_service,
         }
     }
 
-    fn parse_exif_datetime(raw: &str) -> Option<DateTime<Utc>> {
-        let raw = raw.trim_matches('\0').trim();
-        if raw.is_empty() {
-            return None;
-        }
+    fn output_file(
+        &self,
+        root: &PathBuf,
+        date: &DateTime<Utc>,
+        format: &str,
+        file_name: &str,
+    ) -> PathBuf {
+        let date_name = self.format_date(date, format);
+        root.join(date_name).join(file_name)
+    }
 
-        let naive = NaiveDateTime::parse_from_str(raw, "%Y:%m:%d %H:%M:%S").ok()?;
-        Some(naive.and_utc())
+    fn format_date(&self, dt: &DateTime<Utc>, format: &str) -> String {
+        dt.format(format).to_string()
     }
 }
 
@@ -236,20 +229,43 @@ impl ImageCategorizer for DateImageCategorizer {
     }
 
     fn categorize(&self, request: &CategorizeRequest<'_>) -> Result<CategorizeResult> {
-        let folder = self.determine_bucket(request)?;
-        let destination_dir = request.destination_root().join(folder);
-        let file_name = self
-            .file_service
-            .target_file_name(request.file_name(), request.source_file());
-        let final_path = destination_dir.join(file_name);
+        let date = request
+            .properties
+            .get_by_alias::<Option<DateTime<Utc>>>(ImageProcessKeys::EXIF_DATE_TAKEN)
+            .and_then(|value| value.as_ref())
+            .ok_or_else(|| anyhow!("failed to determine date taken for categorization"))?;
+        let date_format = request
+            .properties
+            .get_by_alias::<String>(ImageProcessKeys::CATEGORIZE_DATE_FORMAT)
+            .map(String::as_str)
+            .unwrap_or("%Y-%m-%d");
+        let file_name = request
+            .source_file()
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| anyhow!("invalid file name"))?;
+        let working_dir = request
+            .properties
+            .get_by_alias::<PathBuf>(ImageProcessKeys::WORKING_DIRECTORY)
+            .ok_or_else(|| {
+                anyhow!("working directory not found in properties for categorization")
+            })?;
+
+        let output_file = self.output_file(working_dir, date, date_format, file_name);
+
+        log::debug!(
+            "Categorizing image by date, date: {}, file name: {}, working directory: {}, output path: {}",
+            date,
+            file_name,
+            working_dir.display(),
+            output_file.display()
+        );
+
         self.file_service
-            .move_file(request.source_file(), &final_path)?;
-        let relative_path = self
-            .file_service
-            .relative_path(request.destination_root(), &final_path)?;
+            .move_file(request.source_file(), &output_file)?;
+
         Ok(CategorizeResult {
-            final_path,
-            relative_path,
+            final_path: output_file,
             hash: None,
         })
     }
