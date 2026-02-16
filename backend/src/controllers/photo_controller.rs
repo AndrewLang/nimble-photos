@@ -188,7 +188,7 @@ impl HttpHandler for ThumbnailHandler {
                     serde_json::from_value::<Vec<StorageLocation>>(storage_setting.value)
                 {
                     for location in locations {
-                        let path = Path::new(&location.path).join("thumbnails");
+                        let path = Path::new(&location.path).join(".thumbnails");
                         if !thumbnail_roots.contains(&path) {
                             thumbnail_roots.push(path);
                         }
@@ -201,7 +201,7 @@ impl HttpHandler for ThumbnailHandler {
         let legacy_base = config
             .get("thumbnail.base.path")
             .or_else(|| config.get("thumbnail.basepath"))
-            .unwrap_or("./thumbnails");
+            .unwrap_or("./.thumbnails");
         let legacy_path = Path::new(legacy_base).to_path_buf();
         if !thumbnail_roots.contains(&legacy_path) {
             thumbnail_roots.push(legacy_path);
@@ -222,6 +222,7 @@ impl HttpHandler for ThumbnailHandler {
                 .join(&hash[0..2])
                 .join(&hash[2..4])
                 .join(format!("{hash}.webp"));
+
             if webp_path.exists() {
                 resolved = Some((webp_path, "image/webp"));
                 break;

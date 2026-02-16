@@ -111,9 +111,11 @@ export class PhotoManageSettingComponent implements OnInit {
     }
 
     onFileSelected(event: Event): void {
+        console.log('onFileSelected called', event);
         if (!this.canUpload()) {
             return;
         }
+
         const input = event.target as HTMLInputElement | null;
         if (input?.files?.length) {
             this.addFiles(input.files);
@@ -125,6 +127,8 @@ export class PhotoManageSettingComponent implements OnInit {
         this.selectedFiles.set([]);
         this.uploadError.set(null);
         this.uploadSuccess.set(false);
+
+        this.uploadError.set(null);
     }
 
     removeFile(target: File): void {
