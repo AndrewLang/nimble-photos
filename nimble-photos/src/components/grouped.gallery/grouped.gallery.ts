@@ -24,7 +24,6 @@ export class GroupedGallery implements OnInit {
   readonly selectedPhotos = signal<Photo[]>([]);
 
   constructor(private readonly photoService: PhotoService) {
-    // Effect to scroll the month ruler when the active year changes
     effect(() => {
       const year = this.activeYear();
       if (year && this.monthsRuler) {
