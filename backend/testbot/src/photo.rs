@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use serde_json::{json, Value};
-use uuid::Uuid;
+use serde_json::{Value, json};
 
 use nimble_web::testbot::{AssertResponse, TestBot, TestError, TestResult, TestScenario, TestStep};
 
@@ -65,8 +64,17 @@ impl TestStep for ListPhotosStep {
 struct CreatePhotoStep {
     hash: String,
     path: String,
-    file_name: String,
-    file_size: i64,
+    name: String,
+    format: String,
+    size: i64,
+    thumbnail_path: String,
+    width: u32,
+    height: u32,
+    thumbnail_width: u32,
+    thumbnail_height: u32,
+    thumbnail_optimized: bool,
+    metadata_extracted: bool,
+    is_raw: bool,
 }
 
 impl CreatePhotoStep {
@@ -74,8 +82,17 @@ impl CreatePhotoStep {
         Self {
             hash: "testhash".to_string(),
             path: "/photos/testhash".to_string(),
-            file_name: "test-file.jpg".to_string(),
-            file_size: 1024,
+            name: "test-photo".to_string(),
+            format: "jpeg".to_string(),
+            size: 1024,
+            thumbnail_path: "/photos/testhash/thumbnail".to_string(),
+            width: 1920,
+            height: 1080,
+            thumbnail_width: 320,
+            thumbnail_height: 180,
+            thumbnail_optimized: true,
+            metadata_extracted: true,
+            is_raw: false,
         }
     }
 }
@@ -93,16 +110,23 @@ impl TestStep for CreatePhotoStep {
     async fn run(&self, bot: &mut TestBot) -> TestResult {
         let now = Utc::now();
         let payload = json!({
-            "id": Uuid::new_v4().to_string(),
             "hash": self.hash,
             "path": self.path,
-            "file_name": self.file_name,
-            "file_size": self.file_size,
-            "rating": 3,
-            "label": "red",
-            "description": "This is a test photo",
+            "name": self.name,
+            "format": self.format,
+            "size": self.size,
             "created_at": now.to_rfc3339(),
             "updated_at": now.to_rfc3339(),
+            "date_imported": now.to_rfc3339(),
+            "date_taken": now.to_rfc3339(),
+            "thumbnail_path": self.thumbnail_path,
+            "thumbnail_optimized": self.thumbnail_optimized,
+            "metadata_extracted": self.metadata_extracted,
+            "is_raw": self.is_raw,
+            "width": self.width,
+            "height": self.height,
+            "thumbnail_width": self.thumbnail_width,
+            "thumbnail_height": self.thumbnail_height,
         });
 
         let response = bot.post_auth(self.endpoint(), &payload).await?;
@@ -117,9 +141,16 @@ impl TestStep for CreatePhotoStep {
         let created_photo: Value = response.json()?;
         let id = created_photo
             .get("id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| TestError::msg("create photo response missing id"))?
-            .to_string();
+            .and_then(|value| {
+                if let Some(text) = value.as_str() {
+                    Some(text.to_string())
+                } else if let Some(number) = value.as_i64() {
+                    Some(number.to_string())
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| TestError::msg("create photo response missing id"))?;
 
         bot.context.set_str("created_photo_id", id);
         bot.context.set("photo_snapshot", created_photo.clone());
@@ -184,14 +215,13 @@ impl TestStep for UpdatePhotoStep {
             .ok_or_else(|| TestError::msg("photo snapshot is not an object"))?;
 
         obj.insert(
-            "file_name".to_string(),
-            Value::String("test-file-updated.jpg".to_string()),
+            "name".to_string(),
+            Value::String("test-photo-updated".to_string()),
         );
-        obj.insert(
-            "description".to_string(),
-            Value::String("Updated via testbot".to_string()),
-        );
-        obj.insert("rating".to_string(), Value::from(5));
+        obj.insert("format".to_string(), Value::String("png".to_string()));
+        obj.insert("size".to_string(), Value::from(2048));
+        obj.insert("thumbnail_optimized".to_string(), Value::Bool(false));
+        obj.insert("metadata_extracted".to_string(), Value::Bool(false));
         obj.insert(
             "updated_at".to_string(),
             Value::String(Utc::now().to_rfc3339()),

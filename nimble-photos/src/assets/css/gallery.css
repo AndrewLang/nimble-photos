@@ -1,0 +1,291 @@
+/* 
+   Many shared styles (masonry, photo-cards, shells) 
+   have been moved to src/styles.css for global reuse.
+*/
+
+.gallery-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+}
+
+.search-input {
+  width: 220px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.6);
+  color: #f8fafc;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border 0.2s ease, background 0.2s ease;
+}
+
+.search-input:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(15, 23, 42, 0.85);
+}
+
+/* Global Gallery Styles */
+
+/* Host & Shell */
+.gallery-shell {
+  min-height: 100vh;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-backdrop {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at top, rgba(129, 140, 248, 0.25), transparent 35%),
+    radial-gradient(circle at 20% 80%, rgba(248, 113, 113, 0.2), transparent 35%),
+    linear-gradient(180deg, #020617 0%, #020617 45%, #010409 100%);
+  filter: blur(0px);
+  opacity: 0.7;
+}
+
+/* Scroll Container & Bars */
+.scroll-container {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden !important;
+  padding-right: 0.5rem;
+  padding-top: 56px;
+}
+
+
+/* Buttons & Pills */
+.icon-button {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.6);
+  color: #f8fafc;
+  transition: background 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.pill {
+  padding: 0.45rem 1.25rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  border: 1px solid transparent;
+  background: #facc15;
+  color: #020617;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 30px rgba(250, 204, 21, 0.25);
+  cursor: pointer;
+}
+
+.pill.ghost {
+  background: transparent;
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: none;
+}
+
+.pill:hover,
+.icon-button:hover {
+  transform: translateY(-2px);
+}
+
+
+
+.gallery-status {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+/* Group Section */
+.group-section {
+  padding: 0 1.5rem 2rem 1.5rem;
+}
+
+.group-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  display: inline-block;
+}
+
+/* Timeline Ruler Base */
+.timeline-ruler {
+  position: absolute;
+  top: 72px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  z-index: 60;
+  scrollbar-width: none;
+}
+
+.timeline-ruler::-webkit-scrollbar {
+  display: none;
+}
+
+/* Years Ruler (Full Library Scope) */
+.years-ruler {
+  right: 1rem;
+  width: 24px;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.timeline-year-item {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+
+  gap: 8px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.year-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  opacity: 0;
+  color: rgba(248, 250, 252, 0.3);
+  background: rgba(15, 23, 42, 0.2);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0.1rem 0.5rem;
+  transform: translateX(10px);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.year-dot {
+  width: 4px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.timeline-year-item:hover,
+.timeline-year-item.active {
+  color: #6366f1;
+  /* Indigo accent */
+}
+
+.timeline-year-item:hover .year-label,
+.timeline-year-item.active .year-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.timeline-year-item.active .year-dot {
+  transform: scale(1.5);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.8);
+}
+
+/* Months Ruler (Loaded Scopes) */
+.months-ruler {
+  right: 3.5rem;
+  width: 38px;
+  background: rgba(15, 23, 42, 0.2);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 1rem 0;
+  gap: 0.15rem;
+  max-height: 75vh;
+  top: 50%;
+  transform: translateY(-50%);
+  overflow-y: auto;
+  bottom: auto;
+}
+
+.timeline-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  cursor: pointer;
+  padding: 0.1rem 0;
+  color: rgba(248, 250, 252, 0.3);
+  transition: all 0.2s ease;
+  font-size: 0.5rem;
+}
+
+.timeline-item:hover,
+.timeline-item.active {
+  color: #fff;
+}
+
+.timeline-line {
+  width: 1px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1px;
+}
+
+.timeline-item:hover .timeline-line,
+.timeline-item.active .timeline-line {
+  background: #fff;
+  height: 10px;
+  width: 2px;
+}
+
+.timeline-month {
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.45rem;
+  margin-bottom: 2px;
+}
+
+.day-label {
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1;
+}
+
+.month-year-separator {
+  width: 100%;
+  text-align: center;
+  font-size: 0.55rem;
+  font-weight: 900;
+  color: oklch(66.6% 0.179 58.318);
+  /* Indigo */
+  padding: 0.5rem 0 0.1rem 0;
+  opacity: 0.8;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid oklch(66.6% 0.179 58.318);
+  margin-bottom: 0.25rem;
+}
+
+@media (max-width: 1024px) {
+  .months-ruler {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .years-ruler {
+    display: none;
+  }
+}

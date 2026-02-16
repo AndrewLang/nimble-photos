@@ -1,52 +1,366 @@
-use chrono::{DateTime, Utc};
+use super::uuid_id::HasOptionalUuidId;
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use nimble_web::Entity;
 use serde::{Deserialize, Serialize};
-use serde_json::Value as JsonValue;
+use uuid::Uuid;
 
 #[cfg(feature = "postgres")]
 use {
-    nimble_web::data::postgres::PostgresEntity,
+    nimble_web::data::postgres::{PostgresEntity, value_builder::PostgresValueBuilder},
     nimble_web::data::query::Value,
     nimble_web::data::schema::{ColumnDef, ColumnType},
-    sqlx::FromRow,
+    sqlx::postgres::PgRow,
+    sqlx::{FromRow, Row},
 };
 
-#[cfg_attr(feature = "postgres", derive(FromRow))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Exif {
-    pub hash: String,
-    pub camera_make: Option<String>,
-    pub camera_model: Option<String>,
+const EXIF_INSERT_COLUMNS: &[&str] = &[
+    "id",
+    "image_id",
+    "hash",
+    "make",
+    "model",
+    "lens_make",
+    "lens_model",
+    "lens_serial_number",
+    "lens_specification",
+    "body_serial_number",
+    "exposure_time",
+    "exposure_program",
+    "exposure_mode",
+    "exposure_bias_value",
+    "f_number",
+    "aperture_value",
+    "max_aperture_value",
+    "brightness_value",
+    "shutter_speed_value",
+    "iso",
+    "sensitivity_type",
+    "recommended_exposure_index",
+    "metering_mode",
+    "light_source",
+    "flash",
+    "exposure_index",
+    "gain_control",
+    "subject_distance",
+    "focal_length",
+    "focal_length_in_35mm_film",
+    "color_space",
+    "bits_per_sample",
+    "image_width",
+    "image_length",
+    "pixel_x_dimension",
+    "pixel_y_dimension",
+    "x_resolution",
+    "y_resolution",
+    "resolution_unit",
+    "compression",
+    "orientation",
+    "digital_zoom_ratio",
+    "white_balance",
+    "contrast",
+    "saturation",
+    "sharpness",
+    "custom_rendered",
+    "scene_capture_type",
+    "scene_type",
+    "subject_distance_range",
+    "rating",
+    "label",
+    "flagged",
+    "white_point",
+    "primary_chromaticities",
+    "transfer_function",
+    "gamma",
+    "datetime",
+    "datetime_original",
+    "datetime_digitized",
+    "offset_time",
+    "offset_time_original",
+    "offset_time_digitized",
+    "subsec_time",
+    "subsec_time_original",
+    "subsec_time_digitized",
+    "gps_latitude",
+    "gps_longitude",
+    "gps_altitude",
+    "gps_altitude_ref",
+    "gps_latitude_ref",
+    "gps_longitude_ref",
+    "gps_speed",
+    "gps_speed_ref",
+    "gps_img_direction",
+    "gps_img_direction_ref",
+    "gps_date_stamp",
+    "gps_time_stamp",
+    "gps_processing_method",
+    "gps_area_information",
+    "software",
+    "artist",
+    "copyright",
+    "user_comment",
+    "maker_note",
+    "file_source",
+    "sensing_method",
+    "cfa_pattern",
+    "photographic_sensitivity",
+    "interop_index",
+    "interop_version",
+];
+
+const EXIF_UPDATE_COLUMNS: &[&str] = &[
+    "image_id",
+    "hash",
+    "make",
+    "model",
+    "lens_make",
+    "lens_model",
+    "lens_serial_number",
+    "lens_specification",
+    "body_serial_number",
+    "exposure_time",
+    "exposure_program",
+    "exposure_mode",
+    "exposure_bias_value",
+    "f_number",
+    "aperture_value",
+    "max_aperture_value",
+    "brightness_value",
+    "shutter_speed_value",
+    "iso",
+    "sensitivity_type",
+    "recommended_exposure_index",
+    "metering_mode",
+    "light_source",
+    "flash",
+    "exposure_index",
+    "gain_control",
+    "subject_distance",
+    "focal_length",
+    "focal_length_in_35mm_film",
+    "color_space",
+    "bits_per_sample",
+    "image_width",
+    "image_length",
+    "pixel_x_dimension",
+    "pixel_y_dimension",
+    "x_resolution",
+    "y_resolution",
+    "resolution_unit",
+    "compression",
+    "orientation",
+    "digital_zoom_ratio",
+    "white_balance",
+    "contrast",
+    "saturation",
+    "sharpness",
+    "custom_rendered",
+    "scene_capture_type",
+    "scene_type",
+    "subject_distance_range",
+    "rating",
+    "label",
+    "flagged",
+    "white_point",
+    "primary_chromaticities",
+    "transfer_function",
+    "gamma",
+    "datetime",
+    "datetime_original",
+    "datetime_digitized",
+    "offset_time",
+    "offset_time_original",
+    "offset_time_digitized",
+    "subsec_time",
+    "subsec_time_original",
+    "subsec_time_digitized",
+    "gps_latitude",
+    "gps_longitude",
+    "gps_altitude",
+    "gps_altitude_ref",
+    "gps_latitude_ref",
+    "gps_longitude_ref",
+    "gps_speed",
+    "gps_speed_ref",
+    "gps_img_direction",
+    "gps_img_direction_ref",
+    "gps_date_stamp",
+    "gps_time_stamp",
+    "gps_processing_method",
+    "gps_area_information",
+    "software",
+    "artist",
+    "copyright",
+    "user_comment",
+    "maker_note",
+    "file_source",
+    "sensing_method",
+    "cfa_pattern",
+    "photographic_sensitivity",
+    "interop_index",
+    "interop_version",
+];
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ExifModel {
+    pub id: Option<Uuid>,
+    pub image_id: Option<Uuid>,
+    pub hash: Option<String>,
+
+    // Basic metadata
+    pub make: Option<String>,
+    pub model: Option<String>,
     pub lens_make: Option<String>,
     pub lens_model: Option<String>,
-    pub software: Option<String>,
-    pub taken_at: Option<DateTime<Utc>>,
-    pub digitized_at: Option<DateTime<Utc>>,
-    pub timezone_offset: Option<i16>,
-    pub exposure_time: Option<f64>,
+    pub lens_serial_number: Option<String>,
+    pub lens_specification: Option<String>,
+    pub body_serial_number: Option<String>,
+
+    // Exposure and capture info
+    pub exposure_time: Option<String>,
+    pub exposure_program: Option<String>,
+    pub exposure_mode: Option<String>,
+    pub exposure_bias_value: Option<f32>,
     pub f_number: Option<f32>,
-    pub iso: Option<i32>,
-    pub exposure_bias: Option<f32>,
+    pub aperture_value: Option<f32>,
+    pub max_aperture_value: Option<f32>,
+    pub brightness_value: Option<f32>,
+    pub shutter_speed_value: Option<f32>,
+    pub iso: Option<u32>,
+    pub sensitivity_type: Option<String>,
+    pub recommended_exposure_index: Option<u32>,
     pub metering_mode: Option<String>,
-    pub flash: Option<bool>,
+    pub light_source: Option<String>,
+    pub flash: Option<String>,
+    pub exposure_index: Option<f32>,
+    pub gain_control: Option<String>,
+    pub subject_distance: Option<f32>,
+
+    // Image characteristics
     pub focal_length: Option<f32>,
-    pub focal_length_35mm: Option<i32>,
-    pub width: Option<i32>,
-    pub height: Option<i32>,
-    pub orientation: Option<i16>,
+    pub focal_length_in_35mm_film: Option<u32>,
     pub color_space: Option<String>,
+    pub bits_per_sample: Option<String>,
+    pub image_width: Option<u32>,
+    pub image_length: Option<u32>,
+    pub pixel_x_dimension: Option<u32>,
+    pub pixel_y_dimension: Option<u32>,
+    pub x_resolution: Option<f32>,
+    pub y_resolution: Option<f32>,
+    pub resolution_unit: Option<String>,
+    pub compression: Option<String>,
+    pub orientation: Option<u16>,
+    pub digital_zoom_ratio: Option<f32>,
     pub white_balance: Option<String>,
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
-    pub altitude: Option<f32>,
-    pub raw: Option<JsonValue>,
+    pub contrast: Option<String>,
+    pub saturation: Option<String>,
+    pub sharpness: Option<String>,
+    pub custom_rendered: Option<String>,
+    pub scene_capture_type: Option<String>,
+    pub scene_type: Option<String>,
+    pub subject_distance_range: Option<String>,
+    pub rating: Option<u8>,
+    pub label: Option<String>,
+    pub flagged: Option<i8>,
+
+    // Color / tone
+    pub white_point: Option<String>,
+    pub primary_chromaticities: Option<String>,
+    pub transfer_function: Option<String>,
+    pub gamma: Option<f32>,
+
+    // Time information
+    pub datetime: Option<String>,
+    pub datetime_original: Option<String>,
+    pub datetime_digitized: Option<String>,
+    pub offset_time: Option<String>,
+    pub offset_time_original: Option<String>,
+    pub offset_time_digitized: Option<String>,
+    pub subsec_time: Option<String>,
+    pub subsec_time_original: Option<String>,
+    pub subsec_time_digitized: Option<String>,
+
+    // GPS info
+    pub gps_latitude: Option<f64>,
+    pub gps_longitude: Option<f64>,
+    pub gps_altitude: Option<f64>,
+    pub gps_altitude_ref: Option<String>,
+    pub gps_latitude_ref: Option<String>,
+    pub gps_longitude_ref: Option<String>,
+    pub gps_speed: Option<f32>,
+    pub gps_speed_ref: Option<String>,
+    pub gps_img_direction: Option<f32>,
+    pub gps_img_direction_ref: Option<String>,
+    pub gps_date_stamp: Option<String>,
+    pub gps_time_stamp: Option<String>,
+    pub gps_processing_method: Option<String>,
+    pub gps_area_information: Option<String>,
+
+    // Misc
+    pub software: Option<String>,
+    pub artist: Option<String>,
+    pub copyright: Option<String>,
+    pub user_comment: Option<String>,
+    pub maker_note: Option<String>,
+    pub file_source: Option<String>,
+    pub sensing_method: Option<String>,
+    pub cfa_pattern: Option<String>,
+    pub photographic_sensitivity: Option<u32>,
+    pub interop_index: Option<String>,
+    pub interop_version: Option<String>,
 }
 
-impl Entity for Exif {
-    type Id = String;
+impl ExifModel {
+    pub fn get_date_taken(&self) -> Option<DateTime<Utc>> {
+        let candidates = [
+            self.datetime_original.as_deref(),
+            self.datetime.as_deref(),
+            self.datetime_digitized.as_deref(),
+        ];
+
+        for candidate in candidates.into_iter().flatten() {
+            if let Some(parsed) = Self::parse_exif_timestamp(candidate) {
+                return Some(parsed);
+            }
+        }
+
+        None
+    }
+
+    pub fn get_width(&self) -> Option<u32> {
+        self.image_width.or(self.pixel_x_dimension)
+    }
+
+    pub fn get_height(&self) -> Option<u32> {
+        self.image_length.or(self.pixel_y_dimension)
+    }
+
+    fn parse_exif_timestamp(raw: &str) -> Option<DateTime<Utc>> {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        let formats = ["%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"];
+        for format in &formats {
+            if let Ok(naive) = NaiveDateTime::parse_from_str(trimmed, format) {
+                return Some(Utc.from_utc_datetime(&naive));
+            }
+        }
+
+        DateTime::parse_from_rfc3339(trimmed)
+            .map(|dt| dt.with_timezone(&Utc))
+            .ok()
+    }
+}
+
+impl Entity for ExifModel {
+    type Id = Uuid;
 
     fn id(&self) -> &Self::Id {
-        &self.hash
+        self.id
+            .as_ref()
+            .expect("ExifModel requires an id for Entity trait operations")
     }
 
     fn name() -> &'static str {
@@ -54,214 +368,347 @@ impl Entity for Exif {
     }
 }
 
+impl HasOptionalUuidId for ExifModel {
+    fn id_slot(&mut self) -> &mut Option<Uuid> {
+        &mut self.id
+    }
+}
+
 #[cfg(feature = "postgres")]
-impl PostgresEntity for Exif {
+impl<'r> FromRow<'r, PgRow> for ExifModel {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            image_id: row.try_get("image_id")?,
+            hash: row.try_get("hash")?,
+            make: row.try_get("make")?,
+            model: row.try_get("model")?,
+            lens_make: row.try_get("lens_make")?,
+            lens_model: row.try_get("lens_model")?,
+            lens_serial_number: row.try_get("lens_serial_number")?,
+            lens_specification: row.try_get("lens_specification")?,
+            body_serial_number: row.try_get("body_serial_number")?,
+            exposure_time: row.try_get("exposure_time")?,
+            exposure_program: row.try_get("exposure_program")?,
+            exposure_mode: row.try_get("exposure_mode")?,
+            exposure_bias_value: row.try_get("exposure_bias_value")?,
+            f_number: row.try_get("f_number")?,
+            aperture_value: row.try_get("aperture_value")?,
+            max_aperture_value: row.try_get("max_aperture_value")?,
+            brightness_value: row.try_get("brightness_value")?,
+            shutter_speed_value: row.try_get("shutter_speed_value")?,
+            iso: row
+                .try_get::<Option<i32>, _>("iso")?
+                .map(|value| value as u32),
+            sensitivity_type: row.try_get("sensitivity_type")?,
+            recommended_exposure_index: row
+                .try_get::<Option<i32>, _>("recommended_exposure_index")?
+                .map(|value| value as u32),
+            metering_mode: row.try_get("metering_mode")?,
+            light_source: row.try_get("light_source")?,
+            flash: row.try_get("flash")?,
+            exposure_index: row.try_get("exposure_index")?,
+            gain_control: row.try_get("gain_control")?,
+            subject_distance: row.try_get("subject_distance")?,
+            focal_length: row.try_get("focal_length")?,
+            focal_length_in_35mm_film: row
+                .try_get::<Option<i32>, _>("focal_length_in_35mm_film")?
+                .map(|value| value as u32),
+            color_space: row.try_get("color_space")?,
+            bits_per_sample: row.try_get("bits_per_sample")?,
+            image_width: row
+                .try_get::<Option<i32>, _>("image_width")?
+                .map(|value| value as u32),
+            image_length: row
+                .try_get::<Option<i32>, _>("image_length")?
+                .map(|value| value as u32),
+            pixel_x_dimension: row
+                .try_get::<Option<i32>, _>("pixel_x_dimension")?
+                .map(|value| value as u32),
+            pixel_y_dimension: row
+                .try_get::<Option<i32>, _>("pixel_y_dimension")?
+                .map(|value| value as u32),
+            x_resolution: row.try_get("x_resolution")?,
+            y_resolution: row.try_get("y_resolution")?,
+            resolution_unit: row.try_get("resolution_unit")?,
+            compression: row.try_get("compression")?,
+            orientation: row
+                .try_get::<Option<i32>, _>("orientation")?
+                .map(|value| value as u16),
+            digital_zoom_ratio: row.try_get("digital_zoom_ratio")?,
+            white_balance: row.try_get("white_balance")?,
+            contrast: row.try_get("contrast")?,
+            saturation: row.try_get("saturation")?,
+            sharpness: row.try_get("sharpness")?,
+            custom_rendered: row.try_get("custom_rendered")?,
+            scene_capture_type: row.try_get("scene_capture_type")?,
+            scene_type: row.try_get("scene_type")?,
+            subject_distance_range: row.try_get("subject_distance_range")?,
+            rating: row
+                .try_get::<Option<i32>, _>("rating")?
+                .map(|value| value as u8),
+            label: row.try_get("label")?,
+            flagged: row
+                .try_get::<Option<i32>, _>("flagged")?
+                .map(|value| value as i8),
+            white_point: row.try_get("white_point")?,
+            primary_chromaticities: row.try_get("primary_chromaticities")?,
+            transfer_function: row.try_get("transfer_function")?,
+            gamma: row.try_get("gamma")?,
+            datetime: row.try_get("datetime")?,
+            datetime_original: row.try_get("datetime_original")?,
+            datetime_digitized: row.try_get("datetime_digitized")?,
+            offset_time: row.try_get("offset_time")?,
+            offset_time_original: row.try_get("offset_time_original")?,
+            offset_time_digitized: row.try_get("offset_time_digitized")?,
+            subsec_time: row.try_get("subsec_time")?,
+            subsec_time_original: row.try_get("subsec_time_original")?,
+            subsec_time_digitized: row.try_get("subsec_time_digitized")?,
+            gps_latitude: row.try_get("gps_latitude")?,
+            gps_longitude: row.try_get("gps_longitude")?,
+            gps_altitude: row.try_get("gps_altitude")?,
+            gps_altitude_ref: row.try_get("gps_altitude_ref")?,
+            gps_latitude_ref: row.try_get("gps_latitude_ref")?,
+            gps_longitude_ref: row.try_get("gps_longitude_ref")?,
+            gps_speed: row.try_get("gps_speed")?,
+            gps_speed_ref: row.try_get("gps_speed_ref")?,
+            gps_img_direction: row.try_get("gps_img_direction")?,
+            gps_img_direction_ref: row.try_get("gps_img_direction_ref")?,
+            gps_date_stamp: row.try_get("gps_date_stamp")?,
+            gps_time_stamp: row.try_get("gps_time_stamp")?,
+            gps_processing_method: row.try_get("gps_processing_method")?,
+            gps_area_information: row.try_get("gps_area_information")?,
+            software: row.try_get("software")?,
+            artist: row.try_get("artist")?,
+            copyright: row.try_get("copyright")?,
+            user_comment: row.try_get("user_comment")?,
+            maker_note: row.try_get("maker_note")?,
+            file_source: row.try_get("file_source")?,
+            sensing_method: row.try_get("sensing_method")?,
+            cfa_pattern: row.try_get("cfa_pattern")?,
+            photographic_sensitivity: row
+                .try_get::<Option<i32>, _>("photographic_sensitivity")?
+                .map(|value| value as u32),
+            interop_index: row.try_get("interop_index")?,
+            interop_version: row.try_get("interop_version")?,
+        })
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl PostgresEntity for ExifModel {
     fn id_column() -> &'static str {
-        "hash"
+        "id"
     }
 
     fn id_value(id: &Self::Id) -> Value {
-        Value::String(id.clone())
+        Value::Uuid(*id)
     }
 
     fn insert_columns() -> &'static [&'static str] {
-        &[
-            "hash",
-            "camera_make",
-            "camera_model",
-            "lens_make",
-            "lens_model",
-            "software",
-            "taken_at",
-            "digitized_at",
-            "timezone_offset",
-            "exposure_time",
-            "f_number",
-            "iso",
-            "exposure_bias",
-            "metering_mode",
-            "flash",
-            "focal_length",
-            "focal_length_35mm",
-            "width",
-            "height",
-            "orientation",
-            "color_space",
-            "white_balance",
-            "latitude",
-            "longitude",
-            "altitude",
-            "raw",
-        ]
+        EXIF_INSERT_COLUMNS
     }
 
     fn insert_values(&self) -> Vec<Value> {
+        let id = self.id.as_ref().expect("id not set for Exif insert");
         vec![
-            Value::String(self.hash.clone()),
-            opt_string(&self.camera_make),
-            opt_string(&self.camera_model),
-            opt_string(&self.lens_make),
-            opt_string(&self.lens_model),
-            opt_string(&self.software),
-            opt_datetime(self.taken_at),
-            opt_datetime(self.digitized_at),
-            opt_int(self.timezone_offset.map(|v| v as i64)),
-            opt_float(self.exposure_time.map(|v| v as f64)),
-            opt_float(self.f_number.map(|v| v as f64)),
-            opt_int(self.iso.map(|v| v as i64)),
-            opt_float(self.exposure_bias.map(|v| v as f64)),
-            opt_string(&self.metering_mode),
-            opt_bool(self.flash),
-            opt_float(self.focal_length.map(|v| v as f64)),
-            opt_int(self.focal_length_35mm.map(|v| v as i64)),
-            opt_int(self.width.map(|v| v as i64)),
-            opt_int(self.height.map(|v| v as i64)),
-            opt_int(self.orientation.map(|v| v as i64)),
-            opt_string(&self.color_space),
-            opt_string(&self.white_balance),
-            opt_float(self.latitude),
-            opt_float(self.longitude),
-            opt_float(self.altitude.map(|v| v as f64)),
-            opt_json(&self.raw),
+            Value::Uuid(*id),
+            PostgresValueBuilder::optional_uuid(self.image_id),
+            PostgresValueBuilder::optional_string(&self.hash),
+            PostgresValueBuilder::optional_string(&self.make),
+            PostgresValueBuilder::optional_string(&self.model),
+            PostgresValueBuilder::optional_string(&self.lens_make),
+            PostgresValueBuilder::optional_string(&self.lens_model),
+            PostgresValueBuilder::optional_string(&self.lens_serial_number),
+            PostgresValueBuilder::optional_string(&self.lens_specification),
+            PostgresValueBuilder::optional_string(&self.body_serial_number),
+            PostgresValueBuilder::optional_string(&self.exposure_time),
+            PostgresValueBuilder::optional_string(&self.exposure_program),
+            PostgresValueBuilder::optional_string(&self.exposure_mode),
+            PostgresValueBuilder::optional_f32(self.exposure_bias_value),
+            PostgresValueBuilder::optional_f32(self.f_number),
+            PostgresValueBuilder::optional_f32(self.aperture_value),
+            PostgresValueBuilder::optional_f32(self.max_aperture_value),
+            PostgresValueBuilder::optional_f32(self.brightness_value),
+            PostgresValueBuilder::optional_f32(self.shutter_speed_value),
+            PostgresValueBuilder::optional_u32(self.iso),
+            PostgresValueBuilder::optional_string(&self.sensitivity_type),
+            PostgresValueBuilder::optional_u32(self.recommended_exposure_index),
+            PostgresValueBuilder::optional_string(&self.metering_mode),
+            PostgresValueBuilder::optional_string(&self.light_source),
+            PostgresValueBuilder::optional_string(&self.flash),
+            PostgresValueBuilder::optional_f32(self.exposure_index),
+            PostgresValueBuilder::optional_string(&self.gain_control),
+            PostgresValueBuilder::optional_f32(self.subject_distance),
+            PostgresValueBuilder::optional_f32(self.focal_length),
+            PostgresValueBuilder::optional_u32(self.focal_length_in_35mm_film),
+            PostgresValueBuilder::optional_string(&self.color_space),
+            PostgresValueBuilder::optional_string(&self.bits_per_sample),
+            PostgresValueBuilder::optional_u32(self.image_width),
+            PostgresValueBuilder::optional_u32(self.image_length),
+            PostgresValueBuilder::optional_u32(self.pixel_x_dimension),
+            PostgresValueBuilder::optional_u32(self.pixel_y_dimension),
+            PostgresValueBuilder::optional_f32(self.x_resolution),
+            PostgresValueBuilder::optional_f32(self.y_resolution),
+            PostgresValueBuilder::optional_string(&self.resolution_unit),
+            PostgresValueBuilder::optional_string(&self.compression),
+            PostgresValueBuilder::optional_u16(self.orientation),
+            PostgresValueBuilder::optional_f32(self.digital_zoom_ratio),
+            PostgresValueBuilder::optional_string(&self.white_balance),
+            PostgresValueBuilder::optional_string(&self.contrast),
+            PostgresValueBuilder::optional_string(&self.saturation),
+            PostgresValueBuilder::optional_string(&self.sharpness),
+            PostgresValueBuilder::optional_string(&self.custom_rendered),
+            PostgresValueBuilder::optional_string(&self.scene_capture_type),
+            PostgresValueBuilder::optional_string(&self.scene_type),
+            PostgresValueBuilder::optional_string(&self.subject_distance_range),
+            PostgresValueBuilder::optional_u8(self.rating),
+            PostgresValueBuilder::optional_string(&self.label),
+            PostgresValueBuilder::optional_i8(self.flagged),
+            PostgresValueBuilder::optional_string(&self.white_point),
+            PostgresValueBuilder::optional_string(&self.primary_chromaticities),
+            PostgresValueBuilder::optional_string(&self.transfer_function),
+            PostgresValueBuilder::optional_f32(self.gamma),
+            PostgresValueBuilder::optional_string(&self.datetime),
+            PostgresValueBuilder::optional_string(&self.datetime_original),
+            PostgresValueBuilder::optional_string(&self.datetime_digitized),
+            PostgresValueBuilder::optional_string(&self.offset_time),
+            PostgresValueBuilder::optional_string(&self.offset_time_original),
+            PostgresValueBuilder::optional_string(&self.offset_time_digitized),
+            PostgresValueBuilder::optional_string(&self.subsec_time),
+            PostgresValueBuilder::optional_string(&self.subsec_time_original),
+            PostgresValueBuilder::optional_string(&self.subsec_time_digitized),
+            PostgresValueBuilder::optional_f64(self.gps_latitude),
+            PostgresValueBuilder::optional_f64(self.gps_longitude),
+            PostgresValueBuilder::optional_f64(self.gps_altitude),
+            PostgresValueBuilder::optional_string(&self.gps_altitude_ref),
+            PostgresValueBuilder::optional_string(&self.gps_latitude_ref),
+            PostgresValueBuilder::optional_string(&self.gps_longitude_ref),
+            PostgresValueBuilder::optional_f32(self.gps_speed),
+            PostgresValueBuilder::optional_string(&self.gps_speed_ref),
+            PostgresValueBuilder::optional_f32(self.gps_img_direction),
+            PostgresValueBuilder::optional_string(&self.gps_img_direction_ref),
+            PostgresValueBuilder::optional_string(&self.gps_date_stamp),
+            PostgresValueBuilder::optional_string(&self.gps_time_stamp),
+            PostgresValueBuilder::optional_string(&self.gps_processing_method),
+            PostgresValueBuilder::optional_string(&self.gps_area_information),
+            PostgresValueBuilder::optional_string(&self.software),
+            PostgresValueBuilder::optional_string(&self.artist),
+            PostgresValueBuilder::optional_string(&self.copyright),
+            PostgresValueBuilder::optional_string(&self.user_comment),
+            PostgresValueBuilder::optional_string(&self.maker_note),
+            PostgresValueBuilder::optional_string(&self.file_source),
+            PostgresValueBuilder::optional_string(&self.sensing_method),
+            PostgresValueBuilder::optional_string(&self.cfa_pattern),
+            PostgresValueBuilder::optional_u32(self.photographic_sensitivity),
+            PostgresValueBuilder::optional_string(&self.interop_index),
+            PostgresValueBuilder::optional_string(&self.interop_version),
         ]
     }
 
     fn update_columns() -> &'static [&'static str] {
-        &[
-            "camera_make",
-            "camera_model",
-            "lens_make",
-            "lens_model",
-            "software",
-            "taken_at",
-            "digitized_at",
-            "timezone_offset",
-            "exposure_time",
-            "f_number",
-            "iso",
-            "exposure_bias",
-            "metering_mode",
-            "flash",
-            "focal_length",
-            "focal_length_35mm",
-            "width",
-            "height",
-            "orientation",
-            "color_space",
-            "white_balance",
-            "latitude",
-            "longitude",
-            "altitude",
-            "raw",
-        ]
+        EXIF_UPDATE_COLUMNS
     }
 
     fn update_values(&self) -> Vec<Value> {
-        vec![
-            opt_string(&self.camera_make),
-            opt_string(&self.camera_model),
-            opt_string(&self.lens_make),
-            opt_string(&self.lens_model),
-            opt_string(&self.software),
-            opt_datetime(self.taken_at),
-            opt_datetime(self.digitized_at),
-            opt_int(self.timezone_offset.map(|v| v as i64)),
-            opt_float(self.exposure_time.map(|v| v as f64)),
-            opt_float(self.f_number.map(|v| v as f64)),
-            opt_int(self.iso.map(|v| v as i64)),
-            opt_float(self.exposure_bias.map(|v| v as f64)),
-            opt_string(&self.metering_mode),
-            opt_bool(self.flash),
-            opt_float(self.focal_length.map(|v| v as f64)),
-            opt_int(self.focal_length_35mm.map(|v| v as i64)),
-            opt_int(self.width.map(|v| v as i64)),
-            opt_int(self.height.map(|v| v as i64)),
-            opt_int(self.orientation.map(|v| v as i64)),
-            opt_string(&self.color_space),
-            opt_string(&self.white_balance),
-            opt_float(self.latitude),
-            opt_float(self.longitude),
-            opt_float(self.altitude.map(|v| v as f64)),
-            opt_json(&self.raw),
-        ]
+        let mut values = self.insert_values();
+        values.remove(0);
+        values
     }
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
-            ColumnDef::new("hash", ColumnType::Text).primary_key(),
-            ColumnDef::new("camera_make", ColumnType::Text),
-            ColumnDef::new("camera_model", ColumnType::Text),
+            ColumnDef::new("id", ColumnType::Uuid).primary_key(),
+            ColumnDef::new("image_id", ColumnType::Uuid),
+            ColumnDef::new("hash", ColumnType::Text),
+            ColumnDef::new("make", ColumnType::Text),
+            ColumnDef::new("model", ColumnType::Text),
             ColumnDef::new("lens_make", ColumnType::Text),
             ColumnDef::new("lens_model", ColumnType::Text),
-            ColumnDef::new("software", ColumnType::Text),
-            ColumnDef::new("taken_at", ColumnType::Timestamp),
-            ColumnDef::new("digitized_at", ColumnType::Timestamp),
-            ColumnDef::new("timezone_offset", ColumnType::Integer),
-            ColumnDef::new("exposure_time", ColumnType::Double),
+            ColumnDef::new("lens_serial_number", ColumnType::Text),
+            ColumnDef::new("lens_specification", ColumnType::Text),
+            ColumnDef::new("body_serial_number", ColumnType::Text),
+            ColumnDef::new("exposure_time", ColumnType::Text),
+            ColumnDef::new("exposure_program", ColumnType::Text),
+            ColumnDef::new("exposure_mode", ColumnType::Text),
+            ColumnDef::new("exposure_bias_value", ColumnType::Float),
             ColumnDef::new("f_number", ColumnType::Float),
+            ColumnDef::new("aperture_value", ColumnType::Float),
+            ColumnDef::new("max_aperture_value", ColumnType::Float),
+            ColumnDef::new("brightness_value", ColumnType::Float),
+            ColumnDef::new("shutter_speed_value", ColumnType::Float),
             ColumnDef::new("iso", ColumnType::Integer),
-            ColumnDef::new("exposure_bias", ColumnType::Float),
+            ColumnDef::new("sensitivity_type", ColumnType::Text),
+            ColumnDef::new("recommended_exposure_index", ColumnType::Integer),
             ColumnDef::new("metering_mode", ColumnType::Text),
-            ColumnDef::new("flash", ColumnType::Boolean),
+            ColumnDef::new("light_source", ColumnType::Text),
+            ColumnDef::new("flash", ColumnType::Text),
+            ColumnDef::new("exposure_index", ColumnType::Float),
+            ColumnDef::new("gain_control", ColumnType::Text),
+            ColumnDef::new("subject_distance", ColumnType::Float),
             ColumnDef::new("focal_length", ColumnType::Float),
-            ColumnDef::new("focal_length_35mm", ColumnType::Integer),
-            ColumnDef::new("width", ColumnType::Integer),
-            ColumnDef::new("height", ColumnType::Integer),
-            ColumnDef::new("orientation", ColumnType::Integer),
+            ColumnDef::new("focal_length_in_35mm_film", ColumnType::Integer),
             ColumnDef::new("color_space", ColumnType::Text),
+            ColumnDef::new("bits_per_sample", ColumnType::Text),
+            ColumnDef::new("image_width", ColumnType::Integer),
+            ColumnDef::new("image_length", ColumnType::Integer),
+            ColumnDef::new("pixel_x_dimension", ColumnType::Integer),
+            ColumnDef::new("pixel_y_dimension", ColumnType::Integer),
+            ColumnDef::new("x_resolution", ColumnType::Float),
+            ColumnDef::new("y_resolution", ColumnType::Float),
+            ColumnDef::new("resolution_unit", ColumnType::Text),
+            ColumnDef::new("compression", ColumnType::Text),
+            ColumnDef::new("orientation", ColumnType::Integer),
+            ColumnDef::new("digital_zoom_ratio", ColumnType::Float),
             ColumnDef::new("white_balance", ColumnType::Text),
-            ColumnDef::new("latitude", ColumnType::Double),
-            ColumnDef::new("longitude", ColumnType::Double),
-            ColumnDef::new("altitude", ColumnType::Float),
-            ColumnDef::new("raw", ColumnType::Json),
+            ColumnDef::new("contrast", ColumnType::Text),
+            ColumnDef::new("saturation", ColumnType::Text),
+            ColumnDef::new("sharpness", ColumnType::Text),
+            ColumnDef::new("custom_rendered", ColumnType::Text),
+            ColumnDef::new("scene_capture_type", ColumnType::Text),
+            ColumnDef::new("scene_type", ColumnType::Text),
+            ColumnDef::new("subject_distance_range", ColumnType::Text),
+            ColumnDef::new("rating", ColumnType::Integer),
+            ColumnDef::new("label", ColumnType::Text),
+            ColumnDef::new("flagged", ColumnType::Integer),
+            ColumnDef::new("white_point", ColumnType::Text),
+            ColumnDef::new("primary_chromaticities", ColumnType::Text),
+            ColumnDef::new("transfer_function", ColumnType::Text),
+            ColumnDef::new("gamma", ColumnType::Float),
+            ColumnDef::new("datetime", ColumnType::Text),
+            ColumnDef::new("datetime_original", ColumnType::Text),
+            ColumnDef::new("datetime_digitized", ColumnType::Text),
+            ColumnDef::new("offset_time", ColumnType::Text),
+            ColumnDef::new("offset_time_original", ColumnType::Text),
+            ColumnDef::new("offset_time_digitized", ColumnType::Text),
+            ColumnDef::new("subsec_time", ColumnType::Text),
+            ColumnDef::new("subsec_time_original", ColumnType::Text),
+            ColumnDef::new("subsec_time_digitized", ColumnType::Text),
+            ColumnDef::new("gps_latitude", ColumnType::Double),
+            ColumnDef::new("gps_longitude", ColumnType::Double),
+            ColumnDef::new("gps_altitude", ColumnType::Double),
+            ColumnDef::new("gps_altitude_ref", ColumnType::Text),
+            ColumnDef::new("gps_latitude_ref", ColumnType::Text),
+            ColumnDef::new("gps_longitude_ref", ColumnType::Text),
+            ColumnDef::new("gps_speed", ColumnType::Float),
+            ColumnDef::new("gps_speed_ref", ColumnType::Text),
+            ColumnDef::new("gps_img_direction", ColumnType::Float),
+            ColumnDef::new("gps_img_direction_ref", ColumnType::Text),
+            ColumnDef::new("gps_date_stamp", ColumnType::Text),
+            ColumnDef::new("gps_time_stamp", ColumnType::Text),
+            ColumnDef::new("gps_processing_method", ColumnType::Text),
+            ColumnDef::new("gps_area_information", ColumnType::Text),
+            ColumnDef::new("software", ColumnType::Text),
+            ColumnDef::new("artist", ColumnType::Text),
+            ColumnDef::new("copyright", ColumnType::Text),
+            ColumnDef::new("user_comment", ColumnType::Text),
+            ColumnDef::new("maker_note", ColumnType::Text),
+            ColumnDef::new("file_source", ColumnType::Text),
+            ColumnDef::new("sensing_method", ColumnType::Text),
+            ColumnDef::new("cfa_pattern", ColumnType::Text),
+            ColumnDef::new("photographic_sensitivity", ColumnType::Integer),
+            ColumnDef::new("interop_index", ColumnType::Text),
+            ColumnDef::new("interop_version", ColumnType::Text),
         ]
-    }
-}
-
-#[cfg(feature = "postgres")]
-fn opt_string(value: &Option<String>) -> Value {
-    match value {
-        Some(v) => Value::String(v.clone()),
-        None => Value::Null,
-    }
-}
-
-#[cfg(feature = "postgres")]
-fn opt_datetime(value: Option<DateTime<Utc>>) -> Value {
-    match value {
-        Some(v) => Value::DateTime(v),
-        None => Value::Null,
-    }
-}
-
-#[cfg(feature = "postgres")]
-fn opt_int(value: Option<i64>) -> Value {
-    match value {
-        Some(v) => Value::Int(v),
-        None => Value::Null,
-    }
-}
-
-#[cfg(feature = "postgres")]
-fn opt_float(value: Option<f64>) -> Value {
-    match value {
-        Some(v) => Value::Float(v),
-        None => Value::Null,
-    }
-}
-
-#[cfg(feature = "postgres")]
-fn opt_bool(value: Option<bool>) -> Value {
-    match value {
-        Some(v) => Value::Bool(v),
-        None => Value::Null,
-    }
-}
-
-#[cfg(feature = "postgres")]
-fn opt_json(value: &Option<JsonValue>) -> Value {
-    match value {
-        Some(v) => Value::String(v.to_string()),
-        None => Value::Null,
     }
 }

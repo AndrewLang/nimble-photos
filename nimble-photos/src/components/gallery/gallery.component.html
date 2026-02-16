@@ -1,0 +1,73 @@
+<main class="flex-1 px-4 pb-8" [style.paddingTop]="paddingTop" (scroll)="onScroll($event)">
+  @if (showHeader) {
+  <header class="mb-12 px-2">
+    <h1 class="text-4xl font-bold tracking-tight bg-linear-to-r from-white to-slate-400 bg-clip-text text-transparent">
+      Library
+    </h1>
+    <p class="text-slate-500 text-sm mt-1 uppercase tracking-widest font-medium">
+      {{ totalPhotos() }} Photos · Grid View
+    </p>
+  </header>
+  }
+
+  <div class="masonry-grid">
+    @for (photo of photos(); track photo.id) {
+    <article (click)="isSelectionMode() ? togglePhotoSelection(photo, $event) : null"
+      [routerLink]="!isSelectionMode() ? (albumId ? ['/album', albumId, 'photo', photo.id] : ['/photo', photo.id]) : null"
+      [state]="!isSelectionMode() ? { returnUrl: router.url } : undefined"
+      class="photo-card relative group cursor-pointer transition-all duration-300"
+      [class.translate-y-[-4px]]="isSelected(photo.id)" [class.z-10]="isSelected(photo.id)">
+
+      <div class="overflow-hidden rounded-sm bg-slate-900 border border-white/5"
+        [style.aspect-ratio]="photo.width && photo.height ? (photo.width + '/' + photo.height) : 'auto'">
+        <img [src]="getImageUrl(photo)" [alt]="photo.name" fallback
+          class="w-full h-auto block transition-all duration-700 ease-out group-hover:scale-110"
+          [class.scale-105]="isSelected(photo.id)" loading="lazy">
+      </div>
+
+      @if (isSelected(photo.id)) {
+      <div class="absolute inset-0 ring-4 ring-inset ring-indigo-500 z-40 pointer-events-none rounded-sm"></div>
+      }
+
+      <div class="absolute top-2 left-2 z-30 transition-opacity duration-200"
+        [class.opacity-0]="!isSelectionMode() && !isSelected(photo.id)" [class.group-hover:opacity-100]="true">
+        <button (click)="togglePhotoSelection(photo, $event)"
+          class="w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center backdrop-blur-md"
+          [class.border-indigo-500]="isSelected(photo.id)" [class.bg-indigo-500]="isSelected(photo.id)"
+          [class.border-white/50]="!isSelected(photo.id)" [class.hover:border-white]="!isSelected(photo.id)"
+          [class.hover:scale-110]="true">
+          @if (isSelected(photo.id)) {
+          <mtx-svg name="checkSolid" className="text-white"></mtx-svg>
+          }
+        </button>
+      </div>
+
+      <div
+        class="absolute inset-0 ring-2 ring-inset ring-indigo-500/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10 rounded-sm">
+      </div>
+    </article>
+    }
+  </div>
+
+  @if (isFetching()) {
+  <div class="flex flex-col items-center justify-center py-20 gap-4">
+    <div class="flex gap-1.5">
+      <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce"></div>
+      <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+      <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+    </div>
+    <span class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Scanning Library</span>
+  </div>
+  }
+
+  @if (!isFetching() && photos().length >= totalPhotos() && totalPhotos() > 0) {
+  <div class="flex flex-col items-center justify-center py-24 px-4 text-center">
+    <div class="h-px w-24 bg-linear-to-r from-transparent via-slate-800 to-transparent mb-8"></div>
+    <div class="relative">
+      <mtx-svg name="sparkle" className="text-slate-800"></mtx-svg>
+    </div>
+    <h3 class="mt-4 text-slate-400 font-medium tracking-tight">End of the line</h3>
+    <p class="mt-1 text-slate-600 text-xs">Your entire collection has been indexed</p>
+  </div>
+  }
+</main>

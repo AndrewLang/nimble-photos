@@ -1,3 +1,6 @@
 [submodule "backend/crates/nimble-web"]
 	path = backend/crates/nimble-web
 	url = https://github.com/AndrewLang/matrix-nimble-web
+[submodule "backend/crates/rawthumb"]
+	path = backend/crates/rawthumb
+	url = https://github.com/AndrewLang/rawthumb.git

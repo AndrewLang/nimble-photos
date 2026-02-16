@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::dtos::auth_dtos::{
     ChangePasswordRequest, LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterRequest,
-    ResetPasswordRequest, VerifyEmailRequest,
+    RegistrationStatusResponse, ResetPasswordRequest, VerifyEmailRequest,
 };
 use crate::dtos::user_profile_dto::UserProfileDto;
 use crate::entities::{user::User, user_settings::UserSettings};
-use crate::services::AuthService;
+use crate::services::{AuthService, SettingService};
 
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
@@ -38,6 +38,7 @@ impl Controller for AuthController {
                 .build(),
             EndpointRoute::post("/api/auth/reset-password", ResetPasswordHandler).build(),
             EndpointRoute::post("/api/auth/verify-email", VerifyEmailHandler).build(),
+            EndpointRoute::get("/api/auth/registration-status", RegistrationStatusHandler).build(),
             EndpointRoute::get("/api/auth/me", MeHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
@@ -82,6 +83,24 @@ impl HttpHandler for RegisterHandler {
             .await?;
 
         Ok(ResponseValue::json(response))
+    }
+}
+
+struct RegistrationStatusHandler;
+
+#[async_trait]
+impl HttpHandler for RegistrationStatusHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let auth_service = context.service::<AuthService>()?;
+        let setting_service = context.service::<SettingService>()?;
+
+        let has_admin = auth_service.has_admin_user().await?;
+        let allow_registration = setting_service.is_registration_allowed().await?;
+
+        Ok(ResponseValue::json(RegistrationStatusResponse {
+            has_admin,
+            allow_registration,
+        }))
     }
 }
 
@@ -134,7 +153,7 @@ impl HttpHandler for RefreshHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload: RefreshTokenRequest = context.json()?;
         let auth_service = context.service::<AuthService>()?;
-        let response = auth_service.refresh(&payload.refresh_token)?;
+        let response = auth_service.refresh(&payload.refresh_token).await?;
 
         Ok(ResponseValue::json(response))
     }

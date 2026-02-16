@@ -114,6 +114,7 @@ fn login_returns_token() {
         reset_token_expires_at: None,
         verification_token: None,
         email_verified: false,
+        roles: None,
     }]);
 
     let settings_repo = MemoryRepository::<UserSettings>::new();
@@ -195,6 +196,7 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
         reset_token_expires_at: None,
         verification_token: None,
         email_verified: false,
+        roles: None,
     }]);
 
     let settings_repo = MemoryRepository::<UserSettings>::new();
@@ -241,10 +243,12 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
     });
     container.register_singleton::<AuthService, _>(move |provider| {
         let repo = provider.resolve::<Repository<User>>().unwrap();
+        let settings_repo = provider.resolve::<Repository<UserSettings>>().unwrap();
         let encrypt = provider.resolve::<EncryptService>().unwrap();
         let tokens = provider.resolve::<Arc<dyn TokenService>>().unwrap();
         AuthService::new(
             repo.clone(), // already Arc
+            settings_repo.clone(),
             encrypt.as_ref().clone(),
             tokens.as_ref().clone(),
         )

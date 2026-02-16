@@ -3,12 +3,17 @@
 mod controllers;
 mod dtos;
 mod entities;
+mod middleware;
+mod models;
+mod repositories;
 mod services;
 
 use controllers::register_controllers;
 use entities::{migrate_entities, register_entities};
+use middleware::PublicAccessMiddleware;
 use nimble_web::AppBuilder;
 use nimble_web::app::application::AppError;
+use nimble_web::middleware::cors::CorsMiddleware;
 use services::register_services;
 
 #[tokio::main]
@@ -22,7 +27,9 @@ async fn main() -> std::result::Result<(), AppError> {
         .use_env()
         .use_address_env("Nimble_Photo_Url")
         .use_postgres()
-        .use_authentication();
+        .use_middleware(CorsMiddleware::default())
+        .use_authentication()
+        .use_middleware(PublicAccessMiddleware::new());
 
     register_services(&mut builder);
     register_controllers(&mut builder);
@@ -47,7 +54,9 @@ fn init_logging() {
     let mut builder = env_logger::Builder::from_env(env);
 
     if std::env::var("RUST_LOG").is_err() {
-        builder.filter_module("sqlx", log::LevelFilter::Info);
+        builder
+            .filter_level(log::LevelFilter::Debug)
+            .filter_module("sqlx", log::LevelFilter::Info);
     }
 
     let _ = builder.try_init();

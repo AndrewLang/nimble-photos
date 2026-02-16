@@ -1,0 +1,201 @@
+﻿<div class="max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <header
+        class="mb-10 p-8 rounded-3xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent">
+        <h1 class="text-3xl font-bold tracking-tight text-white mb-2">{{ title() }}</h1>
+        <p class="text-slate-400 text-sm max-w-2xl leading-relaxed">{{ subtitle() }}</p>
+
+        <div class="mt-5 inline-flex rounded-full border border-white/10 bg-slate-950/70 p-1">
+            <button type="button" (click)="setActiveTab('upload')"
+                class="rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors"
+                [class.bg-indigo-500]="activeTab() === 'upload'" [class.text-white]="activeTab() === 'upload'"
+                [class.text-slate-300]="activeTab() !== 'upload'">
+                Upload
+            </button>
+            <button type="button" (click)="setActiveTab('visibility')"
+                class="rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors"
+                [class.bg-indigo-500]="activeTab() === 'visibility'" [class.text-white]="activeTab() === 'visibility'"
+                [class.text-slate-300]="activeTab() !== 'visibility'">
+                Visibility
+            </button>
+        </div>
+    </header>
+
+    @if (activeTab() === 'visibility') {
+    <section class="mb-6 rounded-2xl border border-white/10 bg-slate-900/40 p-6">
+        <div class="flex items-start justify-between gap-4 flex-col md:flex-row">
+            <div>
+                <h2 class="text-lg font-semibold text-white">Viewer Tag Visibility</h2>
+                <p class="text-sm text-slate-400 mt-1 max-w-xl">
+                    Photos tagged with the selected tags will be hidden for users with the viewer role.
+                </p>
+            </div>
+            <button type="button" (click)="saveViewerHiddenTags()" [disabled]="savingTagVisibility()"
+                class="rounded-full border border-indigo-500/40 bg-indigo-500/20 px-5 py-2 text-xs font-bold uppercase tracking-widest text-indigo-200 hover:bg-indigo-500/30 disabled:opacity-40">
+                {{ savingTagVisibility() ? 'Saving...' : 'Save Visibility Rules' }}
+            </button>
+        </div>
+
+        @if (tagsLoading()) {
+        <div class="mt-5 text-xs text-slate-400">Loading tags...</div>
+        } @else {
+        <div class="mt-5">
+            <mtx-action-selector [actions]="tagOptions()" [selectedKeys]="viewerHiddenTags()"
+                (selectedKeysChange)="onViewerHiddenTagsChange($event)">
+            </mtx-action-selector>
+        </div>
+        }
+
+        @if (tagVisibilityError()) {
+        <div class="mt-4 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-xs text-rose-300">
+            {{ tagVisibilityError() }}
+        </div>
+        }
+        @if (tagVisibilitySaved()) {
+        <div class="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-300">
+            Viewer visibility rules saved.
+        </div>
+        }
+    </section>
+    }
+
+    @if (activeTab() === 'upload') {
+    <section class="mb-6 rounded-2xl border border-white/10 bg-slate-900/40 p-6">
+        <div class="flex items-start justify-between gap-6 flex-col lg:flex-row">
+            <div>
+                <h2 class="text-lg font-semibold text-white">Storage destination</h2>
+                <p class="text-sm text-slate-400 mt-1 max-w-xl">
+                    Choose where new uploads will be stored.
+                </p>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" (click)="openStorageSelector()" [disabled]="!hasStorages()"
+                    class="rounded-full border border-indigo-500/40 bg-indigo-500/20 px-5 py-2 text-xs font-bold uppercase tracking-widest text-indigo-200 hover:bg-indigo-500/30 disabled:opacity-40">
+                    Select Storage
+                </button>
+                <a routerLink="/dashboard/storage"
+                    class="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-xs font-bold uppercase tracking-widest text-slate-300 hover:bg-white/10">
+                    Manage Storage
+                </a>
+            </div>
+        </div>
+
+        @if (storageLoading()) {
+        <div class="mt-5 text-xs text-slate-400">Loading storage locations...</div>
+        } @else if (!hasStorages()) {
+        <div class="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+            No storage locations exist yet. Add a storage location to enable uploads.
+        </div>
+        } @else if (selectedStorage()) {
+        <div class="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4 text-xs text-slate-300">
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-sm font-semibold text-white">{{ selectedStorage()!.label }}</span>
+                @if (selectedStorage()!.isDefault) {
+                <span
+                    class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[0.6rem] uppercase tracking-widest text-emerald-300">
+                    Default
+                </span>
+                }
+            </div>
+            <p class="mt-1 text-[0.7rem] text-slate-500">{{ selectedStorage()!.path }}</p>
+            @if (selectedStorage()!.disk) {
+            <p class="mt-1 text-[0.7rem] text-slate-400">
+                Path {{selectedStorage()?.path}} - {{
+                formatBytes(selectedStorage()?.disk?.availableBytes) }} free of {{
+                formatBytes(selectedStorage()?.disk?.totalBytes) }} total
+            </p>
+            }
+        </div>
+        } @else {
+        <div class="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+            No storage selected. Select a destination to enable uploads.
+        </div>
+        }
+    </section>
+
+    @if(selectedStorage()){
+    <section class="rounded-2xl border border-white/10 bg-slate-900/40 p-6" [class.opacity-60]="!canUpload()">
+        <div class="flex items-start justify-between gap-6 flex-col lg:flex-row">
+            <div>
+                <h2 class="text-lg font-semibold text-white">Upload photos</h2>
+                <p class="text-sm text-slate-400 mt-1 max-w-xl">
+                    Drag and drop files here and upload to {{ selectedStorage()?.path }}
+                </p>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" (click)="uploadFiles()"
+                    [disabled]="uploading() || !selectedFiles().length || !canSubmitUpload()"
+                    class="rounded-full border border-indigo-500/40 bg-indigo-500/20 px-5 py-2 text-xs font-bold uppercase tracking-widest text-indigo-200 hover:bg-indigo-500/30 disabled:opacity-40">
+                    {{ uploading() ? 'Uploading...' : 'Upload' }}
+                </button>
+                <button type="button" (click)="clearFiles()" [disabled]="!selectedFiles().length || !canUpload()"
+                    class="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-xs font-bold uppercase tracking-widest text-slate-300 hover:bg-white/10 disabled:opacity-40">
+                    Clear
+                </button>
+            </div>
+        </div>
+
+        <label class="mt-6 block">
+            <input type="file" multiple class="hidden" #fileInput [disabled]="!canUpload()"
+                accept=".jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.tiff,.bmp,.raw,.dng" />
+            <div id="file-drop"
+                class="mt-4 flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-10 text-center transition-all cursor-pointer"
+                [class.border-indigo-400]="isDragActive()" [class.bg-indigo-500/10]="isDragActive()"
+                [class.border-white/10]="!isDragActive()" [class.bg-slate-950/50]="!isDragActive()"
+                (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+                <p class="text-sm font-semibold text-white">Drop files here</p>
+                <p class="text-xs text-slate-400 mt-1">or click to browse</p>
+            </div>
+        </label>
+
+        @if (!canUpload()) {
+        <div class="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-200">
+            Uploads are disabled until a storage location is selected.
+        </div>
+        }
+        @if (canUpload() && !hasEnoughSpace() && selectedFiles().length) {
+        <div class="mt-4 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-xs text-rose-300">
+            Selected files ({{ formatBytes(totalSelectedBytes()) }}) exceed available storage space.
+        </div>
+        }
+
+        @if (uploadError()) {
+        <div class="mt-4 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-xs text-rose-400">
+            {{ uploadError() }}
+        </div>
+        }
+
+        @if (uploadSuccess()) {
+        <div class="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-300">
+            Upload complete.
+        </div>
+        }
+
+        @if (selectedFiles().length) {
+        <div class="mt-6">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-bold uppercase tracking-widest text-slate-400">Selected files</p>
+                <p class="text-[10px] uppercase tracking-widest text-slate-500">
+                    Supported: {{ supportedExtensions.join(', ') }}
+                </p>
+            </div>
+            <div class="mt-3 space-y-2">
+                @for (file of selectedFiles(); track file.name + file.size) {
+                <div
+                    class="flex items-center justify-between gap-4 rounded-lg border border-white/5 bg-slate-950/40 px-4 py-2">
+                    <div>
+                        <p class="text-sm text-white truncate max-w-[12rem] sm:max-w-[20rem]">{{ file.name }}</p>
+                        <p class="text-[10px] uppercase tracking-widest text-slate-500">{{ formatBytes(file.size) }}</p>
+                    </div>
+                    <button type="button" (click)="removeFile(file)"
+                        class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:bg-white/10">
+                        Remove
+                    </button>
+                </div>
+                }
+            </div>
+        </div>
+        }
+    </section>
+    }
+    }
+</div>

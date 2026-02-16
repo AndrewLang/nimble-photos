@@ -3,6 +3,10 @@ name = "nimble-photos"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = [".", "crates/nimble-web", "crates/rawthumb"]
+resolver = "2"
+
 [dependencies]
 nimble-web = { path = "./crates/nimble-web", features = ["postgres"] }
 tokio = { version = "1.49", features = ["full"] }
@@ -25,7 +29,14 @@ rand = "0.9"
 base64 = "0.22"
 anyhow = "1.0"
 uuid = { version = "1.13", features = ["v4", "serde"] }
-
+sysinfo = { version = "0.37", default-features = false, features = ["system", "disk"] }
+kamadak-exif = "0.6"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+rawthumb = { path = "./crates/rawthumb" }
+image = { version = "0.25", default-features = true, features = ["jpeg", "png", "webp", "tiff", "bmp"] }
+multer = "3.1"
+bytes = "1.10"
+futures-util = "0.3"
 
 [features]
 default = ["postgres"]

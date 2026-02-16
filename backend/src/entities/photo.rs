@@ -1,40 +1,123 @@
+use super::uuid_id::HasOptionalUuidId;
 use chrono::{DateTime, Utc};
 use nimble_web::Entity;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use uuid::Uuid;
 
 #[cfg(feature = "postgres")]
 use {
-    nimble_web::data::postgres::PostgresEntity,
+    nimble_web::data::postgres::{PostgresEntity, value_builder::PostgresValueBuilder},
     nimble_web::data::query::Value,
     nimble_web::data::schema::{ColumnDef, ColumnType},
-    sqlx::FromRow,
+    sqlx::postgres::PgRow,
+    sqlx::{FromRow, Row},
 };
 
-#[cfg_attr(feature = "postgres", derive(FromRow))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Photo {
-    pub id: Uuid,
-    pub hash: String,
+    pub id: Option<Uuid>,
     pub path: String,
-    pub file_name: String,
-    pub file_size: i64,
-    pub rating: Option<i32>,
-    pub label: Option<String>,
-    pub description: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub name: String,
+    pub format: Option<String>,
+    pub hash: Option<String>,
+    pub size: Option<i64>,
+    #[serde(alias = "created_at")]
+    pub created_at: Option<DateTime<Utc>>,
+    #[serde(alias = "updated_at")]
+    pub updated_at: Option<DateTime<Utc>>,
+    #[serde(alias = "date_imported")]
+    pub date_imported: Option<DateTime<Utc>>,
+    #[serde(alias = "date_taken")]
+    pub date_taken: Option<DateTime<Utc>>,
+    #[serde(alias = "thumbnail_path")]
+    pub thumbnail_path: Option<String>,
+    #[serde(alias = "thumbnail_optimized")]
+    pub thumbnail_optimized: Option<bool>,
+    #[serde(alias = "metadata_extracted")]
+    pub metadata_extracted: Option<bool>,
+    #[serde(alias = "is_raw")]
+    pub is_raw: Option<bool>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    #[serde(alias = "thumbnail_width")]
+    pub thumbnail_width: Option<u32>,
+    #[serde(alias = "thumbnail_height")]
+    pub thumbnail_height: Option<u32>,
+    pub tags: Option<Vec<String>>,
 }
 
 impl Entity for Photo {
     type Id = Uuid;
 
     fn id(&self) -> &Self::Id {
-        &self.id
+        self.id
+            .as_ref()
+            .expect("Photo entity requires an id for Entity trait operations")
     }
 
     fn name() -> &'static str {
         "photo"
+    }
+}
+
+impl HasOptionalUuidId for Photo {
+    fn id_slot(&mut self) -> &mut Option<Uuid> {
+        &mut self.id
+    }
+}
+
+impl Photo {
+    fn parse_tags(raw: Option<String>) -> Option<Vec<String>> {
+        raw.and_then(|value| {
+            if value.trim().is_empty() {
+                return None;
+            }
+            serde_json::from_str::<Vec<String>>(&value).ok()
+        })
+    }
+
+    fn serialize_tags(tags: &Option<Vec<String>>) -> Option<String> {
+        tags.as_ref().and_then(|items| {
+            if items.is_empty() {
+                return None;
+            }
+            serde_json::to_string(items).ok()
+        })
+    }
+}
+
+#[cfg(feature = "postgres")]
+fn optional_i32_as_u32(row: &PgRow, column: &str) -> sqlx::Result<Option<u32>> {
+    row.try_get::<Option<i32>, _>(column)
+        .map(|opt| opt.map(|value| value as u32))
+}
+
+#[cfg(feature = "postgres")]
+impl<'r> FromRow<'r, PgRow> for Photo {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            path: row.try_get("path")?,
+            name: row.try_get("name")?,
+            format: row.try_get("format")?,
+            hash: row.try_get("hash")?,
+            size: row.try_get("size")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            date_imported: row.try_get("date_imported")?,
+            date_taken: row.try_get("date_taken")?,
+            thumbnail_path: row.try_get("thumbnail_path")?,
+            thumbnail_optimized: row.try_get("thumbnail_optimized")?,
+            metadata_extracted: row.try_get("metadata_extracted")?,
+            is_raw: row.try_get("is_raw")?,
+            width: optional_i32_as_u32(row, "width")?,
+            height: optional_i32_as_u32(row, "height")?,
+            thumbnail_width: optional_i32_as_u32(row, "thumbnail_width")?,
+            thumbnail_height: optional_i32_as_u32(row, "thumbnail_height")?,
+            tags: Self::parse_tags(row.try_get("tags")?),
+        })
     }
 }
 
@@ -51,93 +134,119 @@ impl PostgresEntity for Photo {
     fn insert_columns() -> &'static [&'static str] {
         &[
             "id",
-            "hash",
             "path",
-            "file_name",
-            "file_size",
-            "rating",
-            "label",
-            "description",
+            "name",
+            "format",
+            "hash",
+            "size",
             "created_at",
             "updated_at",
+            "date_imported",
+            "date_taken",
+            "thumbnail_path",
+            "thumbnail_optimized",
+            "metadata_extracted",
+            "is_raw",
+            "width",
+            "height",
+            "thumbnail_width",
+            "thumbnail_height",
+            "tags",
         ]
     }
 
     fn insert_values(&self) -> Vec<Value> {
+        let id = self.id.as_ref().expect("id not set for Photo insert");
         vec![
-            Value::Uuid(self.id),
-            Value::String(self.hash.clone()),
+            Value::Uuid(*id),
             Value::String(self.path.clone()),
-            Value::String(self.file_name.clone()),
-            Value::Int(self.file_size as i64),
-            match self.rating {
-                Some(v) => Value::Int(v as i64),
-                None => Value::Null,
-            },
-            match &self.label {
-                Some(v) => Value::String(v.clone()),
-                None => Value::Null,
-            },
-            match &self.description {
-                Some(v) => Value::String(v.clone()),
-                None => Value::Null,
-            },
-            Value::DateTime(self.created_at),
-            Value::DateTime(self.updated_at),
+            Value::String(self.name.clone()),
+            PostgresValueBuilder::optional_string(&self.format),
+            PostgresValueBuilder::optional_string(&self.hash),
+            PostgresValueBuilder::optional_i64(self.size),
+            PostgresValueBuilder::optional_datetime(&self.created_at),
+            PostgresValueBuilder::optional_datetime(&self.updated_at),
+            PostgresValueBuilder::optional_datetime(&self.date_imported),
+            PostgresValueBuilder::optional_datetime(&self.date_taken),
+            PostgresValueBuilder::optional_string(&self.thumbnail_path),
+            PostgresValueBuilder::optional_bool(self.thumbnail_optimized),
+            PostgresValueBuilder::optional_bool(self.metadata_extracted),
+            PostgresValueBuilder::optional_bool(self.is_raw),
+            PostgresValueBuilder::optional_u32(self.width),
+            PostgresValueBuilder::optional_u32(self.height),
+            PostgresValueBuilder::optional_u32(self.thumbnail_width),
+            PostgresValueBuilder::optional_u32(self.thumbnail_height),
+            PostgresValueBuilder::optional_string(&Self::serialize_tags(&self.tags)),
         ]
     }
 
     fn update_columns() -> &'static [&'static str] {
         &[
-            "hash",
             "path",
-            "file_name",
-            "file_size",
-            "rating",
-            "label",
-            "description",
+            "name",
+            "format",
+            "hash",
+            "size",
+            "created_at",
             "updated_at",
+            "date_imported",
+            "date_taken",
+            "thumbnail_path",
+            "thumbnail_optimized",
+            "metadata_extracted",
+            "is_raw",
+            "width",
+            "height",
+            "thumbnail_width",
+            "thumbnail_height",
+            "tags",
         ]
     }
 
     fn update_values(&self) -> Vec<Value> {
         vec![
-            Value::String(self.hash.clone()),
             Value::String(self.path.clone()),
-            Value::String(self.file_name.clone()),
-            Value::Int(self.file_size as i64),
-            match self.rating {
-                Some(v) => Value::Int(v as i64),
-                None => Value::Null,
-            },
-            match &self.label {
-                Some(v) => Value::String(v.clone()),
-                None => Value::Null,
-            },
-            match &self.description {
-                Some(v) => Value::String(v.clone()),
-                None => Value::Null,
-            },
-            Value::DateTime(self.updated_at),
+            Value::String(self.name.clone()),
+            PostgresValueBuilder::optional_string(&self.format),
+            PostgresValueBuilder::optional_string(&self.hash),
+            PostgresValueBuilder::optional_i64(self.size),
+            PostgresValueBuilder::optional_datetime(&self.created_at),
+            PostgresValueBuilder::optional_datetime(&self.updated_at),
+            PostgresValueBuilder::optional_datetime(&self.date_imported),
+            PostgresValueBuilder::optional_datetime(&self.date_taken),
+            PostgresValueBuilder::optional_string(&self.thumbnail_path),
+            PostgresValueBuilder::optional_bool(self.thumbnail_optimized),
+            PostgresValueBuilder::optional_bool(self.metadata_extracted),
+            PostgresValueBuilder::optional_bool(self.is_raw),
+            PostgresValueBuilder::optional_u32(self.width),
+            PostgresValueBuilder::optional_u32(self.height),
+            PostgresValueBuilder::optional_u32(self.thumbnail_width),
+            PostgresValueBuilder::optional_u32(self.thumbnail_height),
+            PostgresValueBuilder::optional_string(&Self::serialize_tags(&self.tags)),
         ]
     }
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
             ColumnDef::new("id", ColumnType::Uuid).primary_key(),
-            ColumnDef::new("hash", ColumnType::Text).not_null(),
             ColumnDef::new("path", ColumnType::Text).not_null(),
-            ColumnDef::new("file_name", ColumnType::Text).not_null(),
-            ColumnDef::new("file_size", ColumnType::BigInt).not_null(),
-            ColumnDef::new("rating", ColumnType::Integer),
-            ColumnDef::new("label", ColumnType::Text),
-            ColumnDef::new("description", ColumnType::Text),
-            ColumnDef::new("created_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
-            ColumnDef::new("updated_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
+            ColumnDef::new("name", ColumnType::Text).not_null(),
+            ColumnDef::new("format", ColumnType::Text),
+            ColumnDef::new("hash", ColumnType::Text),
+            ColumnDef::new("size", ColumnType::BigInt),
+            ColumnDef::new("created_at", ColumnType::Timestamp),
+            ColumnDef::new("updated_at", ColumnType::Timestamp),
+            ColumnDef::new("date_imported", ColumnType::Timestamp),
+            ColumnDef::new("date_taken", ColumnType::Timestamp),
+            ColumnDef::new("thumbnail_path", ColumnType::Text),
+            ColumnDef::new("thumbnail_optimized", ColumnType::Boolean),
+            ColumnDef::new("metadata_extracted", ColumnType::Boolean),
+            ColumnDef::new("is_raw", ColumnType::Boolean),
+            ColumnDef::new("width", ColumnType::Integer),
+            ColumnDef::new("height", ColumnType::Integer),
+            ColumnDef::new("thumbnail_width", ColumnType::Integer),
+            ColumnDef::new("thumbnail_height", ColumnType::Integer),
+            ColumnDef::new("tags", ColumnType::Text),
         ]
     }
 }

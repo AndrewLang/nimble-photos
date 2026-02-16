@@ -1,0 +1,26 @@
+<div class="relative">
+    <button type="button" (click)="toggleOpen()" [disabled]="disabled || readOnly"
+        class="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-left text-xs text-slate-200 transition-colors disabled:cursor-default disabled:opacity-90"
+        [class.hover:border-indigo-500/40]="!(disabled || readOnly)">
+        <span class="truncate">{{ summary() }}</span>
+        <mtx-svg name="chevronDownSolid"
+            [className]="'h-3.5 w-3.5 shrink-0 transition-transform ' + (isOpen() ? 'rotate-180' : '')"></mtx-svg>
+    </button>
+
+    @if (isOpen()) {
+    <div class="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl backdrop-blur">
+        <div class="max-h-52 overflow-y-auto space-y-1 pr-1">
+            @for (action of actions; track action.key) {
+            <label
+                class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-slate-300 hover:bg-white/5">
+                <input type="checkbox" class="h-3.5 w-3.5 rounded border-white/20 bg-slate-900 text-indigo-500"
+                    [checked]="isSelected(action.key)"
+                    (change)="toggleAction(action.key, $any($event.target).checked)" />
+                <span class="leading-tight">{{ action.label }}</span>
+            </label>
+            }
+        </div>
+    </div>
+    }
+</div>
+

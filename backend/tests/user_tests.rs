@@ -18,6 +18,7 @@ fn user_basic_properties() {
         reset_token_expires_at: None,
         verification_token: None,
         email_verified: false,
+        roles: None,
     };
 
     assert_eq!(user.id, user_id);

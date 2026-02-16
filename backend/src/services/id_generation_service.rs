@@ -7,7 +7,11 @@ impl IdGenerationService {
         Self
     }
 
-    pub fn generate(&self) -> String {
-        Uuid::new_v4().to_string()
+    pub fn generate(&self) -> Uuid {
+        Uuid::new_v4()
+    }
+
+    pub fn generate_string(&self) -> String {
+        self.generate().to_string()
     }
 }

@@ -1,0 +1,39 @@
+<div class="space-y-4">
+    <div class="flex flex-wrap items-center gap-4">
+        <div
+            class="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition"
+            [class.border-indigo-400]="isDragOver()"
+            [class.bg-indigo-500/10]="isDragOver()"
+            (dragover)="onLogoDragOver($event)"
+            (dragleave)="onLogoDragLeave()"
+            (drop)="onLogoDropped($event)">
+            @if (logoPreview()) {
+            <img [src]="logoPreview()!" alt="Site logo preview" class="h-full w-full object-contain" />
+            } @else {
+            <span class="text-[0.6rem] text-slate-500 text-center px-2">No Logo<br />Drop file</span>
+            }
+        </div>
+        <div class="flex flex-col gap-2">
+            <input id="siteLogo" type="file" accept="image/*" (change)="onLogoSelected($event)"
+                [disabled]="logoUploading() || disabled"
+                class="block w-full text-xs text-slate-300 file:mr-4 file:rounded-full file:border-0 file:bg-indigo-500/20 file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-wider file:text-indigo-200 hover:file:bg-indigo-500/30 disabled:opacity-60" />
+            <button type="button" (click)="clearLogo()" [disabled]="!logoPreview() || disabled"
+                class="text-left text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-white disabled:opacity-40">
+                Remove logo
+            </button>
+            @if (logoUploading()) {
+            <span class="text-xs text-slate-500">Uploading logo...</span>
+            }
+        </div>
+    </div>
+
+    @if (showHelpText) {
+    <p class="text-xs text-slate-500">Upload a PNG, JPG, or SVG. The logo will be stored with your settings.</p>
+    }
+
+    @if (error()) {
+    <div class="rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-xs text-rose-400">
+        {{ error() }}
+    </div>
+    }
+</div>

@@ -1,0 +1,197 @@
+<div class="relative flex flex-col lg:flex-row h-full overflow-hidden bg-[#010409] w-full mx-auto">
+
+    @if (photo(); as p) {
+    <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <img [src]="getPhotoPath()" class="w-full h-full object-cover blur-2xl opacity-30 scale-110">
+        <div class="absolute inset-0 bg-black/10"></div>
+    </div>
+    }
+
+    <div class="relative flex-1 flex flex-col items-center justify-center bg-black/10 overflow-hidden z-10">
+        <div class="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-20 pointer-events-none">
+            <div></div>
+
+            <div class="flex gap-2 pointer-events-auto">
+                <button
+                    class="h-10 w-10 flex items-center justify-center text-white/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
+                    <mtx-svg name="download"></mtx-svg>
+                </button>
+
+                <button (click)="close()"
+                    class="h-10 w-10 flex items-center justify-center text-white/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-md border border-white/10 shadow-lg"
+                    title="Close">
+                    <mtx-svg name="close"></mtx-svg>
+                </button>
+
+                @if (sidebarHidden()) {
+                <button type="button" (click)="toggleSidebar()"
+                    class="h-10 w-10 flex items-center justify-center text-white/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full backdrop-blur-md border border-white/10 shadow-lg"
+                    title="Show sidebar">
+                    <mtx-svg name="panelLeftClose"></mtx-svg>
+                </button>
+                }
+            </div>
+        </div>
+
+        @if (adjacents().prevId) {
+        <button (click)="navigateToPhoto(adjacents().prevId!)"
+            class="absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 z-20 h-10 w-10 flex items-center justify-center transition-all bg-white/5 hover:bg-white/20 hover:scale-110 rounded-full backdrop-blur-xl border border-white/10 text-white/50 hover:text-white">
+            <mtx-svg name="chevronLeftBold"></mtx-svg>
+        </button>
+        }
+
+        @if (adjacents().nextId) {
+        <button (click)="navigateToPhoto(adjacents().nextId!)"
+            class="absolute right-4 lg:right-6 top-1/2 -translate-y-1/2 z-20 h-10 w-10 flex items-center justify-center transition-all bg-white/5 hover:bg-white/20 hover:scale-110 rounded-full backdrop-blur-xl border border-white/10 text-white/50 hover:text-white">
+            <mtx-svg name="chevronRightBold"></mtx-svg>
+        </button>
+        }
+
+        @if (loading()) {
+        <div class="animate-pulse flex flex-col items-center">
+            <div class="w-24 h-24 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin mb-4">
+            </div>
+            <span class="text-indigo-400 font-bold uppercase tracking-widest text-xs">Developing...</span>
+        </div>
+        } @else if (photo(); as p) {
+        <div class="relative w-full h-full flex items-center justify-center p-4 lg:p-12">
+            <img [src]="getPhotoPath()" [alt]="p.name"
+                class="max-w-full max-h-full object-contain shadow-2xl transition-all duration-500 rounded-sm">
+        </div>
+        } @else {
+        <p class="text-sm text-slate-400">Photo not found.</p>
+        }
+
+    </div>
+
+    @if (photo(); as p) {
+    @if (!sidebarHidden()) {
+    <aside
+        class="relative w-full lg:w-72 xl:w-96 flex flex-col space-y-1 h-[40vh] lg:h-full bg-slate-900/10 border-t lg:border-t-0 lg:border-l border-white/10 z-20 backdrop-blur-3xl overflow-y-auto">
+        <div class="flex items-center justify-between px-4 pt-6">
+            <div></div>
+            <button type="button" (click)="toggleSidebar()"
+                class="h-10 w-10 flex items-center justify-center rounded-full border border-white/10 bg-slate-900/50 text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                title="Hide sidebar">
+                <mtx-svg name="panelRightClose"></mtx-svg>
+            </button>
+        </div>
+        <div class="p-4 md:p-6 flex flex-col gap-4">
+            <div class="space-y-5 h-[75%] flex flex-col">
+                <div class="space-y-2 flex-1 flex flex-col min-h-0">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase text-slate-500">Comments</span>
+                        <span class="text-[10px] font-semibold text-slate-400">
+                            {{ comments().length }} comment{{ comments().length === 1 ? '' : 's' }}
+                        </span>
+                    </div>
+                    <div
+                        class="space-y-3 rounded-xl border border-white/10 bg-slate-900/40 p-3 flex-1 min-h-0 overflow-y-auto">
+                        @if (commentsLoading()) {
+                        <p class="text-[11px] text-slate-500 text-center">Loading comments...</p>
+                        } @else if (commentsError()) {
+                        <p class="text-[11px] text-rose-400 text-center">{{ commentsError() }}</p>
+                        } @else if (comments().length === 0) {
+                        <p class="text-[11px] text-slate-500 text-center">No comments yet.</p>
+                        } @else {
+                        <div class="space-y-4">
+                            @for (comment of comments(); track comment.id) {
+                            <article class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-amber-500">
+                                        {{ comment.userDisplayName || 'Anonymous' }}
+                                    </span>
+                                    <span class="text-[10px] text-slate-500">
+                                        {{ formatCommentDate(comment.createdAt) }}
+                                    </span>
+                                </div>
+                                <p class="text-sm leading-relaxed text-slate-300 wrap-break-words">
+                                    {{ comment.body }}
+                                </p>
+                            </article>
+                            }
+                        </div>
+                        }
+                    </div>
+                </div>
+                <div class="space-y-3 flex-none">
+                    @if (allowComments()) {
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase text-slate-500">Comment</span>
+                        <div class="flex items-center gap-2">
+                            @if (commentEditorVisible()) {
+                            <span class="text-[10px] font-semibold text-slate-400">
+                                {{ commentDraft().length }} / {{ maxCommentLength }}
+                            </span>
+                            }
+                            @if (authService.isAuthenticated()) {
+                            <button type="button" (click)="toggleCommentEditor()"
+                                class="px-2 py-1 text-[10px] font-semibold uppercase rounded-full border border-white/10 bg-indigo-600 text-white transition duration-200 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500">
+                                {{ commentEditorVisible() ? 'Hide editor' : 'Add comment' }}
+                            </button>
+                            }
+                        </div>
+                    </div>
+                    @if (commentEditorVisible() && authService.isAuthenticated()) {
+                    <div class="space-y-2">
+                        <textarea rows="6" [value]="commentDraft()" (input)="handleCommentInput($event)"
+                            [attr.maxlength]="maxCommentLength" placeholder="Add a note about this photo..."
+                            class="w-full bg-slate-900/60 border border-white/10 rounded-md p-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition duration-200 resize-none">
+                        </textarea>
+                        @if (commentError()) {
+                        <p class="text-[10px] text-rose-400">{{ commentError() }}</p>
+                        }
+                        <div class="flex justify-end">
+                            <button (click)="saveComment()" [disabled]="commentSaving()"
+                                class="px-3 py-1.5 text-[10px] font-bold uppercase rounded-full border border-white/10 bg-indigo-600 text-white transition duration-200 disabled:opacity-40 disabled:cursor-not-allowed">
+                                {{ commentSaving() ? 'Posting...' : 'Post' }}
+                            </button>
+                        </div>
+                    </div>
+                    } @else if (!authService.isAuthenticated()) {
+                    <p class="text-[10px] text-slate-500">Sign in to leave a comment.</p>
+                    }
+                    }
+                </div>
+            </div>
+
+            @if (metadataSections(p).length) {
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Metadata</span>
+                    <button type="button" (click)="toggleMetadata()"
+                        class="p-1 rounded-full text-slate-400 hover:text-white transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500">
+                        <span class="sr-only">Toggle metadata</span>
+                        <mtx-svg name="chevronDownSolid"
+                            [className]="metadataExpanded() ? 'text-slate-400 transition-transform duration-200 rotate-180' : 'text-slate-400 transition-transform duration-200'">
+                        </mtx-svg>
+                    </button>
+                </div>
+                @if (metadataExpanded()) {
+                <div class="space-y-4">
+                    @for (section of metadataSections(p); track section.title) {
+                    <div>
+                        <h4
+                            class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 border-b border-white/5 pb-2">
+                            {{ section.title }}</h4>
+                        <ul class="space-y-2 text-sm text-slate-300">
+                            @for (field of section.fields; track field.label) {
+                            <li class="flex justify-between">
+                                <span class="text-slate-500">{{ field.label }}</span>
+                                <span class="font-mono text-slate-200">{{ field.value }}</span>
+                            </li>
+                            }
+                        </ul>
+                    </div>
+                    }
+                </div>
+                } @else {
+                <p class="text-[10px] text-slate-500">Expand to see more photo details.</p>
+                }
+            </div>
+            }
+        </div>
+    </aside>
+    }
+    }
+</div>

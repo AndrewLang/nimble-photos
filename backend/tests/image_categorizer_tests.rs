@@ -1,0 +1,210 @@
+use anyhow::{Result, anyhow};
+use chrono::{TimeZone, Utc};
+use nimble_photos::services::file_service::FileService;
+use nimble_photos::services::hash_service::HashService;
+use nimble_photos::services::image_categorizer::{
+    CategorizeRequest, CategorizeResult, ImageCategorizer, ImageCategorizerRegistry,
+};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
+
+fn unique_temp_dir(name: &str) -> PathBuf {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    std::env::temp_dir().join(format!(
+        "nimble_photos_image_categorizer_tests_{}_{}_{}",
+        std::process::id(),
+        name,
+        nanos
+    ))
+}
+
+fn write_test_file(path: &Path, contents: &[u8]) {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("failed to create parent directory");
+    }
+    fs::write(path, contents).expect("failed to write test file");
+}
+
+fn write_exif_test_file(path: &Path, datetime: &str) {
+    let mut datetime_bytes = datetime.as_bytes().to_vec();
+    datetime_bytes.push(0);
+
+    let ifd0_offset = 8u32;
+    let exif_ifd_offset = ifd0_offset + 2 + 12 + 4;
+    let datetime_offset = exif_ifd_offset + 2 + 12 + 4;
+
+    let mut buffer = Vec::new();
+    buffer.extend_from_slice(b"II*\0");
+    buffer.extend_from_slice(&ifd0_offset.to_le_bytes());
+    buffer.extend_from_slice(&1u16.to_le_bytes());
+    buffer.extend_from_slice(&0x8769u16.to_le_bytes());
+    buffer.extend_from_slice(&4u16.to_le_bytes());
+    buffer.extend_from_slice(&1u32.to_le_bytes());
+    buffer.extend_from_slice(&exif_ifd_offset.to_le_bytes());
+    buffer.extend_from_slice(&0u32.to_le_bytes());
+    buffer.extend_from_slice(&1u16.to_le_bytes());
+    buffer.extend_from_slice(&0x9003u16.to_le_bytes());
+    buffer.extend_from_slice(&2u16.to_le_bytes());
+    buffer.extend_from_slice(&(datetime_bytes.len() as u32).to_le_bytes());
+    buffer.extend_from_slice(&datetime_offset.to_le_bytes());
+    buffer.extend_from_slice(&0u32.to_le_bytes());
+    buffer.extend_from_slice(&datetime_bytes);
+
+    write_test_file(path, &buffer);
+}
+
+#[test]
+fn hash_categorizer_moves_file_into_hashed_buckets() {
+    let root = unique_temp_dir("hash");
+    let source = root.join("incoming.bin");
+    let destination_root = root.join("storage");
+    fs::create_dir_all(&destination_root).expect("failed to create destination root");
+    write_test_file(&source, b"hello world");
+
+    let registry = ImageCategorizerRegistry::with_defaults(
+        Arc::new(HashService::new()),
+        Arc::new(FileService::new()),
+    );
+    let categorizer = registry.get("hash").expect("hash categorizer missing");
+
+    let request = CategorizeRequest::new(&source, &destination_root, "photo.bin");
+    let result = categorizer.categorize(&request).expect("categorize failed");
+
+    assert!(result.hash.is_some(), "hash categorizer must compute hash");
+    assert!(
+        !source.exists(),
+        "source file should be moved out of temp location"
+    );
+    assert!(
+        result.final_path.exists(),
+        "final categorized file should exist"
+    );
+
+    let hash = result.hash.unwrap();
+    assert!(
+        result
+            .relative_path
+            .starts_with(&format!("{}/{}/", &hash[0..2], &hash[2..4])),
+        "relative path must include hash folders"
+    );
+}
+
+#[test]
+fn date_categorizer_prefers_request_then_exif_then_file_metadata() {
+    let root = unique_temp_dir("date");
+    let destination_root = root.join("storage");
+    fs::create_dir_all(&destination_root).expect("failed to create destination root");
+    let source_with_date = root.join("with_date.jpg");
+    write_test_file(&source_with_date, b"a photo with date");
+
+    let registry = ImageCategorizerRegistry::with_defaults(
+        Arc::new(HashService::new()),
+        Arc::new(FileService::new()),
+    );
+    let categorizer = registry.get("date").expect("date categorizer missing");
+
+    let date_taken = Utc.with_ymd_and_hms(2024, 1, 2, 3, 4, 5).unwrap();
+    let request_with_date =
+        CategorizeRequest::new(&source_with_date, &destination_root, "dated.jpg")
+            .with_date_taken(Some(date_taken));
+    let result = categorizer
+        .categorize(&request_with_date)
+        .expect("categorize with date failed");
+    assert!(
+        result.relative_path.starts_with("2024-01-02/"),
+        "date folder should match provided date"
+    );
+
+    let exif_source = root.join("with_exif.tiff");
+    write_exif_test_file(&exif_source, "2023:05:06 07:08:09");
+    let exif_request = CategorizeRequest::new(&exif_source, &destination_root, "from_exif.tiff");
+    let exif_result = categorizer
+        .categorize(&exif_request)
+        .expect("categorize with exif failed");
+    assert!(
+        exif_result.relative_path.starts_with("2023-05-06/"),
+        "date folder should match EXIF timestamp"
+    );
+
+    let source_without_date = root.join("without_date.jpg");
+    write_test_file(&source_without_date, b"a photo without date");
+    let request_without_date =
+        CategorizeRequest::new(&source_without_date, &destination_root, "nodate.jpg");
+    let result_without_date = categorizer
+        .categorize(&request_without_date)
+        .expect("categorize without explicit date failed");
+
+    let today = Utc::now().format("%Y-%m-%d").to_string();
+    assert!(
+        result_without_date
+            .relative_path
+            .starts_with(&format!("{}/", today)),
+        "fallback date folder should use file metadata or current date"
+    );
+}
+
+#[test]
+fn registry_caches_instances_per_name() {
+    let registry = ImageCategorizerRegistry::with_defaults(
+        Arc::new(HashService::new()),
+        Arc::new(FileService::new()),
+    );
+    let first = registry.get("hash").expect("hash categorizer missing");
+    let second = registry.get("hash").expect("hash categorizer missing");
+    assert!(
+        Arc::ptr_eq(&first, &second),
+        "registry should cache categorizer instances"
+    );
+}
+
+struct CountingCategorizer;
+
+impl ImageCategorizer for CountingCategorizer {
+    fn name(&self) -> &'static str {
+        "count"
+    }
+
+    fn categorize(&self, _request: &CategorizeRequest<'_>) -> Result<CategorizeResult> {
+        Err(anyhow!("not used in tests"))
+    }
+}
+
+#[test]
+fn registry_only_constructs_instance_once_even_with_parallel_requests() {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let mut registry = ImageCategorizerRegistry::new();
+    {
+        let counter = Arc::clone(&counter);
+        registry.register_factory(
+            "count",
+            Box::new(move || {
+                counter.fetch_add(1, Ordering::SeqCst);
+                Arc::new(CountingCategorizer) as Arc<dyn ImageCategorizer>
+            }),
+        );
+    }
+
+    let registry = Arc::new(registry);
+    let mut handles = Vec::new();
+    for _ in 0..8 {
+        let registry = Arc::clone(&registry);
+        handles.push(thread::spawn(move || registry.get("count")));
+    }
+
+    let baseline = registry.get("count").expect("categorizer missing");
+    for handle in handles {
+        let categorizer = handle
+            .join()
+            .expect("thread panicked")
+            .expect("categorizer creation failed");
+        assert!(Arc::ptr_eq(&baseline, &categorizer));
+    }
+
+    assert_eq!(1, counter.load(Ordering::SeqCst));
+}

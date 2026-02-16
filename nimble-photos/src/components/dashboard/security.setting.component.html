@@ -1,0 +1,177 @@
+<div class="flex flex-col gap-8 pb-8">
+    <header
+        class="rounded-3xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent p-8">
+        <h1 class="text-3xl font-bold tracking-tight text-white">Role & Security</h1>
+        <p class="mt-2 max-w-3xl text-sm text-slate-400">
+            Manage user roles and control what each role is allowed to do in the dashboard and app actions.
+        </p>
+
+        <div class="mt-5 inline-flex rounded-full border border-white/10 bg-slate-950/70 p-1">
+            <button type="button" (click)="selectTab('users')"
+                class="rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors"
+                [class.bg-indigo-500]="activeTab() === 'users'" [class.text-white]="activeTab() === 'users'"
+                [class.text-slate-300]="activeTab() !== 'users'">
+                Users
+            </button>
+            <button type="button" (click)="selectTab('roles')"
+                class="rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors"
+                [class.bg-indigo-500]="activeTab() === 'roles'" [class.text-white]="activeTab() === 'roles'"
+                [class.text-slate-300]="activeTab() !== 'roles'">
+                Roles
+            </button>
+        </div>
+    </header>
+
+    @if (activeTab() === 'users') {
+    <section class="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+        <div class="mb-4 flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-white">Manage Users</h2>
+                <p class="text-xs text-slate-400">User list and role assignment (comma-separated roles).</p>
+            </div>
+            <button type="button" (click)="loadUsers()" [disabled]="loadingUsers()"
+                class="inline-flex items-center justify-center rounded-full border border-white/10 px-3 py-3 text-slate-300 hover:text-white disabled:opacity-40"
+                title="Refresh users" aria-label="Refresh users">
+                <mtx-svg name="refresh" [className]="loadingUsers() ? 'h-5 w-5 animate-spin' : 'h-5 w-5'"></mtx-svg>
+            </button>
+        </div>
+
+        @if (usersError()) {
+        <div class="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+            {{ usersError() }}
+        </div>
+        }
+
+        @if (loadingUsers()) {
+        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
+            Loading users...
+        </div>
+        } @else if (!users().length) {
+        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
+            No users found.
+        </div>
+        } @else {
+        <div class="grid gap-3">
+            @for (user of users(); track trackUser($index, user)) {
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-white">{{ user.displayName || user.email }}</p>
+                        <p class="truncate text-xs text-slate-400">{{ user.email }}</p>
+                    </div>
+                    <div
+                        class="rounded-full border border-white/10 px-2 py-1 text-[0.6rem] uppercase tracking-widest text-slate-400">
+                        {{ user.emailVerified ? 'Verified' : 'Unverified' }}
+                    </div>
+                </div>
+
+                <div class="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
+                    <div class="flex flex-1 flex-wrap gap-2">
+                        @for (role of roleNames(); track role) {
+                        <label
+                            class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[0.65rem] uppercase tracking-wider transition-colors"
+                            [class.cursor-pointer]="canToggleUserRole(user.id, role)"
+                            [class.opacity-60]="!canToggleUserRole(user.id, role)"
+                            [class.border-indigo-500/40]="isUserRoleSelected(user.id, role)"
+                            [class.bg-indigo-500/20]="isUserRoleSelected(user.id, role)"
+                            [class.text-indigo-200]="isUserRoleSelected(user.id, role)"
+                            [class.border-white/10]="!isUserRoleSelected(user.id, role)"
+                            [class.bg-slate-950]="!isUserRoleSelected(user.id, role)"
+                            [class.text-slate-300]="!isUserRoleSelected(user.id, role)">
+                            <input type="checkbox" class="sr-only" [checked]="isUserRoleSelected(user.id, role)"
+                                [disabled]="!canToggleUserRole(user.id, role)"
+                                (change)="toggleUserRole(user.id, role, $any($event.target).checked)" />
+                            <span>{{ role }}</span>
+                        </label>
+                        }
+                    </div>
+                    <button type="button" (click)="saveUserRoles(user)" [disabled]="userSaveStatus(user.id).saving"
+                        class="rounded-full bg-linear-to-r from-indigo-500 to-sky-500 px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-widest text-white disabled:opacity-40">
+                        {{ userSaveStatus(user.id).saving ? 'Saving...' : 'Save Roles' }}
+                    </button>
+                </div>
+
+                @if (userSaveStatus(user.id).error) {
+                <p class="mt-2 text-[0.65rem] font-semibold uppercase tracking-wider text-rose-400">
+                    {{ userSaveStatus(user.id).error }}
+                </p>
+                }
+                @if (userSaveStatus(user.id).success) {
+                <p class="mt-2 text-[0.65rem] font-semibold uppercase tracking-wider text-emerald-400">
+                    Roles updated
+                </p>
+                }
+            </div>
+            }
+        </div>
+        }
+    </section>
+    }
+
+    @if (activeTab() === 'roles') {
+    <section class="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h2 class="text-lg font-semibold text-white">Role Actions</h2>
+                <p class="text-xs text-slate-400">Edit allowed actions for each role.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="text" [ngModel]="newRoleName()" (ngModelChange)="newRoleName.set($event)"
+                    placeholder="new_role"
+                    class="w-36 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-500/50 focus:outline-none" />
+                <button type="button" (click)="addRole()"
+                    class="rounded-full border border-white/10 px-3 py-2 text-[0.65rem] font-semibold uppercase tracking-widest text-slate-300 hover:text-white">
+                    Add Role
+                </button>
+            </div>
+        </div>
+
+        @if (permissionsError()) {
+        <div class="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+            {{ permissionsError() }}
+        </div>
+        }
+
+        @if (!roleNames().length) {
+        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
+            No roles defined yet.
+        </div>
+        } @else {
+        <div class="grid gap-4">
+            @for (role of roleNames(); track role) {
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-semibold text-white">{{ role }}</p>
+                        <p class="text-[0.65rem] uppercase tracking-widest text-slate-500">{{ usersInRole(role) }} users
+                        </p>
+                    </div>
+                    @if (!isAdminRole(role)) {
+                    <button type="button" (click)="removeRole(role)"
+                        class="rounded-full border border-rose-500/25 px-3 py-1.5 text-[0.6rem] uppercase tracking-widest text-rose-300 hover:text-rose-200">
+                        Remove
+                    </button>
+                    }
+                </div>
+
+                <mtx-action-selector [actions]="actionDefinitions" [selectedKeys]="roleSelectedActionKeys(role)"
+                    [readOnly]="isAdminRole(role)" (selectedKeysChange)="onRoleActionsChange(role, $event)">
+                </mtx-action-selector>
+            </div>
+            }
+        </div>
+        }
+
+        <div class="mt-5 flex items-center gap-3">
+            <button type="button" (click)="savePermissions()"
+                [disabled]="savingPermissions() || !hasPermissionsDraftChanges()"
+                class="rounded-full bg-linear-to-r from-indigo-500 to-sky-500 px-5 py-2 text-[0.7rem] font-semibold uppercase tracking-widest text-white disabled:opacity-40">
+                {{ savingPermissions() ? 'Saving...' : 'Save Role Actions' }}
+            </button>
+            @if (permissionsSaved()) {
+            <p class="text-[0.65rem] font-semibold uppercase tracking-wider text-emerald-400">Saved</p>
+            }
+        </div>
+    </section>
+    }
+</div>

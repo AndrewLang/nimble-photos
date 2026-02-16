@@ -1,0 +1,139 @@
+/* Photo Cards used in Masonry */
+.photo-card {
+    position: relative;
+    border-radius: 4px;
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transform-origin: center;
+    min-height: 180px;
+    width: 100%;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+    break-inside: avoid-column;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.photo-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(2, 6, 23, 0) 40%, rgba(2, 6, 23, 0.8) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.photo-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
+.photo-card:hover::after {
+    opacity: 1;
+}
+
+.photo-content {
+    position: absolute;
+    inset: 0;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 20;
+}
+
+.photo-card:hover .photo-content {
+    opacity: 1;
+}
+
+.photo-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.photo-description {
+    margin: 0;
+    color: rgba(248, 250, 252, 0.75);
+    font-size: 0.8rem;
+}
+
+/* Photo Meta & Tags */
+.photo-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(248, 250, 252, 0.7);
+}
+
+.photo-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.photo-tags span {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: rgba(248, 250, 252, 0.75);
+}
+
+/* Masonry Grid Base */
+.masonry-grid {
+    width: 100%;
+    padding-block: 1rem;
+    padding-inline: 0;
+    column-count: 2;
+    column-gap: 0.5rem;
+    overflow-anchor: none;
+}
+
+@media (min-width: 640px) {
+    .masonry-grid {
+        column-count: 3;
+    }
+}
+
+@media (min-width: 1024px) {
+    .masonry-grid {
+        column-count: 4;
+    }
+}
+
+@media (min-width: 1280px) {
+    .masonry-grid {
+        column-count: 5;
+    }
+}
+
+@media (min-width: 1536px) {
+    .masonry-grid {
+        column-count: 6;
+    }
+}
+
+@media (min-width: 1920px) {
+    .masonry-grid {
+        column-count: 7;
+    }
+}
+
+@media (min-width: 2560px) {
+    .masonry-grid {
+        column-count: 8;
+    }
+}
