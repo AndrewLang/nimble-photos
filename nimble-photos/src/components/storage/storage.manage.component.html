@@ -48,6 +48,9 @@
                                 }
                             </div>
                             <p class="text-[0.7rem] text-slate-500">{{ location.path }}</p>
+                            <p class="text-[0.65rem] text-slate-400">
+                                Category policy: {{ location.categoryPolicy || 'hash' }}
+                            </p>
                             @if (location.disk) {
                             <p class="mt-1 text-[0.7rem] text-slate-400">
                                 Disk {{ location.disk.mountPoint }} - {{ formatBytes(location.disk.availableBytes) }}
@@ -141,6 +144,34 @@
                             class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
                     </div>
 
+                    <div class="space-y-2">
+                        <label
+                            class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Category
+                            Policy</label>
+                        <div class="relative">
+                            <button type="button" (click)="togglePolicyMenu()"
+                                class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
+                                <span>{{ selectedCategoryPolicyLabel() }}</span>
+                                <span class="text-slate-400">v</span>
+                            </button>
+                            <input type="hidden" formControlName="categoryPolicy" />
+
+                            @if (policyMenuOpen()) {
+                            <div
+                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
+                                @for (policy of categoryPolicies; track policy.value) {
+                                <button type="button" (click)="selectCategoryPolicy(policy)"
+                                    class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
+                                    <span>{{ policy.label }}</span>
+                                    <span class="text-slate-500">{{ policy.value }}</span>
+                                </button>
+                                }
+                            </div>
+                            <div class="fixed inset-0 z-10" (click)="closePolicyMenu()"></div>
+                            }
+                        </div>
+                    </div>
+
                     @if (selectedDiskLabel().length) {
                     <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
                         <div class="flex items-center justify-between">
@@ -230,6 +261,34 @@
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Folder</label>
                         <input id="editStorageFolder" type="text" [formControl]="editForm.controls.folderName"
                             class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <label
+                            class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Category
+                            Policy</label>
+                        <div class="relative">
+                            <button type="button" (click)="toggleEditPolicyMenu()"
+                                class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
+                                <span>{{ editSelectedCategoryPolicyLabel() }}</span>
+                                <span class="text-slate-400">v</span>
+                            </button>
+                            <input type="hidden" [formControl]="editForm.controls.categoryPolicy" />
+
+                            @if (editPolicyMenuOpen()) {
+                            <div
+                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
+                                @for (policy of categoryPolicies; track policy.value) {
+                                <button type="button" (click)="selectEditCategoryPolicy(policy)"
+                                    class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
+                                    <span>{{ policy.label }}</span>
+                                    <span class="text-slate-500">{{ policy.value }}</span>
+                                </button>
+                                }
+                            </div>
+                            <div class="fixed inset-0 z-10" (click)="closeEditPolicyMenu()"></div>
+                            }
+                        </div>
                     </div>
 
                     @if (editSelectedDiskLabel().length) {

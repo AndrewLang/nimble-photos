@@ -915,11 +915,13 @@ impl PhotoController {
 
 impl From<&StorageLocation> for ImageStorageLocation {
     fn from(storage: &StorageLocation) -> Self {
-        ImageStorageLocation::new(
+        let mut location = ImageStorageLocation::new(
             storage.id.clone(),
             storage.label.clone(),
             &storage.path,
             storage.created_at.clone(),
-        )
+        );
+        location.category_policy = storage.category_policy.clone();
+        location
     }
 }

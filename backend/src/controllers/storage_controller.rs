@@ -24,6 +24,8 @@ pub struct StorageLocation {
     pub path: String,
     pub is_default: bool,
     pub created_at: String,
+    #[serde(default = "default_category_policy")]
+    pub category_policy: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +36,7 @@ pub struct StorageLocationResponse {
     pub path: String,
     pub is_default: bool,
     pub created_at: String,
+    pub category_policy: String,
     pub disk: Option<DiskInfo>,
 }
 
@@ -52,6 +55,7 @@ pub struct CreateStoragePayload {
     pub label: String,
     pub path: String,
     pub is_default: Option<bool>,
+    pub category_policy: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,6 +64,11 @@ pub struct UpdateStoragePayload {
     pub label: Option<String>,
     pub path: Option<String>,
     pub is_default: Option<bool>,
+    pub category_policy: Option<String>,
+}
+
+fn default_category_policy() -> String {
+    "hash".to_string()
 }
 
 pub struct StorageController;
@@ -175,6 +184,7 @@ impl HttpHandler for ListStorageHandler {
                     path: location.path,
                     is_default: location.is_default,
                     created_at: location.created_at,
+                    category_policy: location.category_policy,
                     disk,
                 }
             })
@@ -243,6 +253,13 @@ impl HttpHandler for CreateStorageHandler {
             path: path_value.to_string(),
             is_default,
             created_at: Utc::now().to_rfc3339(),
+            category_policy: payload
+                .category_policy
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .unwrap_or("hash")
+                .to_string(),
         };
 
         locations.push(new_location.clone());
@@ -257,6 +274,7 @@ impl HttpHandler for CreateStorageHandler {
             path: new_location.path,
             is_default: new_location.is_default,
             created_at: new_location.created_at,
+            category_policy: new_location.category_policy,
             disk,
         }))
     }
@@ -322,6 +340,13 @@ impl HttpHandler for UpdateStorageHandler {
             if let Some(is_default) = payload.is_default {
                 location.is_default = is_default;
             }
+
+            if let Some(category_policy) = &payload.category_policy {
+                let value = category_policy.trim();
+                if !value.is_empty() {
+                    location.category_policy = value.to_string();
+                }
+            }
         }
 
         if locations.iter().any(|location| location.is_default) {
@@ -351,6 +376,7 @@ impl HttpHandler for UpdateStorageHandler {
                     path: location.path,
                     is_default: location.is_default,
                     created_at: location.created_at,
+                    category_policy: location.category_policy,
                     disk,
                 }
             })
@@ -400,6 +426,7 @@ impl HttpHandler for DefaultStorageHandler {
                     path: location.path,
                     is_default: location.is_default,
                     created_at: location.created_at,
+                    category_policy: location.category_policy,
                     disk,
                 }
             })
@@ -447,6 +474,7 @@ impl HttpHandler for DeleteStorageHandler {
                     path: location.path,
                     is_default: location.is_default,
                     created_at: location.created_at,
+                    category_policy: location.category_policy,
                     disk,
                 }
             })
