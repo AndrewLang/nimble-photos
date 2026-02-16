@@ -25,6 +25,7 @@ use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
+use nimble_web::{get, post, put};
 
 pub struct AlbumController;
 
@@ -32,28 +33,7 @@ const MAX_COMMENT_LENGTH: usize = 1024;
 
 impl Controller for AlbumController {
     fn routes() -> Vec<EndpointRoute> {
-        vec![
-            EndpointRoute::get(
-                "/api/albums/{id}/photos/{page}/{pageSize}",
-                AlbumPhotosHandler,
-            )
-            .build(),
-            EndpointRoute::get("/api/albums/{page}/{pageSize}", ListAlbumsHandler).build(),
-            EndpointRoute::get("/api/albums/{id}/tags", AlbumTagsHandler).build(),
-            EndpointRoute::put("/api/albums/{id}/tags", ReplaceAlbumTagsHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-            EndpointRoute::get("/api/album/comments/{id}", AlbumCommentsHandler).build(),
-            EndpointRoute::post("/api/album/comments/{id}", CreateAlbumCommentHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-            EndpointRoute::put(
-                "/api/album/comments/visibility/{albumId}/{commentId}",
-                UpdateAlbumCommentVisibilityHandler,
-            )
-            .with_policy(Policy::InRole("admin".to_string()))
-            .build(),
-        ]
+        vec![]
     }
 }
 
@@ -66,6 +46,7 @@ struct AlbumRules {
 }
 
 #[async_trait]
+#[get("/api/albums/{id}/photos/{page}/{pageSize}")]
 impl HttpHandler for AlbumPhotosHandler {
     async fn invoke(
         &self,
@@ -142,6 +123,7 @@ impl HttpHandler for AlbumPhotosHandler {
 struct ListAlbumsHandler;
 
 #[async_trait]
+#[get("/api/albums/{page}/{pageSize}")]
 impl HttpHandler for ListAlbumsHandler {
     async fn invoke(
         &self,
@@ -197,6 +179,7 @@ struct ReplaceAlbumTagsPayload {
 struct AlbumTagsHandler;
 
 #[async_trait]
+#[get("/api/albums/{id}/tags")]
 impl HttpHandler for AlbumTagsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let album_id_param = context
@@ -219,6 +202,7 @@ impl HttpHandler for AlbumTagsHandler {
 struct ReplaceAlbumTagsHandler;
 
 #[async_trait]
+#[put("/api/albums/{id}/tags", policy = Policy::Authenticated)]
 impl HttpHandler for ReplaceAlbumTagsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let album_id_param = context
@@ -252,6 +236,7 @@ impl HttpHandler for ReplaceAlbumTagsHandler {
 }
 
 #[async_trait]
+#[get("/api/album/comments/{id}")]
 impl HttpHandler for AlbumCommentsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let album_id_param = context
@@ -329,6 +314,7 @@ struct CreateAlbumCommentPayload {
 struct CreateAlbumCommentHandler;
 
 #[async_trait]
+#[post("/api/album/comments/{id}", policy = Policy::Authenticated)]
 impl HttpHandler for CreateAlbumCommentHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload = context
@@ -402,6 +388,7 @@ struct UpdateAlbumCommentVisibilityPayload {
 struct UpdateAlbumCommentVisibilityHandler;
 
 #[async_trait]
+#[put("/api/album/comments/visibility/{albumId}/{commentId}", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for UpdateAlbumCommentVisibilityHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let route_params = context.route().map(|route| route.params());
