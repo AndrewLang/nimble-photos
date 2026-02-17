@@ -7,10 +7,12 @@ use crate::controllers::httpcontext_extensions::HttpContextExtentions;
 use crate::entities::client::Client;
 use crate::services::SettingService;
 
+use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
 use nimble_web::data::query::Query;
 use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
+use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::into_response::ResponseValue;
@@ -50,6 +52,14 @@ impl From<Client> for ClientResponse {
 struct RegisterClientRequest {
     name: String,
     api_key_hash: String,
+}
+
+pub struct ClientHandlers;
+
+impl Controller for ClientHandlers {
+    fn routes() -> Vec<EndpointRoute> {
+        vec![]
+    }
 }
 
 struct ListClientsHandler;

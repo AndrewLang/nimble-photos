@@ -13,6 +13,7 @@ use admin_user_controller::AdminUserController;
 use album_controller::AlbumController;
 use assets_controller::AssetsController;
 use auth_controller::AuthController;
+use client_controller::ClientHandlers;
 use dashboard_controller::DashboardController;
 use nimble_web::*;
 use photo_controller::PhotoController;
@@ -23,6 +24,7 @@ pub fn register_controllers(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder
         .use_controller::<AdminUserController>()
         .use_controller::<AuthController>()
+        .use_controller::<ClientHandlers>()
         .use_controller::<PhotoController>()
         .use_controller::<TagController>()
         .use_controller::<DashboardController>()

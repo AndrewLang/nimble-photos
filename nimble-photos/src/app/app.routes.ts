@@ -61,6 +61,7 @@ export const routes: Routes = [
             { path: 'security', loadComponent: () => import('../components/dashboard/security.setting.component').then(m => m.SecuritySettingComponent) },
             { path: 'photo-manage', loadComponent: () => import('../components/dashboard/photo.manage.setting.component').then(m => m.PhotoManageSettingComponent) },
             { path: 'storage', loadComponent: () => import('../components/dashboard/storage.manage.setting.component').then(m => m.StorageManageSettingComponent) },
+            { path: 'client', loadComponent: () => import('../components/dashboard/client.manage.setting.component').then(m => m.ClientManageSettingComponent) },
         ],
     },
     { path: 'all', loadComponent: () => import('../components/gallery/gallery.component').then(m => m.GalleryComponent) },
