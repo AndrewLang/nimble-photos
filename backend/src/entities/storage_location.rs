@@ -1,32 +1,21 @@
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Clone, Debug)]
-pub struct ImageStorageLocation {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StorageLocation {
     pub id: String,
     pub label: String,
-    pub path: PathBuf,
+    pub path: String,
+    pub is_default: bool,
     pub created_at: String,
-    pub category_policy: String,
+    #[serde(default = "StorageLocation::default_category_template")]
+    pub category_template: String,
 }
 
-impl ImageStorageLocation {
-    pub fn new(
-        id: impl Into<String>,
-        label: impl Into<String>,
-        path: impl Into<PathBuf>,
-        created_at: impl Into<String>,
-    ) -> Self {
-        let path = Self::normalize_path(path.into());
-        Self {
-            id: id.into(),
-            label: label.into(),
-            path,
-            created_at: created_at.into(),
-            category_policy: "hash".to_string(),
-        }
-    }
-
-    fn normalize_path(path: PathBuf) -> PathBuf {
+impl StorageLocation {
+    pub fn normalized_path(&self) -> PathBuf {
+        let path = PathBuf::from(&self.path);
         if path.is_absolute() {
             path
         } else {
@@ -34,5 +23,9 @@ impl ImageStorageLocation {
                 .unwrap_or_else(|_| PathBuf::from("."))
                 .join(path)
         }
+    }
+
+    fn default_category_template() -> String {
+        "{year}/{date:%Y-%m-%d}/{fileName}".to_string()
     }
 }

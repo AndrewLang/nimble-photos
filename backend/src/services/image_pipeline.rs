@@ -1,6 +1,6 @@
 pub use super::image_process_context::ImageProcessContext;
 use super::image_process_step::ImageProcessStep;
-use crate::entities::ImageStorageLocation;
+use crate::entities::StorageLocation;
 use crate::services::background_task_runner::BackgroundTaskRunner;
 use crate::services::image_process_steps::{
     CategorizeImageStep, ComputeHashStep, ExtractExifStep, GeneratePreviewStep,
@@ -36,7 +36,7 @@ impl ImageProcessPipelineContext {
 
 #[derive(Clone, Debug)]
 pub struct ImageProcessPayload {
-    pub storage: ImageStorageLocation,
+    pub storage: StorageLocation,
     pub relative_path: String,
     pub file_name: String,
     pub byte_size: usize,
@@ -44,10 +44,10 @@ pub struct ImageProcessPayload {
 }
 
 impl ImageProcessPayload {
-    pub fn from_upload(storage: ImageStorageLocation, file: StoredUploadFile) -> Self {
+    pub fn from_upload(storage: StorageLocation, file: StoredUploadFile) -> Self {
         log::debug!(
             "Creating ImageProcessPayload for storage {} file {} {}",
-            storage.path.display(),
+            storage.path,
             file.relative_path.clone(),
             file.file_name,
         );
@@ -61,11 +61,13 @@ impl ImageProcessPayload {
     }
 
     pub fn source_path(&self) -> PathBuf {
-        self.storage.path.join(Path::new(&self.relative_path))
+        self.storage
+            .normalized_path()
+            .join(Path::new(&self.relative_path))
     }
 
     pub fn working_directory(&self) -> PathBuf {
-        self.storage.path.clone()
+        self.storage.normalized_path()
     }
 }
 
@@ -98,7 +100,7 @@ impl ImageProcessPipeline {
 
     pub fn enqueue_files(
         &self,
-        storage: ImageStorageLocation,
+        storage: StorageLocation,
         files: Vec<StoredUploadFile>,
     ) -> Result<()> {
         for file in files {

@@ -6,10 +6,9 @@ use std::path::{Path, PathBuf};
 use std::result::Result;
 use uuid::Uuid;
 
-use crate::controllers::storage_controller::StorageLocation;
 use crate::dtos::photo_comment_dto::PhotoCommentDto;
 use crate::dtos::photo_dtos::{PhotoLoc, TimelineGroup};
-use crate::entities::ImageStorageLocation;
+use crate::entities::StorageLocation;
 use crate::entities::exif::ExifModel;
 use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
@@ -138,9 +137,8 @@ impl HttpHandler for UploadPhotosHandler {
 
         if !saved_files.is_empty() {
             let pipeline = context.service::<ImageProcessPipeline>()?;
-            let storage_info: ImageStorageLocation = (&storage).into();
             pipeline
-                .enqueue_files(storage_info, saved_files.clone())
+                .enqueue_files(storage.clone(), saved_files.clone())
                 .map_err(|error| {
                     log::error!("Failed to enqueue image pipeline: {:?}", error);
                     PipelineError::message("Failed to schedule image processing tasks")
@@ -911,18 +909,5 @@ impl PhotoController {
         } else {
             search_tags.iter().any(|tag| photo_tags.contains(tag))
         }
-    }
-}
-
-impl From<&StorageLocation> for ImageStorageLocation {
-    fn from(storage: &StorageLocation) -> Self {
-        let mut location = ImageStorageLocation::new(
-            storage.id.clone(),
-            storage.label.clone(),
-            &storage.path,
-            storage.created_at.clone(),
-        );
-        location.category_policy = storage.category_policy.clone();
-        location
     }
 }

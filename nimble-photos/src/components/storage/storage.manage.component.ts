@@ -31,23 +31,23 @@ export class StorageManageComponent {
     readonly editingId = signal<string | null>(null);
     readonly editDiskMenuOpen = signal(false);
     readonly editSelectedDiskMount = signal('');
-    readonly policyMenuOpen = signal(false);
-    readonly editPolicyMenuOpen = signal(false);
-    readonly selectedCategoryPolicy = signal('hash');
-    readonly editSelectedCategoryPolicy = signal('hash');
+    readonly templateMenuOpen = signal(false);
+    readonly editTemplateMenuOpen = signal(false);
+    readonly selectedCategoryTemplate = signal('hash');
+    readonly editSelectedCategoryTemplate = signal('hash');
 
     readonly storageForm = this.fb.nonNullable.group({
         label: ['', [Validators.required, Validators.minLength(2)]],
         diskMount: ['', [Validators.required]],
         folderName: ['Nimble Photos', [Validators.required, Validators.minLength(2)]],
-        categoryPolicy: ['hash', [Validators.required]],
+        categoryTemplate: ['hash', [Validators.required]],
     });
 
     readonly editForm = this.fb.nonNullable.group({
         label: ['', [Validators.required, Validators.minLength(2)]],
         diskMount: ['', [Validators.required]],
         folderName: ['', [Validators.required, Validators.minLength(2)]],
-        categoryPolicy: ['hash', [Validators.required]],
+        categoryTemplate: ['hash', [Validators.required]],
     });
 
     readonly selectedDisk = computed(() => {
@@ -85,17 +85,17 @@ export class StorageManageComponent {
     });
     readonly formatBytes = Formatter.formatBytes;
     readonly formatAvailablePercent = Formatter.formatAvailablePercent;
-    readonly categoryPolicies = [
+    readonly categoryTemplates = [
         { value: 'hash', label: 'Hash' },
         { value: 'date', label: 'Date' },
     ] as const;
-    readonly selectedCategoryPolicyLabel = computed(() => {
-        const value = this.selectedCategoryPolicy();
-        return this.categoryPolicies.find(policy => policy.value === value)?.label ?? 'Select a policy';
+    readonly selectedCategoryTemplateLabel = computed(() => {
+        const value = this.selectedCategoryTemplate();
+        return this.categoryTemplates.find(template => template.value === value)?.label ?? 'Select a template';
     });
-    readonly editSelectedCategoryPolicyLabel = computed(() => {
-        const value = this.editSelectedCategoryPolicy();
-        return this.categoryPolicies.find(policy => policy.value === value)?.label ?? 'Select a policy';
+    readonly editSelectedCategoryTemplateLabel = computed(() => {
+        const value = this.editSelectedCategoryTemplate();
+        return this.categoryTemplates.find(template => template.value === value)?.label ?? 'Select a template';
     });
 
     constructor() {
@@ -133,14 +133,14 @@ export class StorageManageComponent {
 
     cancelCreate(): void {
         this.showCreateForm.set(false);
-        this.policyMenuOpen.set(false);
+        this.templateMenuOpen.set(false);
         this.storageForm.reset({
             label: '',
             diskMount: this.disks()[0]?.mountPoint ?? '',
             folderName: 'Nimble Photos',
-            categoryPolicy: 'hash',
+            categoryTemplate: 'hash',
         });
-        this.selectedCategoryPolicy.set('hash');
+        this.selectedCategoryTemplate.set('hash');
         if (this.disks().length === 1) {
             this.selectedDiskMount.set(this.disks()[0].mountPoint);
         }
@@ -155,11 +155,11 @@ export class StorageManageComponent {
         this.saving.set(true);
         this.error.set(null);
 
-        const { label, diskMount, folderName, categoryPolicy } = this.storageForm.getRawValue();
+        const { label, diskMount, folderName, categoryTemplate } = this.storageForm.getRawValue();
         const path = this.buildPath(diskMount, folderName);
 
         this.storageService
-            .createLocation({ label: label.trim(), path, categoryPolicy })
+            .createLocation({ label: label.trim(), path, categoryTemplate })
             .pipe(finalize(() => this.saving.set(false)))
             .subscribe({
                 next: (location) => {
@@ -189,19 +189,19 @@ export class StorageManageComponent {
             label: location.label,
             diskMount,
             folderName,
-            categoryPolicy: location.categoryPolicy || 'hash',
+            categoryTemplate: location.categoryTemplate || 'hash',
         });
-        this.editSelectedCategoryPolicy.set(location.categoryPolicy || 'hash');
+        this.editSelectedCategoryTemplate.set(location.categoryTemplate || 'hash');
         this.editSelectedDiskMount.set(diskMount);
         this.editDiskMenuOpen.set(false);
-        this.editPolicyMenuOpen.set(false);
+        this.editTemplateMenuOpen.set(false);
         this.showCreateForm.set(false);
     }
 
     cancelEdit(): void {
         this.editingId.set(null);
         this.editDiskMenuOpen.set(false);
-        this.editPolicyMenuOpen.set(false);
+        this.editTemplateMenuOpen.set(false);
     }
 
     saveEdit(location: StorageLocation): void {
@@ -213,14 +213,14 @@ export class StorageManageComponent {
         this.saving.set(true);
         this.error.set(null);
 
-        const { label, diskMount, folderName, categoryPolicy } = this.editForm.getRawValue();
+        const { label, diskMount, folderName, categoryTemplate } = this.editForm.getRawValue();
         const path = this.buildPath(diskMount, folderName);
 
         this.storageService
             .updateLocation(location.id, {
                 label: label.trim(),
                 path: path.trim(),
-                categoryPolicy,
+                categoryTemplate,
             })
             .pipe(finalize(() => this.saving.set(false)))
             .subscribe({
@@ -297,18 +297,18 @@ export class StorageManageComponent {
         this.diskMenuOpen.set(false);
     }
 
-    selectCategoryPolicy(policy: (typeof this.categoryPolicies)[number]): void {
-        this.storageForm.controls.categoryPolicy.setValue(policy.value);
-        this.selectedCategoryPolicy.set(policy.value);
-        this.policyMenuOpen.set(false);
+    selectCategoryTemplate(template: (typeof this.categoryTemplates)[number]): void {
+        this.storageForm.controls.categoryTemplate.setValue(template.value);
+        this.selectedCategoryTemplate.set(template.value);
+        this.templateMenuOpen.set(false);
     }
 
-    togglePolicyMenu(): void {
-        this.policyMenuOpen.set(!this.policyMenuOpen());
+    toggleTemplateMenu(): void {
+        this.templateMenuOpen.set(!this.templateMenuOpen());
     }
 
-    closePolicyMenu(): void {
-        this.policyMenuOpen.set(false);
+    closeTemplateMenu(): void {
+        this.templateMenuOpen.set(false);
     }
 
     selectEditDisk(disk: StorageDiskInfo): void {
@@ -325,18 +325,18 @@ export class StorageManageComponent {
         this.editDiskMenuOpen.set(false);
     }
 
-    selectEditCategoryPolicy(policy: (typeof this.categoryPolicies)[number]): void {
-        this.editForm.controls.categoryPolicy.setValue(policy.value);
-        this.editSelectedCategoryPolicy.set(policy.value);
-        this.editPolicyMenuOpen.set(false);
+    selectEditCategoryTemplate(template: (typeof this.categoryTemplates)[number]): void {
+        this.editForm.controls.categoryTemplate.setValue(template.value);
+        this.editSelectedCategoryTemplate.set(template.value);
+        this.editTemplateMenuOpen.set(false);
     }
 
-    toggleEditPolicyMenu(): void {
-        this.editPolicyMenuOpen.set(!this.editPolicyMenuOpen());
+    toggleEditTemplateMenu(): void {
+        this.editTemplateMenuOpen.set(!this.editTemplateMenuOpen());
     }
 
-    closeEditPolicyMenu(): void {
-        this.editPolicyMenuOpen.set(false);
+    closeEditTemplateMenu(): void {
+        this.editTemplateMenuOpen.set(false);
     }
 
     private buildPath(mountPoint: string, folderName: string): string {

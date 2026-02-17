@@ -37,8 +37,6 @@ pub use setting_service::SettingService;
 pub use task_descriptor::TaskDescriptor;
 pub use thumbnail_extractor::ThumbnailExtractor;
 
-use crate::services::image_categorizer::ImageCategorizerRegistry;
-
 use std::sync::Arc;
 
 use crate::entities::{setting::Setting, user::User, user_settings::UserSettings};
@@ -121,7 +119,5 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
         let repo = provider.get::<Repository<User>>();
         AdminUserService::new(repo)
     });
-    builder.register_singleton(|provider| ImageCategorizerRegistry::with_defaults(provider));
-
     builder
 }

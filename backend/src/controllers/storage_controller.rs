@@ -3,8 +3,10 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::Path;
+use sysinfo::Disks;
 use uuid::Uuid;
 
+use crate::entities::StorageLocation;
 use crate::services::SettingService;
 
 use nimble_web::controller::controller::Controller;
@@ -14,19 +16,7 @@ use nimble_web::http::context::HttpContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
-use sysinfo::Disks;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StorageLocation {
-    pub id: String,
-    pub label: String,
-    pub path: String,
-    pub is_default: bool,
-    pub created_at: String,
-    #[serde(default = "default_category_policy")]
-    pub category_policy: String,
-}
+use nimble_web::{delete, get, post, put};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,7 +26,7 @@ pub struct StorageLocationResponse {
     pub path: String,
     pub is_default: bool,
     pub created_at: String,
-    pub category_policy: String,
+    pub category_template: String,
     pub disk: Option<DiskInfo>,
 }
 
@@ -55,7 +45,7 @@ pub struct CreateStoragePayload {
     pub label: String,
     pub path: String,
     pub is_default: Option<bool>,
-    pub category_policy: Option<String>,
+    pub category_template: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,11 +54,7 @@ pub struct UpdateStoragePayload {
     pub label: Option<String>,
     pub path: Option<String>,
     pub is_default: Option<bool>,
-    pub category_policy: Option<String>,
-}
-
-fn default_category_policy() -> String {
-    "hash".to_string()
+    pub category_template: Option<String>,
 }
 
 pub struct StorageController;
@@ -133,32 +119,14 @@ impl StorageController {
 
 impl Controller for StorageController {
     fn routes() -> Vec<EndpointRoute> {
-        vec![
-            EndpointRoute::get("/api/storage/disks", DisksHandler)
-                .with_policy(Policy::InRole("admin".to_string()))
-                .build(),
-            EndpointRoute::get("/api/storage/locations", ListStorageHandler)
-                .with_policy(Policy::InRole("admin".to_string()))
-                .build(),
-            EndpointRoute::post("/api/storage/locations", CreateStorageHandler)
-                .with_policy(Policy::InRole("admin".to_string()))
-                .build(),
-            EndpointRoute::put("/api/storage/locations/{id}", UpdateStorageHandler)
-                .with_policy(Policy::InRole("admin".to_string()))
-                .build(),
-            EndpointRoute::delete("/api/storage/locations/{id}", DeleteStorageHandler)
-                .with_policy(Policy::InRole("admin".to_string()))
-                .build(),
-            EndpointRoute::put("/api/storage/locations/{id}/default", DefaultStorageHandler)
-                .with_policy(Policy::InRole("admin".to_string()))
-                .build(),
-        ]
+        vec![]
     }
 }
 
 struct DisksHandler;
 
 #[async_trait]
+#[get("/api/storage/disks", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for DisksHandler {
     async fn invoke(&self, _context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         Ok(ResponseValue::json(StorageController::list_disks()))
@@ -168,6 +136,7 @@ impl HttpHandler for DisksHandler {
 struct ListStorageHandler;
 
 #[async_trait]
+#[get("/api/storage/locations", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for ListStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let service = context.service::<SettingService>()?;
@@ -184,7 +153,7 @@ impl HttpHandler for ListStorageHandler {
                     path: location.path,
                     is_default: location.is_default,
                     created_at: location.created_at,
-                    category_policy: location.category_policy,
+                    category_template: location.category_template,
                     disk,
                 }
             })
@@ -197,6 +166,7 @@ impl HttpHandler for ListStorageHandler {
 struct CreateStorageHandler;
 
 #[async_trait]
+#[post("/api/storage/locations", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for CreateStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload = context
@@ -253,12 +223,12 @@ impl HttpHandler for CreateStorageHandler {
             path: path_value.to_string(),
             is_default,
             created_at: Utc::now().to_rfc3339(),
-            category_policy: payload
-                .category_policy
+            category_template: payload
+                .category_template
                 .as_deref()
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
-                .unwrap_or("hash")
+                .unwrap_or("{year}/{date:%Y-%m-%d}/{fileName}")
                 .to_string(),
         };
 
@@ -274,7 +244,7 @@ impl HttpHandler for CreateStorageHandler {
             path: new_location.path,
             is_default: new_location.is_default,
             created_at: new_location.created_at,
-            category_policy: new_location.category_policy,
+            category_template: new_location.category_template,
             disk,
         }))
     }
@@ -283,6 +253,7 @@ impl HttpHandler for CreateStorageHandler {
 struct UpdateStorageHandler;
 
 #[async_trait]
+#[put("/api/storage/locations/{id}", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for UpdateStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let id = context
@@ -341,10 +312,10 @@ impl HttpHandler for UpdateStorageHandler {
                 location.is_default = is_default;
             }
 
-            if let Some(category_policy) = &payload.category_policy {
-                let value = category_policy.trim();
+            if let Some(category_template) = &payload.category_template {
+                let value = category_template.trim();
                 if !value.is_empty() {
-                    location.category_policy = value.to_string();
+                    location.category_template = value.to_string();
                 }
             }
         }
@@ -376,7 +347,7 @@ impl HttpHandler for UpdateStorageHandler {
                     path: location.path,
                     is_default: location.is_default,
                     created_at: location.created_at,
-                    category_policy: location.category_policy,
+                    category_template: location.category_template,
                     disk,
                 }
             })
@@ -389,6 +360,7 @@ impl HttpHandler for UpdateStorageHandler {
 struct DefaultStorageHandler;
 
 #[async_trait]
+#[put("/api/storage/locations/{id}/default", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for DefaultStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let id = context
@@ -426,7 +398,7 @@ impl HttpHandler for DefaultStorageHandler {
                     path: location.path,
                     is_default: location.is_default,
                     created_at: location.created_at,
-                    category_policy: location.category_policy,
+                    category_template: location.category_template,
                     disk,
                 }
             })
@@ -439,6 +411,7 @@ impl HttpHandler for DefaultStorageHandler {
 struct DeleteStorageHandler;
 
 #[async_trait]
+#[delete("/api/storage/locations/{id}", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for DeleteStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let id = context
@@ -474,7 +447,7 @@ impl HttpHandler for DeleteStorageHandler {
                     path: location.path,
                     is_default: location.is_default,
                     created_at: location.created_at,
-                    category_policy: location.category_policy,
+                    category_template: location.category_template,
                     disk,
                 }
             })

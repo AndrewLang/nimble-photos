@@ -1,39 +1,42 @@
-use nimble_photos::services::image_pipeline::ImageProcessContext;
+use nimble_photos::entities::StorageLocation;
+use nimble_photos::services::image_pipeline::ImageProcessPayload;
+use std::path::PathBuf;
 
-#[test]
-fn thumbnail_output_path_uses_hash_segments() {
-    let thumbnail_root = std::env::temp_dir().join("thumb-root-test");
-    let output = ImageProcessContext::thumbnail_output_path_from_hash(
-        &thumbnail_root,
-        Some("abcd1234"),
-        "webp",
-    )
-    .expect("hash should enable thumbnail path");
-    let expected = thumbnail_root.join("ab").join("cd").join("abcd1234.webp");
-    assert_eq!(output, expected);
+fn make_storage(path: PathBuf) -> StorageLocation {
+    StorageLocation {
+        id: "storage-1".to_string(),
+        label: "Primary".to_string(),
+        path: path.to_string_lossy().to_string(),
+        is_default: true,
+        created_at: "2026-02-17T00:00:00Z".to_string(),
+        category_template: "{year}/{date:%Y-%m-%d}/{fileName}".to_string(),
+    }
 }
 
 #[test]
-fn preview_output_path_requires_hash() {
-    let preview_root = std::env::temp_dir().join("preview-root-test");
-    assert!(
-        ImageProcessContext::preview_output_path_from_hash(&preview_root, None, "webp").is_err()
-    );
+fn source_path_joins_storage_path_and_relative_path() {
+    let root = std::env::temp_dir().join("nimble-image-path-test-source");
+    let payload = ImageProcessPayload {
+        storage: make_storage(root.clone()),
+        relative_path: "temp/abcd1234.jpg".to_string(),
+        file_name: "abcd1234.jpg".to_string(),
+        byte_size: 42,
+        content_type: Some("image/jpeg".to_string()),
+    };
 
-    let output =
-        ImageProcessContext::preview_output_path_from_hash(&preview_root, Some("beefcafe"), "webp")
-            .expect("hash should enable preview path");
-    let expected = preview_root.join("be").join("ef").join("beefcafe.webp");
-    assert_eq!(output, expected);
+    assert_eq!(payload.source_path(), root.join("temp").join("abcd1234.jpg"));
 }
 
 #[test]
-fn thumbnail_output_path_zero_pads_short_hashes() {
-    let thumbnail_root = std::env::temp_dir().join("thumb-root-short-hash");
-    let output =
-        ImageProcessContext::thumbnail_output_path_from_hash(&thumbnail_root, Some("9f"), "jpg")
-            .expect("short hash should still produce a thumbnail path");
+fn working_directory_matches_storage_normalized_path() {
+    let root = std::env::temp_dir().join("nimble-image-path-test-workdir");
+    let payload = ImageProcessPayload {
+        storage: make_storage(root.clone()),
+        relative_path: "temp/file.jpg".to_string(),
+        file_name: "file.jpg".to_string(),
+        byte_size: 42,
+        content_type: None,
+    };
 
-    let expected = thumbnail_root.join("9f").join("00").join("9f.jpg");
-    assert_eq!(output, expected);
+    assert_eq!(payload.working_directory(), root);
 }

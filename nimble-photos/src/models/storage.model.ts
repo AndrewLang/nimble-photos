@@ -11,7 +11,7 @@ export interface StorageLocation {
     path: string;
     isDefault: boolean;
     createdAt: string;
-    categoryPolicy: string;
+    categoryTemplate: string;
     disk?: StorageDiskInfo | null;
 }
 
@@ -19,12 +19,12 @@ export interface CreateStorageLocationRequest {
     label: string;
     path: string;
     isDefault?: boolean;
-    categoryPolicy?: string;
+    categoryTemplate?: string;
 }
 
 export interface UpdateStorageLocationRequest {
     label?: string;
     path?: string;
     isDefault?: boolean;
-    categoryPolicy?: string;
+    categoryTemplate?: string;
 }

@@ -3,7 +3,9 @@ use super::image_process_step::ImageProcessStep;
 use crate::entities::{exif::ExifModel, photo::Photo};
 use crate::services::exif_service::ExifService;
 use crate::services::hash_service::HashService;
-use crate::services::image_categorizer::{CategorizeRequest, ImageCategorizerRegistry};
+use crate::services::image_categorizer::{
+    CategorizeRequest, ImageCategorizer, TemplateCategorizer,
+};
 use crate::services::image_process_constants::ImageProcessKeys;
 use crate::services::{PreviewExtractor, ThumbnailExtractor};
 
@@ -157,7 +159,7 @@ impl GenerateThumbnailStep {
 #[async_trait]
 impl ImageProcessStep for GenerateThumbnailStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        let thumbnail_root = context.payload().storage.path.join(".thumbnails");
+        let thumbnail_root = context.payload().storage.normalized_path().join(".thumbnails");
         let hash = context
             .get_by_alias::<String>(ImageProcessKeys::HASH)
             .ok_or_else(|| anyhow!("hash not found"))?;
@@ -210,7 +212,7 @@ impl GeneratePreviewStep {
 #[async_trait]
 impl ImageProcessStep for GeneratePreviewStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        let preview_root = context.payload().storage.path.join(".previews");
+        let preview_root = context.payload().storage.normalized_path().join(".previews");
         let hash = context
             .get_by_alias::<String>(ImageProcessKeys::HASH)
             .ok_or_else(|| anyhow!("hash not found"))?;
@@ -238,23 +240,24 @@ impl ImageProcessStep for GeneratePreviewStep {
 }
 
 pub(super) struct CategorizeImageStep {
-    services: Arc<ServiceProvider>,
-    registry: Arc<ImageCategorizerRegistry>,
 }
 
 impl CategorizeImageStep {
-    pub(super) fn new(services: Arc<ServiceProvider>) -> Self {
-        let registry = services.get::<ImageCategorizerRegistry>();
-
-        Self { services, registry }
+    pub(super) fn new(_services: Arc<ServiceProvider>) -> Self {
+        Self {}
     }
 }
 
 #[async_trait]
 impl ImageProcessStep for CategorizeImageStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        let policy_name = context.payload().storage.category_policy.as_str();
-        log::debug!("Categorizing image using policy: {}", policy_name);
+        let configured_template = context.payload().storage.category_template.trim();
+        let category_template = if configured_template.is_empty() {
+            "{year}/{date:%Y-%m-%d}/{fileName}"
+        } else {
+            configured_template
+        };
+        log::debug!("Categorizing image using template: {}", category_template);
 
         let working_directory = context
             .properties()
@@ -266,15 +269,15 @@ impl ImageProcessStep for CategorizeImageStep {
                 .unwrap_or_else(|| "none".to_string())
         );
 
-        let categorizer = self.registry.get(policy_name)?;
+        let categorizer = TemplateCategorizer::new(category_template);
         let request = CategorizeRequest::new(context.source_path(), context.properties());
+        let final_path = categorizer.categorize(&request)?.final_path;
 
-        let result = categorizer.categorize(&request)?;
-        context.insert::<PathBuf>(ImageProcessKeys::FINAL_PATH, result.clone().final_path);
+        context.insert::<PathBuf>(ImageProcessKeys::FINAL_PATH, final_path.clone());
 
         log::debug!(
             "Image categorization complete, final path: {}",
-            result.final_path.display()
+            final_path.display()
         );
 
         Ok(())

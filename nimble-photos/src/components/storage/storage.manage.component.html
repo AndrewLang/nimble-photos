@@ -49,7 +49,7 @@
                             </div>
                             <p class="text-[0.7rem] text-slate-500">{{ location.path }}</p>
                             <p class="text-[0.65rem] text-slate-400">
-                                Category policy: {{ location.categoryPolicy || 'hash' }}
+                                Category template: {{ location.categoryTemplate || 'hash' }}
                             </p>
                             @if (location.disk) {
                             <p class="mt-1 text-[0.7rem] text-slate-400">
@@ -147,27 +147,27 @@
                     <div class="space-y-2">
                         <label
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Category
-                            Policy</label>
+                            Template</label>
                         <div class="relative">
-                            <button type="button" (click)="togglePolicyMenu()"
+                            <button type="button" (click)="toggleTemplateMenu()"
                                 class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
-                                <span>{{ selectedCategoryPolicyLabel() }}</span>
+                                <span>{{ selectedCategoryTemplateLabel() }}</span>
                                 <span class="text-slate-400">v</span>
                             </button>
-                            <input type="hidden" formControlName="categoryPolicy" />
+                            <input type="hidden" formControlName="categoryTemplate" />
 
-                            @if (policyMenuOpen()) {
+                            @if (templateMenuOpen()) {
                             <div
                                 class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
-                                @for (policy of categoryPolicies; track policy.value) {
-                                <button type="button" (click)="selectCategoryPolicy(policy)"
+                                @for (template of categoryTemplates; track template.value) {
+                                <button type="button" (click)="selectCategoryTemplate(template)"
                                     class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
-                                    <span>{{ policy.label }}</span>
-                                    <span class="text-slate-500">{{ policy.value }}</span>
+                                    <span>{{ template.label }}</span>
+                                    <span class="text-slate-500">{{ template.value }}</span>
                                 </button>
                                 }
                             </div>
-                            <div class="fixed inset-0 z-10" (click)="closePolicyMenu()"></div>
+                            <div class="fixed inset-0 z-10" (click)="closeTemplateMenu()"></div>
                             }
                         </div>
                     </div>
@@ -266,27 +266,27 @@
                     <div class="space-y-2">
                         <label
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Category
-                            Policy</label>
+                            Template</label>
                         <div class="relative">
-                            <button type="button" (click)="toggleEditPolicyMenu()"
+                            <button type="button" (click)="toggleEditTemplateMenu()"
                                 class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
-                                <span>{{ editSelectedCategoryPolicyLabel() }}</span>
+                                <span>{{ editSelectedCategoryTemplateLabel() }}</span>
                                 <span class="text-slate-400">v</span>
                             </button>
-                            <input type="hidden" [formControl]="editForm.controls.categoryPolicy" />
+                            <input type="hidden" [formControl]="editForm.controls.categoryTemplate" />
 
-                            @if (editPolicyMenuOpen()) {
+                            @if (editTemplateMenuOpen()) {
                             <div
                                 class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
-                                @for (policy of categoryPolicies; track policy.value) {
-                                <button type="button" (click)="selectEditCategoryPolicy(policy)"
+                                @for (template of categoryTemplates; track template.value) {
+                                <button type="button" (click)="selectEditCategoryTemplate(template)"
                                     class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
-                                    <span>{{ policy.label }}</span>
-                                    <span class="text-slate-500">{{ policy.value }}</span>
+                                    <span>{{ template.label }}</span>
+                                    <span class="text-slate-500">{{ template.value }}</span>
                                 </button>
                                 }
                             </div>
-                            <div class="fixed inset-0 z-10" (click)="closeEditPolicyMenu()"></div>
+                            <div class="fixed inset-0 z-10" (click)="closeEditTemplateMenu()"></div>
                             }
                         </div>
                     </div>

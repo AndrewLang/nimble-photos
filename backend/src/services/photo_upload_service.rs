@@ -23,7 +23,7 @@ pub struct StoredUploadFile {
 
 impl PhotoUploadService {
     const FILES_FIELD_NAME: &'static str = "files";
-    const TEMP_FOLDER_NAME: &'static str = "temp";
+    const TEMP_FOLDER_NAME: &'static str = ".temp";
     const UNKNOWN_FILE_BASENAME: &'static str = "upload";
 
     pub fn new() -> Self {
