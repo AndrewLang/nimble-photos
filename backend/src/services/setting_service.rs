@@ -10,18 +10,37 @@ use nimble_web::DataProvider;
 use nimble_web::data::repository::Repository;
 use nimble_web::pipeline::pipeline::PipelineError;
 
+pub struct SettingKeys;
+
+impl SettingKeys {
+    pub const SITE_TITLE: &'static str = "site.title";
+    pub const SITE_TAGLINE: &'static str = "site.tagline";
+    pub const SITE_LOGO: &'static str = "site.logo";
+    pub const SITE_PUBLIC: &'static str = "site.public";
+    pub const SITE_ALLOW_REGISTRATION: &'static str = "site.allowRegistration";
+    pub const SITE_ALLOW_COMMENTS: &'static str = "site.allowComments";
+    pub const SECURITY_ROLE_PERMISSIONS: &'static str = "security.rolePermissions";
+    pub const STORAGE_LOCATIONS: &'static str = "storage.locations";
+    pub const PHOTO_MANAGE_UPLOADS_ENABLED: &'static str = "photo.manage.uploadsEnabled";
+    pub const PHOTO_MANAGE_VIEWER_HIDDEN_TAGS: &'static str = "photo.manage.viewerHiddenTags";
+    pub const CLIENT_APPROVAL_POLICY: &'static str = "client.approvalPolicy";
+    pub const EXPERIENCE_GRID_COLUMNS: &'static str = "experience.gridColumns";
+    pub const EXPERIENCE_DEFAULT_VIEW: &'static str = "experience.defaultView";
+    pub const EXPERIENCE_TIPS_ENABLED: &'static str = "experience.tipsEnabled";
+    pub const NOTIFICATIONS_EMAIL_SUMMARY: &'static str = "notifications.emailSummary";
+    pub const NOTIFICATIONS_DAILY_DIGEST_HOUR: &'static str = "notifications.dailyDigestHour";
+}
+
 pub struct SettingService {
     repository: Arc<Repository<Setting>>,
     definitions: Vec<SettingDefinition>,
 }
 
 impl SettingService {
-    const ROLE_PERMISSIONS_KEY: &'static str = "security.rolePermissions";
     const ACTION_DASHBOARD_ACCESS: &'static str = "dashboard.access";
     const ACTION_SETTINGS_GENERAL_UPDATE: &'static str = "settings.general.update";
     const ACTION_PHOTOS_UPLOAD: &'static str = "photos.upload";
     const ACTION_COMMENTS_CREATE: &'static str = "comments.create";
-    const VIEWER_HIDDEN_TAGS_KEY: &'static str = "photo.manage.viewerHiddenTags";
 
     pub fn new(repository: Arc<Repository<Setting>>) -> Self {
         Self {
@@ -141,20 +160,22 @@ impl SettingService {
     }
 
     pub async fn is_site_public(&self) -> Result<bool, PipelineError> {
-        self.get_bool_setting("site.public").await
+        self.get_bool_setting(SettingKeys::SITE_PUBLIC).await
     }
 
     pub async fn is_registration_allowed(&self) -> Result<bool, PipelineError> {
-        self.get_bool_setting("site.allowRegistration").await
+        self.get_bool_setting(SettingKeys::SITE_ALLOW_REGISTRATION)
+            .await
     }
 
     pub async fn is_photo_upload_enabled(&self) -> Result<bool, PipelineError> {
-        self.get_bool_setting("photo.manage.uploadsEnabled").await
+        self.get_bool_setting(SettingKeys::PHOTO_MANAGE_UPLOADS_ENABLED)
+            .await
     }
 
     pub async fn viewer_hidden_tags(&self) -> Result<HashSet<String>, PipelineError> {
         let tags = self
-            .get_string_array_setting(Self::VIEWER_HIDDEN_TAGS_KEY)
+            .get_string_array_setting(SettingKeys::PHOTO_MANAGE_VIEWER_HIDDEN_TAGS)
             .await?;
         Ok(tags.into_iter().map(|tag| tag.to_lowercase()).collect())
     }
@@ -206,6 +227,18 @@ impl SettingService {
         }
 
         Ok(false)
+    }
+
+    pub async fn client_approval_policy(&self) -> Result<String, PipelineError> {
+        let setting = self.get(SettingKeys::CLIENT_APPROVAL_POLICY).await?;
+        let policy = setting
+            .value
+            .as_str()
+            .unwrap_or("auto")
+            .trim()
+            .to_ascii_lowercase();
+
+        Ok(policy.to_string())
     }
 
     async fn get_bool_setting(&self, key: &str) -> Result<bool, PipelineError> {
@@ -280,12 +313,12 @@ impl SettingService {
     async fn role_permissions_config(&self) -> Result<JsonValue, PipelineError> {
         let entry = self
             .repository
-            .get(&Self::ROLE_PERMISSIONS_KEY.to_string())
+            .get(&SettingKeys::SECURITY_ROLE_PERMISSIONS.to_string())
             .await
             .map_err(|e| {
                 let msg = format!(
                     "Failed to load setting {}: {:?}",
-                    Self::ROLE_PERMISSIONS_KEY,
+                    SettingKeys::SECURITY_ROLE_PERMISSIONS,
                     e
                 );
                 PipelineError::message(&msg)
@@ -300,7 +333,7 @@ impl SettingService {
         Ok(self
             .definitions
             .iter()
-            .find(|d| d.key == Self::ROLE_PERMISSIONS_KEY)
+            .find(|d| d.key == SettingKeys::SECURITY_ROLE_PERMISSIONS)
             .map(|d| d.default_value.clone())
             .unwrap_or_else(|| json!({})))
     }
@@ -396,7 +429,7 @@ impl SettingService {
     fn build_definitions() -> Vec<SettingDefinition> {
         vec![
             SettingDefinition {
-                key: "site.title",
+                key: SettingKeys::SITE_TITLE,
                 label: "Site title",
                 description: "Displayed in the header and shared links",
                 section: SettingSection::General,
@@ -406,7 +439,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "site.tagline",
+                key: SettingKeys::SITE_TAGLINE,
                 label: "Site tagline",
                 description: "Short description below the logo",
                 section: SettingSection::General,
@@ -416,7 +449,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "site.logo",
+                key: SettingKeys::SITE_LOGO,
                 label: "Site logo",
                 description: "URL for the brand logo shown in the header",
                 section: SettingSection::General,
@@ -426,7 +459,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "site.public",
+                key: SettingKeys::SITE_PUBLIC,
                 label: "Public gallery",
                 description: "When enabled visitors can browse and view photos without signing in. Otherwise only authenticated users can access the library.",
                 section: SettingSection::General,
@@ -436,7 +469,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "site.allowRegistration",
+                key: SettingKeys::SITE_ALLOW_REGISTRATION,
                 label: "Allow registration",
                 description: "When enabled visitors can create their own accounts from the register screen.",
                 section: SettingSection::General,
@@ -446,7 +479,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "site.allowComments",
+                key: SettingKeys::SITE_ALLOW_COMMENTS,
                 label: "Allow comments",
                 description: "When enabled users can add comments on photo and album detail views.",
                 section: SettingSection::General,
@@ -456,7 +489,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "security.rolePermissions",
+                key: SettingKeys::SECURITY_ROLE_PERMISSIONS,
                 label: "Role permissions",
                 description: "JSON map for role-based actions. Actions: dashboard.access, settings.general.update, photos.upload, comments.create.",
                 section: SettingSection::Security,
@@ -480,7 +513,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "storage.locations",
+                key: SettingKeys::STORAGE_LOCATIONS,
                 label: "Storage locations",
                 description: "Folders used to store uploaded photos and generated assets.",
                 section: SettingSection::General,
@@ -490,7 +523,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "photo.manage.uploadsEnabled",
+                key: SettingKeys::PHOTO_MANAGE_UPLOADS_ENABLED,
                 label: "Upload photos",
                 description: "Allow uploads (including the scan endpoint) when authenticated members add new images.",
                 section: SettingSection::PhotoManage,
@@ -500,7 +533,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "photo.manage.viewerHiddenTags",
+                key: SettingKeys::PHOTO_MANAGE_VIEWER_HIDDEN_TAGS,
                 label: "Viewer hidden tags",
                 description: "Photos with these tags are hidden from users with the viewer role.",
                 section: SettingSection::PhotoManage,
@@ -510,7 +543,26 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "experience.gridColumns",
+                key: SettingKeys::CLIENT_APPROVAL_POLICY,
+                label: "Client approval policy",
+                description: "Controls whether new API clients are auto-approved or require manual admin approval.",
+                section: SettingSection::Security,
+                group: "client",
+                value_type: SettingValueType::String,
+                default_value: json!("auto"),
+                options: Some(vec![
+                    SettingOption {
+                        label: "Auto",
+                        value: json!("auto"),
+                    },
+                    SettingOption {
+                        label: "Manual",
+                        value: json!("manual"),
+                    },
+                ]),
+            },
+            SettingDefinition {
+                key: SettingKeys::EXPERIENCE_GRID_COLUMNS,
                 label: "Gallery columns",
                 description: "Columns used for the main gallery grid",
                 section: SettingSection::Experience,
@@ -520,7 +572,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "experience.defaultView",
+                key: SettingKeys::EXPERIENCE_DEFAULT_VIEW,
                 label: "Default landing view",
                 description: "View presented to visitors by default",
                 section: SettingSection::Experience,
@@ -543,7 +595,7 @@ impl SettingService {
                 ]),
             },
             SettingDefinition {
-                key: "experience.tipsEnabled",
+                key: SettingKeys::EXPERIENCE_TIPS_ENABLED,
                 label: "Show tips",
                 description: "Offer contextual tips across the app",
                 section: SettingSection::Experience,
@@ -553,7 +605,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "notifications.emailSummary",
+                key: SettingKeys::NOTIFICATIONS_EMAIL_SUMMARY,
                 label: "Email summaries",
                 description: "Send a weekly recap of new photos",
                 section: SettingSection::Notifications,
@@ -563,7 +615,7 @@ impl SettingService {
                 options: None,
             },
             SettingDefinition {
-                key: "notifications.dailyDigestHour",
+                key: SettingKeys::NOTIFICATIONS_DAILY_DIGEST_HOUR,
                 label: "Daily digest hour",
                 description: "UTC hour for the digest email",
                 section: SettingSection::Notifications,

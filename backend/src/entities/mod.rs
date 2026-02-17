@@ -1,5 +1,6 @@
 use album::Album;
 use album_comment::AlbumComment;
+use client::Client;
 use exif::ExifModel;
 #[cfg(not(feature = "postgres"))]
 use nimble_web::data::memory_repository::MemoryRepository;
@@ -19,6 +20,7 @@ pub use storage_location::StorageLocation;
 pub mod album;
 pub mod album_comment;
 pub mod album_hooks;
+pub mod client;
 pub mod exif;
 pub mod photo;
 pub mod photo_comment;
@@ -31,6 +33,10 @@ pub mod uuid_id;
 
 pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.use_entity_with_operations_and_policy::<User>(
+        &[EntityOperation::Get, EntityOperation::List],
+        Policy::Authenticated,
+    );
+    builder.use_entity_with_operations_and_policy::<Client>(
         &[EntityOperation::Get, EntityOperation::List],
         Policy::Authenticated,
     );
@@ -91,6 +97,10 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             Repository::<User>::new(Box::new(provider))
         });
         builder.register_singleton(|_| {
+            let provider = MemoryRepository::<Client>::new();
+            Repository::<Client>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
             let provider = MemoryRepository::<UserSettings>::new();
             Repository::<UserSettings>::new(Box::new(provider))
         });
@@ -141,6 +151,12 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
 
         builder.register_singleton(|p| {
             let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<Client>::new((*pool).clone());
+            Repository::<Client>::new(Box::new(provider))
+        });
+
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
             let provider = PostgresProvider::<UserSettings>::new((*pool).clone());
             Repository::<UserSettings>::new(Box::new(provider))
         });
@@ -184,6 +200,7 @@ pub async fn migrate_entities(app: &Application) {
             .expect("PgPool not found");
 
         let _ = app.migrate_entity::<User>().await;
+        let _ = app.migrate_entity::<Client>().await;
         let _ = app.migrate_entity::<UserSettings>().await;
         let _ = app.migrate_entity::<Photo>().await;
         let _ = app.migrate_entity::<Album>().await;
