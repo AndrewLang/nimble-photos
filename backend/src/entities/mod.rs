@@ -1,6 +1,7 @@
 use album::Album;
 use album_comment::AlbumComment;
 use client::Client;
+use client_storage::ClientStorage;
 use exif::ExifModel;
 #[cfg(not(feature = "postgres"))]
 use nimble_web::data::memory_repository::MemoryRepository;
@@ -21,9 +22,12 @@ pub mod album;
 pub mod album_comment;
 pub mod album_hooks;
 pub mod client;
+pub mod client_storage;
 pub mod exif;
 pub mod photo;
+pub mod photo_browse;
 pub mod photo_comment;
+pub mod photo_cursor;
 pub mod setting;
 pub mod storage_location;
 pub mod tag;
@@ -37,6 +41,10 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         Policy::Authenticated,
     );
     builder.use_entity_with_operations_and_policy::<Client>(
+        &[EntityOperation::Get, EntityOperation::List],
+        Policy::Authenticated,
+    );
+    builder.use_entity_with_operations_and_policy::<ClientStorage>(
         &[EntityOperation::Get, EntityOperation::List],
         Policy::Authenticated,
     );
@@ -101,6 +109,10 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             Repository::<Client>::new(Box::new(provider))
         });
         builder.register_singleton(|_| {
+            let provider = MemoryRepository::<ClientStorage>::new();
+            Repository::<ClientStorage>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
             let provider = MemoryRepository::<UserSettings>::new();
             Repository::<UserSettings>::new(Box::new(provider))
         });
@@ -154,6 +166,11 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let provider = PostgresProvider::<Client>::new((*pool).clone());
             Repository::<Client>::new(Box::new(provider))
         });
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<ClientStorage>::new((*pool).clone());
+            Repository::<ClientStorage>::new(Box::new(provider))
+        });
 
         builder.register_singleton(|p| {
             let pool = p.get::<PgPool>();
@@ -201,6 +218,7 @@ pub async fn migrate_entities(app: &Application) {
 
         let _ = app.migrate_entity::<User>().await;
         let _ = app.migrate_entity::<Client>().await;
+        let _ = app.migrate_entity::<ClientStorage>().await;
         let _ = app.migrate_entity::<UserSettings>().await;
         let _ = app.migrate_entity::<Photo>().await;
         let _ = app.migrate_entity::<Album>().await;

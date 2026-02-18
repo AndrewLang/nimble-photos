@@ -3,7 +3,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce, aead::Aead};
 use nimble_web::config::Configuration;
-use rand::RngCore;
+use rand::RngExt;
 
 #[derive(Clone)]
 pub struct EncryptService {
@@ -26,7 +26,7 @@ impl EncryptService {
 
     pub fn encrypt(&self, plaintext: &str) -> Result<String> {
         let mut nonce_bytes = [0u8; 24];
-        rand::rng().fill_bytes(&mut nonce_bytes);
+        rand::rng().fill(&mut nonce_bytes);
         let nonce = XNonce::from_slice(&nonce_bytes);
         let ciphertext = self
             .cipher

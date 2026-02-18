@@ -4,15 +4,23 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::Path;
 use sysinfo::Disks;
+use urlencoding::decode;
 use uuid::Uuid;
 
 use crate::entities::StorageLocation;
+use crate::entities::client_storage::ClientStorage;
+use crate::entities::photo_browse::{BrowseOptions, BrowseRequest, BrowseResponse};
+use crate::entities::photo_cursor::PhotoCursor;
+use crate::services::BrowseService;
 use crate::services::SettingService;
 
+use nimble_web::DataProvider;
 use nimble_web::controller::controller::Controller;
+use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
+use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
@@ -57,9 +65,44 @@ pub struct UpdateStoragePayload {
     pub category_template: Option<String>,
 }
 
-pub struct StorageController;
+#[derive(Clone, Copy)]
+enum Permission {
+    BrowsePhotos,
+}
 
-impl StorageController {
+trait HttpContextPermissionExt {
+    fn require(&self, permission: Permission) -> Result<(), PipelineError>;
+}
+
+impl HttpContextPermissionExt for HttpContext {
+    fn require(&self, permission: Permission) -> Result<(), PipelineError> {
+        match permission {
+            Permission::BrowsePhotos => {
+                let allowed = self
+                    .get::<IdentityContext>()
+                    .map(|identity| identity.is_authenticated())
+                    .unwrap_or(false);
+                if allowed {
+                    Ok(())
+                } else {
+                    Err(PipelineError::message("forbidden"))
+                }
+            }
+        }
+    }
+}
+
+pub struct StorageHandlers;
+
+impl Controller for StorageHandlers {
+    fn routes() -> Vec<EndpointRoute> {
+        vec![]
+    }
+}
+
+struct StorageSupport;
+
+impl StorageSupport {
     fn list_disks() -> Vec<DiskInfo> {
         let disks = Disks::new_with_refreshed_list();
 
@@ -115,11 +158,79 @@ impl StorageController {
         service.update("storage.locations", value).await?;
         Ok(())
     }
-}
 
-impl Controller for StorageController {
-    fn routes() -> Vec<EndpointRoute> {
-        vec![]
+    fn parse_browse_request(context: &HttpContext) -> Result<BrowseRequest, PipelineError> {
+        let params = context.request().query_params();
+
+        let page_size = params
+            .get("pageSize")
+            .map(|value| value.parse::<i64>())
+            .transpose()
+            .map_err(|_| PipelineError::message("invalid pageSize"))?;
+
+        let path = params
+            .get("path")
+            .map(|value| {
+                decode(value)
+                    .map(|decoded| decoded.into_owned())
+                    .map_err(|_| PipelineError::message("invalid path encoding"))
+            })
+            .transpose()?;
+
+        let cursor = params
+            .get("cursor")
+            .map(|value| {
+                decode(value)
+                    .map(|decoded| decoded.into_owned())
+                    .map_err(|_| PipelineError::message("invalid cursor encoding"))
+            })
+            .transpose()?;
+
+        Ok(BrowseRequest {
+            path,
+            page_size,
+            cursor,
+        })
+    }
+
+    fn route_storage_id(context: &HttpContext) -> Result<String, PipelineError> {
+        context
+            .route()
+            .and_then(|route| route.params().get("storageId"))
+            .cloned()
+            .ok_or_else(|| PipelineError::message("storageId parameter missing"))
+    }
+
+    fn current_client_id(context: &HttpContext) -> Result<Uuid, PipelineError> {
+        let subject = context
+            .get::<IdentityContext>()
+            .ok_or_else(|| PipelineError::message("identity not found"))?
+            .identity()
+            .subject()
+            .to_string();
+
+        Uuid::parse_str(&subject).map_err(|_| PipelineError::message("invalid identity"))
+    }
+
+    async fn load_client_storage_settings(
+        context: &HttpContext,
+        client_id: Uuid,
+        storage_id: &str,
+    ) -> Result<BrowseOptions, PipelineError> {
+        let storage_uuid = Uuid::parse_str(storage_id).ok();
+        let repository = context.service::<Repository<ClientStorage>>()?;
+        let configured = repository
+            .get(&client_id)
+            .await
+            .map_err(|_| PipelineError::message("failed to load client storage settings"))?;
+
+        if let (Some(settings), Some(expected_storage_id)) = (configured, storage_uuid) {
+            if settings.storage_id == expected_storage_id {
+                return Ok(settings.browse_options);
+            }
+        }
+
+        Ok(BrowseOptions::default())
     }
 }
 
@@ -129,7 +240,7 @@ struct DisksHandler;
 #[get("/api/storage/disks", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for DisksHandler {
     async fn invoke(&self, _context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        Ok(ResponseValue::json(StorageController::list_disks()))
+        Ok(ResponseValue::json(StorageSupport::list_disks()))
     }
 }
 
@@ -140,13 +251,13 @@ struct ListStorageHandler;
 impl HttpHandler for ListStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let service = context.service::<SettingService>()?;
-        let locations = StorageController::load_locations(&service).await?;
-        let disks = StorageController::list_disks();
+        let locations = StorageSupport::load_locations(&service).await?;
+        let disks = StorageSupport::list_disks();
 
         let response = locations
             .into_iter()
             .map(|location| {
-                let disk = StorageController::match_disk(&location.path, &disks);
+                let disk = StorageSupport::match_disk(&location.path, &disks);
                 StorageLocationResponse {
                     id: location.id,
                     label: location.label,
@@ -197,7 +308,7 @@ impl HttpHandler for CreateStorageHandler {
         }
 
         let service = context.service::<SettingService>()?;
-        let mut locations = StorageController::load_locations(&service).await?;
+        let mut locations = StorageSupport::load_locations(&service).await?;
 
         if locations
             .iter()
@@ -233,10 +344,9 @@ impl HttpHandler for CreateStorageHandler {
         };
 
         locations.push(new_location.clone());
-        StorageController::save_locations(&service, &locations).await?;
+        StorageSupport::save_locations(&service, &locations).await?;
 
-        let disk =
-            StorageController::match_disk(&new_location.path, &StorageController::list_disks());
+        let disk = StorageSupport::match_disk(&new_location.path, &StorageSupport::list_disks());
 
         Ok(ResponseValue::json(StorageLocationResponse {
             id: new_location.id,
@@ -266,7 +376,7 @@ impl HttpHandler for UpdateStorageHandler {
             .map_err(|err| PipelineError::message(err.message()))?;
 
         let service = context.service::<SettingService>()?;
-        let mut locations = StorageController::load_locations(&service).await?;
+        let mut locations = StorageSupport::load_locations(&service).await?;
         let index = locations
             .iter()
             .position(|location| location.id == *id)
@@ -334,13 +444,13 @@ impl HttpHandler for UpdateStorageHandler {
             first.is_default = true;
         }
 
-        StorageController::save_locations(&service, &locations).await?;
-        let disks = StorageController::list_disks();
+        StorageSupport::save_locations(&service, &locations).await?;
+        let disks = StorageSupport::list_disks();
 
         let response = locations
             .into_iter()
             .map(|location| {
-                let disk = StorageController::match_disk(&location.path, &disks);
+                let disk = StorageSupport::match_disk(&location.path, &disks);
                 StorageLocationResponse {
                     id: location.id,
                     label: location.label,
@@ -369,7 +479,7 @@ impl HttpHandler for DefaultStorageHandler {
             .ok_or_else(|| PipelineError::message("id parameter missing"))?;
 
         let service = context.service::<SettingService>()?;
-        let mut locations = StorageController::load_locations(&service).await?;
+        let mut locations = StorageSupport::load_locations(&service).await?;
         let mut found = false;
 
         for location in locations.iter_mut() {
@@ -385,13 +495,13 @@ impl HttpHandler for DefaultStorageHandler {
             return Err(PipelineError::message("Storage location not found"));
         }
 
-        StorageController::save_locations(&service, &locations).await?;
-        let disks = StorageController::list_disks();
+        StorageSupport::save_locations(&service, &locations).await?;
+        let disks = StorageSupport::list_disks();
 
         let response = locations
             .into_iter()
             .map(|location| {
-                let disk = StorageController::match_disk(&location.path, &disks);
+                let disk = StorageSupport::match_disk(&location.path, &disks);
                 StorageLocationResponse {
                     id: location.id,
                     label: location.label,
@@ -420,7 +530,7 @@ impl HttpHandler for DeleteStorageHandler {
             .ok_or_else(|| PipelineError::message("id parameter missing"))?;
 
         let service = context.service::<SettingService>()?;
-        let mut locations = StorageController::load_locations(&service).await?;
+        let mut locations = StorageSupport::load_locations(&service).await?;
         let original_len = locations.len();
         locations.retain(|location| location.id != *id);
 
@@ -434,13 +544,13 @@ impl HttpHandler for DeleteStorageHandler {
             }
         }
 
-        StorageController::save_locations(&service, &locations).await?;
-        let disks = StorageController::list_disks();
+        StorageSupport::save_locations(&service, &locations).await?;
+        let disks = StorageSupport::list_disks();
 
         let response = locations
             .into_iter()
             .map(|location| {
-                let disk = StorageController::match_disk(&location.path, &disks);
+                let disk = StorageSupport::match_disk(&location.path, &disks);
                 StorageLocationResponse {
                     id: location.id,
                     label: location.label,
@@ -452,6 +562,83 @@ impl HttpHandler for DeleteStorageHandler {
                 }
             })
             .collect::<Vec<_>>();
+
+        Ok(ResponseValue::json(response))
+    }
+}
+
+struct BrowseStorageHandler;
+
+#[async_trait]
+#[get("/api/storage/{storageId}/browse")]
+impl HttpHandler for BrowseStorageHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        // if let Err(err) = context.require(Permission::BrowsePhotos) {
+        //     context.response_mut().set_status(403);
+        //     return Err(err);
+        // }
+
+        let storage_id = StorageSupport::route_storage_id(context)?;
+        let request = StorageSupport::parse_browse_request(context)?;
+        let path_segments = request.path_segments().map_err(|_| {
+            context.response_mut().set_status(400);
+            PipelineError::message("invalid browse path")
+        })?;
+        log::info!("Path segments: {:?}", path_segments);
+
+        let setting_service = context.service::<SettingService>()?;
+        let storage_locations = StorageSupport::load_locations(&setting_service).await?;
+        let storage = storage_locations
+            .into_iter()
+            .find(|location| location.id == storage_id)
+            .ok_or_else(|| {
+                context.response_mut().set_status(404);
+                PipelineError::message("storage not found")
+            })?;
+
+        let client_id = StorageSupport::current_client_id(context)?;
+        let browse_options =
+            StorageSupport::load_client_storage_settings(context, client_id, &storage.id).await?;
+        log::info!(
+            "Browsing storage '{}' with path '{}', options: {:?}, page size: {}, cursor: {:?}",
+            storage.id,
+            request.path.as_deref().unwrap_or(""),
+            browse_options,
+            request.page_size.unwrap_or(50),
+            request.cursor.as_deref().unwrap_or("")
+        );
+
+        let cursor = match request.cursor.as_deref() {
+            Some(raw) if !raw.trim().is_empty() => Some(
+                PhotoCursor::decode(raw).map_err(|_| PipelineError::message("invalid cursor"))?,
+            ),
+            _ => None,
+        };
+
+        let page_size = request.page_size.unwrap_or(50);
+        let browse_service = context.service::<BrowseService>()?;
+        let response: BrowseResponse = browse_service
+            .browse(
+                &storage.id,
+                &path_segments,
+                &browse_options,
+                page_size,
+                cursor,
+            )
+            .await
+            .map_err(|err| {
+                let message = err.to_string();
+                if message.contains("invalid browse path depth")
+                    || message.contains("invalid digit found in string")
+                    || message.contains("input contains invalid characters")
+                    || message.contains("trailing input")
+                    || message.contains("input is out of range")
+                {
+                    context.response_mut().set_status(400);
+                    return PipelineError::message("invalid browse path");
+                }
+                PipelineError::message(&message)
+            })?;
 
         Ok(ResponseValue::json(response))
     }

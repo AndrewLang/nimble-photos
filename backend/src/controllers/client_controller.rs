@@ -1,15 +1,18 @@
 use async_trait::async_trait;
+use base64::Engine;
 use chrono::Utc;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use uuid::Uuid;
 
 use crate::controllers::httpcontext_extensions::HttpContextExtentions;
 use crate::entities::client::Client;
-use crate::services::SettingService;
+use crate::services::{EncryptService, SettingService};
 
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
-use nimble_web::data::query::Query;
+use nimble_web::data::query::{Query, Value};
 use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
@@ -50,8 +53,15 @@ impl From<Client> for ClientResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RegisterClientRequest {
-    name: String,
-    api_key_hash: String,
+    device_name: String,
+    device_type: String,
+    client_version: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RegisterClientResponse {
+    api_key: String,
 }
 
 pub struct ClientHandlers;
@@ -110,8 +120,10 @@ impl HttpHandler for ApproveClientHandler {
             .map_err(|_| PipelineError::message("failed to load client"))?
             .ok_or_else(|| PipelineError::message("client not found"))?;
 
+        let approver_id = HttpContextExtentions::current_user_id(context)?;
         client.is_approved = true;
         client.is_active = true;
+        client.approved_by = Some(approver_id);
         client.updated_at = Utc::now();
 
         let updated = repo
@@ -173,6 +185,58 @@ impl HttpHandler for DeleteClientHandler {
 
 struct RegisterClientHandler;
 
+impl RegisterClientHandler {
+    const AUTO_APPROVED_BY_UUID: &'static str = "00000000-0000-0000-0000-000000000001";
+
+    fn auto_approved_by_uuid() -> Uuid {
+        Uuid::parse_str(Self::AUTO_APPROVED_BY_UUID)
+            .expect("invalid AUTO_APPROVED_BY_UUID constant")
+    }
+
+    fn normalized(value: &str, field_name: &str) -> Result<String, PipelineError> {
+        let normalized = value.trim();
+        if normalized.is_empty() {
+            return Err(PipelineError::message(&format!("{field_name} is required")));
+        }
+
+        Ok(normalized.to_string())
+    }
+
+    fn create_api_key(
+        user_id: Uuid,
+        client_id: Uuid,
+        device_name: &str,
+        device_type: &str,
+        client_version: &str,
+    ) -> String {
+        let header = json!({
+            "alg": "NIMBLE",
+            "typ": "APIK"
+        });
+        let payload = json!({
+            "sub": user_id,
+            "cid": client_id,
+            "deviceName": device_name,
+            "deviceType": device_type,
+            "clientVersion": client_version,
+            "iat": Utc::now().timestamp(),
+            "jti": Uuid::new_v4()
+        });
+
+        let header_part =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header.to_string().as_bytes());
+        let payload_part =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string().as_bytes());
+
+        let mut signature_bytes = [0u8; 32];
+        rand::rng().fill(&mut signature_bytes);
+        let signature_part =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature_bytes);
+
+        format!("{header_part}.{payload_part}.{signature_part}")
+    }
+}
+
 #[async_trait]
 #[post("/api/clients/register", policy = Policy::Authenticated)]
 impl HttpHandler for RegisterClientHandler {
@@ -181,40 +245,71 @@ impl HttpHandler for RegisterClientHandler {
             .read_json::<RegisterClientRequest>()
             .map_err(|err| PipelineError::message(err.message()))?;
 
-        let name = request.name.trim();
-        if name.is_empty() {
-            return Err(PipelineError::message("client name is required"));
-        }
-
-        let api_key_hash = request.api_key_hash.trim();
-        if api_key_hash.is_empty() {
-            return Err(PipelineError::message("apiKeyHash is required"));
-        }
+        let device_name = Self::normalized(&request.device_name, "deviceName")?;
+        let device_type = Self::normalized(&request.device_type, "deviceType")?;
+        let client_version = Self::normalized(&request.client_version, "clientVersion")?;
 
         let user_id = HttpContextExtentions::current_user_id(context)?;
+
         let setting_service = context.service::<SettingService>()?;
+        let encrypt_service = context.service::<EncryptService>()?;
         let policy = setting_service.client_approval_policy().await?;
         let is_approved = policy == "auto";
         let now = Utc::now();
-
+        let client_id = Uuid::new_v4();
         let repo = context.service::<Repository<Client>>()?;
-        let client = Client {
-            id: Uuid::new_v4(),
+
+        let existing = repo
+            .get_by("device_name", Value::String(device_name.clone()))
+            .await
+            .map_err(|_| PipelineError::message("failed to query existing client"))?;
+
+        if let Some(existing_client) = existing {
+            let response = RegisterClientResponse {
+                api_key: existing_client.api_key_hash.clone(),
+            };
+
+            return Ok(ResponseValue::json(response));
+        }
+
+        let api_key = Self::create_api_key(
             user_id,
-            name: name.to_string(),
-            api_key_hash: api_key_hash.to_string(),
+            client_id,
+            &device_name,
+            &device_type,
+            &client_version,
+        );
+        let api_key_hash = encrypt_service
+            .encrypt(&api_key)
+            .map_err(|_| PipelineError::message("failed to protect api key"))?;
+
+        let client = Client {
+            id: client_id,
+            user_id,
+            name: device_name.clone(),
+            device_name,
+            device_type,
+            version: client_version,
+            api_key_hash,
             is_active: is_approved,
             is_approved,
-            last_seen_at: None,
+            approved_by: if is_approved {
+                Some(Self::auto_approved_by_uuid())
+            } else {
+                None
+            },
+            last_seen_at: now.into(),
             created_at: now,
             updated_at: now,
         };
 
-        let saved = repo
+        let _saved = repo
             .insert(client)
             .await
             .map_err(|_| PipelineError::message("failed to register client"))?;
 
-        Ok(ResponseValue::json(ClientResponse::from(saved)))
+        let response = RegisterClientResponse { api_key };
+
+        Ok(ResponseValue::json(response))
     }
 }

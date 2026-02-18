@@ -5,6 +5,7 @@ mod image_process_step;
 pub mod admin_user_service;
 pub mod auth_service;
 pub mod background_task_runner;
+pub mod browse_service;
 pub mod encrypt_service;
 pub mod exif_service;
 pub mod file_service;
@@ -23,6 +24,7 @@ pub mod thumbnail_extractor;
 pub use admin_user_service::AdminUserService;
 pub use auth_service::AuthService;
 pub use background_task_runner::BackgroundTaskRunner;
+pub use browse_service::BrowseService;
 pub use encrypt_service::EncryptService;
 pub use exif_service::ExifService;
 pub use file_service::FileService;
@@ -45,6 +47,7 @@ use nimble_web::config::Configuration;
 use nimble_web::data::repository::Repository;
 use nimble_web::security::token::JwtTokenService;
 use nimble_web::security::token::TokenService;
+use sqlx::PgPool;
 
 pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|provider| {
@@ -114,6 +117,10 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|provider| {
         let settings_repo = provider.get::<Repository<Setting>>();
         SettingService::new(settings_repo)
+    });
+    builder.register_singleton(|provider| {
+        let pool = provider.get::<PgPool>();
+        BrowseService::new(pool)
     });
     builder.register_singleton(|provider| {
         let repo = provider.get::<Repository<User>>();

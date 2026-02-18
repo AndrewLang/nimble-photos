@@ -6,6 +6,9 @@ use serde_json;
 use uuid::Uuid;
 
 #[cfg(feature = "postgres")]
+use crate::repositories::postgres_extensions::PostgresExtensions;
+
+#[cfg(feature = "postgres")]
 use {
     nimble_web::data::postgres::{PostgresEntity, value_builder::PostgresValueBuilder},
     nimble_web::data::query::Value,
@@ -18,6 +21,7 @@ use {
 #[serde(rename_all = "camelCase")]
 pub struct Photo {
     pub id: Option<Uuid>,
+    pub storage_id: Option<String>,
     pub path: String,
     pub name: String,
     pub format: Option<String>,
@@ -89,16 +93,11 @@ impl Photo {
 }
 
 #[cfg(feature = "postgres")]
-fn optional_i32_as_u32(row: &PgRow, column: &str) -> sqlx::Result<Option<u32>> {
-    row.try_get::<Option<i32>, _>(column)
-        .map(|opt| opt.map(|value| value as u32))
-}
-
-#[cfg(feature = "postgres")]
 impl<'r> FromRow<'r, PgRow> for Photo {
     fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
         Ok(Self {
             id: row.try_get("id")?,
+            storage_id: PostgresExtensions::optional_string_allow_missing(row, "storage_id")?,
             path: row.try_get("path")?,
             name: row.try_get("name")?,
             format: row.try_get("format")?,
@@ -112,10 +111,10 @@ impl<'r> FromRow<'r, PgRow> for Photo {
             thumbnail_optimized: row.try_get("thumbnail_optimized")?,
             metadata_extracted: row.try_get("metadata_extracted")?,
             is_raw: row.try_get("is_raw")?,
-            width: optional_i32_as_u32(row, "width")?,
-            height: optional_i32_as_u32(row, "height")?,
-            thumbnail_width: optional_i32_as_u32(row, "thumbnail_width")?,
-            thumbnail_height: optional_i32_as_u32(row, "thumbnail_height")?,
+            width: PostgresExtensions::optional_i32_as_u32(row, "width")?,
+            height: PostgresExtensions::optional_i32_as_u32(row, "height")?,
+            thumbnail_width: PostgresExtensions::optional_i32_as_u32(row, "thumbnail_width")?,
+            thumbnail_height: PostgresExtensions::optional_i32_as_u32(row, "thumbnail_height")?,
             tags: Self::parse_tags(row.try_get("tags")?),
         })
     }
@@ -134,6 +133,7 @@ impl PostgresEntity for Photo {
     fn insert_columns() -> &'static [&'static str] {
         &[
             "id",
+            "storage_id",
             "path",
             "name",
             "format",
@@ -159,6 +159,7 @@ impl PostgresEntity for Photo {
         let id = self.id.as_ref().expect("id not set for Photo insert");
         vec![
             Value::Uuid(*id),
+            PostgresValueBuilder::optional_string(&self.storage_id),
             Value::String(self.path.clone()),
             Value::String(self.name.clone()),
             PostgresValueBuilder::optional_string(&self.format),
@@ -182,6 +183,7 @@ impl PostgresEntity for Photo {
 
     fn update_columns() -> &'static [&'static str] {
         &[
+            "storage_id",
             "path",
             "name",
             "format",
@@ -205,6 +207,7 @@ impl PostgresEntity for Photo {
 
     fn update_values(&self) -> Vec<Value> {
         vec![
+            PostgresValueBuilder::optional_string(&self.storage_id),
             Value::String(self.path.clone()),
             Value::String(self.name.clone()),
             PostgresValueBuilder::optional_string(&self.format),
@@ -229,6 +232,7 @@ impl PostgresEntity for Photo {
     fn table_columns() -> Vec<ColumnDef> {
         vec![
             ColumnDef::new("id", ColumnType::Uuid).primary_key(),
+            ColumnDef::new("storage_id", ColumnType::Text),
             ColumnDef::new("path", ColumnType::Text).not_null(),
             ColumnDef::new("name", ColumnType::Text).not_null(),
             ColumnDef::new("format", ColumnType::Text),

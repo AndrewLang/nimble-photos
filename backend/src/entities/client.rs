@@ -18,9 +18,13 @@ pub struct Client {
     pub id: Uuid,
     pub user_id: Uuid,
     pub name: String,
+    pub device_name: String,
+    pub device_type: String,
+    pub version: String,
     pub api_key_hash: String,
     pub is_active: bool,
     pub is_approved: bool,
+    pub approved_by: Option<Uuid>,
     pub last_seen_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -53,9 +57,13 @@ impl PostgresEntity for Client {
             "id",
             "user_id",
             "name",
+            "device_name",
+            "device_type",
+            "version",
             "api_key_hash",
             "is_active",
             "is_approved",
+            "approved_by",
             "last_seen_at",
             "created_at",
             "updated_at",
@@ -67,9 +75,13 @@ impl PostgresEntity for Client {
             Value::Uuid(self.id),
             Value::Uuid(self.user_id),
             Value::String(self.name.clone()),
+            Value::String(self.device_name.clone()),
+            Value::String(self.device_type.clone()),
+            Value::String(self.version.clone()),
             Value::String(self.api_key_hash.clone()),
             Value::Bool(self.is_active),
             Value::Bool(self.is_approved),
+            PostgresValueBuilder::optional_uuid(self.approved_by),
             PostgresValueBuilder::optional_datetime(&self.last_seen_at),
             Value::DateTime(self.created_at),
             Value::DateTime(self.updated_at),
@@ -79,9 +91,13 @@ impl PostgresEntity for Client {
     fn update_columns() -> &'static [&'static str] {
         &[
             "name",
+            "device_name",
+            "device_type",
+            "version",
             "api_key_hash",
             "is_active",
             "is_approved",
+            "approved_by",
             "last_seen_at",
             "updated_at",
         ]
@@ -90,9 +106,13 @@ impl PostgresEntity for Client {
     fn update_values(&self) -> Vec<Value> {
         vec![
             Value::String(self.name.clone()),
+            Value::String(self.device_name.clone()),
+            Value::String(self.device_type.clone()),
+            Value::String(self.version.clone()),
             Value::String(self.api_key_hash.clone()),
             Value::Bool(self.is_active),
             Value::Bool(self.is_approved),
+            PostgresValueBuilder::optional_uuid(self.approved_by),
             PostgresValueBuilder::optional_datetime(&self.last_seen_at),
             Value::DateTime(self.updated_at),
         ]
@@ -103,6 +123,9 @@ impl PostgresEntity for Client {
             ColumnDef::new("id", ColumnType::Uuid).primary_key(),
             ColumnDef::new("user_id", ColumnType::Uuid).not_null(),
             ColumnDef::new("name", ColumnType::Text).not_null(),
+            ColumnDef::new("device_name", ColumnType::Text).not_null(),
+            ColumnDef::new("device_type", ColumnType::Text).not_null(),
+            ColumnDef::new("version", ColumnType::Text).not_null(),
             ColumnDef::new("api_key_hash", ColumnType::Text).not_null(),
             ColumnDef::new("is_active", ColumnType::Boolean)
                 .not_null()
@@ -110,6 +133,7 @@ impl PostgresEntity for Client {
             ColumnDef::new("is_approved", ColumnType::Boolean)
                 .not_null()
                 .default("false"),
+            ColumnDef::new("approved_by", ColumnType::Uuid),
             ColumnDef::new("last_seen_at", ColumnType::Timestamp),
             ColumnDef::new("created_at", ColumnType::Timestamp)
                 .not_null()

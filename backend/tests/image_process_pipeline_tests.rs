@@ -147,6 +147,7 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
     assert_eq!(photos.len(), 1, "one photo should be persisted");
     let photo = &photos[0];
     assert!(photo.hash.is_some(), "hash should be persisted");
+    assert_eq!(photo.storage_id.as_deref(), Some("storage-1"));
     assert!(
         photo.thumbnail_path.is_some(),
         "thumbnail path should be set"
