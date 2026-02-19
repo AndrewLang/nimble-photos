@@ -2,15 +2,16 @@ import { Component, Input, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 
+import { Formatter } from '../../models/formatters';
 import { StorageDiskInfo, StorageLocation } from '../../models/storage.model';
 import { DialogService } from '../../services/dialog.service';
 import { StorageService } from '../../services/storage.service';
+import { DropdownComponent } from '../dropdown/dropdown.component';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
-import { Formatter } from '../../models/formatters';
 
 @Component({
     selector: 'mtx-storage-manage',
-    imports: [ReactiveFormsModule],
+    imports: [ReactiveFormsModule, DropdownComponent],
     templateUrl: './storage.manage.component.html',
 })
 export class StorageManageComponent {
@@ -26,15 +27,9 @@ export class StorageManageComponent {
     readonly saving = signal(false);
     readonly error = signal<string | null>(null);
     readonly showCreateForm = signal(false);
-    readonly diskMenuOpen = signal(false);
     readonly selectedDiskMount = signal('');
     readonly editingId = signal<string | null>(null);
-    readonly editDiskMenuOpen = signal(false);
     readonly editSelectedDiskMount = signal('');
-    readonly templateMenuOpen = signal(false);
-    readonly editTemplateMenuOpen = signal(false);
-    readonly selectedCategoryTemplate = signal('hash');
-    readonly editSelectedCategoryTemplate = signal('hash');
 
     readonly storageForm = this.fb.nonNullable.group({
         label: ['', [Validators.required, Validators.minLength(2)]],
@@ -89,15 +84,14 @@ export class StorageManageComponent {
         { value: 'hash', label: 'Hash' },
         { value: 'date', label: 'Date' },
     ] as const;
-    readonly selectedCategoryTemplateLabel = computed(() => {
-        const value = this.selectedCategoryTemplate();
-        return this.categoryTemplates.find(template => template.value === value)?.label ?? 'Select a template';
-    });
-    readonly editSelectedCategoryTemplateLabel = computed(() => {
-        const value = this.editSelectedCategoryTemplate();
-        return this.categoryTemplates.find(template => template.value === value)?.label ?? 'Select a template';
-    });
-
+    readonly diskLabel = (option: unknown): string => {
+        const disk = option as StorageDiskInfo;
+        return `${disk.name} (${disk.mountPoint})`;
+    };
+    readonly diskCapacity = (option: unknown): string => {
+        const disk = option as StorageDiskInfo;
+        return `${this.formatBytes(disk.availableBytes)} free / ${this.formatBytes(disk.totalBytes)} total`;
+    };
     constructor() {
         this.loadData();
     }
@@ -133,14 +127,12 @@ export class StorageManageComponent {
 
     cancelCreate(): void {
         this.showCreateForm.set(false);
-        this.templateMenuOpen.set(false);
         this.storageForm.reset({
             label: '',
             diskMount: this.disks()[0]?.mountPoint ?? '',
             folderName: 'Nimble Photos',
             categoryTemplate: 'hash',
         });
-        this.selectedCategoryTemplate.set('hash');
         if (this.disks().length === 1) {
             this.selectedDiskMount.set(this.disks()[0].mountPoint);
         }
@@ -191,17 +183,12 @@ export class StorageManageComponent {
             folderName,
             categoryTemplate: location.categoryTemplate || 'hash',
         });
-        this.editSelectedCategoryTemplate.set(location.categoryTemplate || 'hash');
         this.editSelectedDiskMount.set(diskMount);
-        this.editDiskMenuOpen.set(false);
-        this.editTemplateMenuOpen.set(false);
         this.showCreateForm.set(false);
     }
 
     cancelEdit(): void {
         this.editingId.set(null);
-        this.editDiskMenuOpen.set(false);
-        this.editTemplateMenuOpen.set(false);
     }
 
     saveEdit(location: StorageLocation): void {
@@ -283,60 +270,12 @@ export class StorageManageComponent {
             });
     }
 
-    selectDisk(disk: StorageDiskInfo): void {
-        this.storageForm.get('diskMount')?.setValue(disk.mountPoint);
-        this.selectedDiskMount.set(disk.mountPoint);
-        this.diskMenuOpen.set(false);
+    onCreateDiskMountChange(value: unknown): void {
+        this.selectedDiskMount.set(String(value ?? ''));
     }
 
-    toggleDiskMenu(): void {
-        this.diskMenuOpen.set(!this.diskMenuOpen());
-    }
-
-    closeDiskMenu(): void {
-        this.diskMenuOpen.set(false);
-    }
-
-    selectCategoryTemplate(template: (typeof this.categoryTemplates)[number]): void {
-        this.storageForm.controls.categoryTemplate.setValue(template.value);
-        this.selectedCategoryTemplate.set(template.value);
-        this.templateMenuOpen.set(false);
-    }
-
-    toggleTemplateMenu(): void {
-        this.templateMenuOpen.set(!this.templateMenuOpen());
-    }
-
-    closeTemplateMenu(): void {
-        this.templateMenuOpen.set(false);
-    }
-
-    selectEditDisk(disk: StorageDiskInfo): void {
-        this.editForm.get('diskMount')?.setValue(disk.mountPoint);
-        this.editSelectedDiskMount.set(disk.mountPoint);
-        this.editDiskMenuOpen.set(false);
-    }
-
-    toggleEditDiskMenu(): void {
-        this.editDiskMenuOpen.set(!this.editDiskMenuOpen());
-    }
-
-    closeEditDiskMenu(): void {
-        this.editDiskMenuOpen.set(false);
-    }
-
-    selectEditCategoryTemplate(template: (typeof this.categoryTemplates)[number]): void {
-        this.editForm.controls.categoryTemplate.setValue(template.value);
-        this.editSelectedCategoryTemplate.set(template.value);
-        this.editTemplateMenuOpen.set(false);
-    }
-
-    toggleEditTemplateMenu(): void {
-        this.editTemplateMenuOpen.set(!this.editTemplateMenuOpen());
-    }
-
-    closeEditTemplateMenu(): void {
-        this.editTemplateMenuOpen.set(false);
+    onEditDiskMountChange(value: unknown): void {
+        this.editSelectedDiskMount.set(String(value ?? ''));
     }
 
     private buildPath(mountPoint: string, folderName: string): string {

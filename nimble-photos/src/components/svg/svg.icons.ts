@@ -317,7 +317,7 @@ export class SvgIcon {
 
   static readonly chevronDownSolid = SvgIcon.register(
     new SvgIcon('chevronDownSolid', '0 0 20 20', [
-      '<path fill="currentColor" fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.586l3.71-3.356a.75.75 0 0 1 1.02 1.097l-4 3.615a.75.75 0 0 1-1.02 0l-4-3.615a.75.75 0 0 1 .02-1.057z" clip-rule="evenodd" />',
+      'M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.586l3.71-3.356a.75.75 0 1 1 1.02 1.097l-4 3.615a.75.75 0 0 1-1.02 0l-4-3.615a.75.75 0 0 1 .02-1.057z',
     ])
   );
 

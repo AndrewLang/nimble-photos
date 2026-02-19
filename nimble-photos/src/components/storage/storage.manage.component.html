@@ -9,7 +9,7 @@
     }
 
     @if (error()) {
-    <div class="rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-xs text-red-200">
+    <div class="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-xs text-red-200">
         {{ error() }}
     </div>
     }
@@ -29,14 +29,14 @@
                 </div>
 
                 @if (!locations().length) {
-                <div class="mt-6 rounded-2xl border border-white/10 bg-white/5 px-5 py-6 text-xs text-slate-400">
+                <div class="mt-6 rounded-xl border border-white/10 bg-white/5 px-5 py-6 text-xs text-slate-400">
                     No storage created.
                 </div>
                 } @else {
                 <div class="mt-4 grid gap-4">
                     @for (location of locations(); track location.id) {
                     <div
-                        class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-4">
+                        class="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-4">
                         <div class="min-w-55 space-y-1.5">
                             <div class="flex flex-wrap items-center gap-2">
                                 <p class="text-sm font-semibold text-white">{{ location.label }}</p>
@@ -97,83 +97,32 @@
                         <label for="storageLabel"
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Name</label>
                         <input id="storageLabel" type="text" formControlName="label" placeholder="Primary Library"
-                            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                            class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
                     </div>
 
                     <div class="space-y-2">
                         <label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Disk</label>
-                        <div class="relative">
-                            <button type="button" (click)="toggleDiskMenu()"
-                                class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
-                                <span>
-                                    @if (selectedDiskLabel().length) {
-                                    {{ selectedDiskLabel() }}
-                                    } @else {
-                                    Select a disk
-                                    }
-                                </span>
-                                <span class="text-slate-400">v</span>
-                            </button>
-                            <input type="hidden" formControlName="diskMount" />
-
-                            @if (diskMenuOpen()) {
-                            <div
-                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
-                                @if (!disks().length) {
-                                <div class="px-4 py-3 text-xs text-slate-500">No disks available</div>
-                                } @else {
-                                @for (disk of disks(); track disk.mountPoint) {
-                                <button type="button" (click)="selectDisk(disk)"
-                                    class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
-                                    <span>{{ disk.name }} ({{ disk.mountPoint }})</span>
-                                    <span class="text-slate-500">{{ formatBytes(disk.availableBytes) }} free / {{
-                                        formatBytes(disk.totalBytes) }} total</span>
-                                </button>
-                                }
-                                }
-                            </div>
-                            <div class="fixed inset-0 z-10" (click)="closeDiskMenu()"></div>
-                            }
-                        </div>
+                        <mtx-dropdown formControlName="diskMount" [options]="disks()" [placeholder]="'Select a disk'"
+                            [valueKey]="'mountPoint'" [labelFn]="diskLabel" [descriptionFn]="diskCapacity"
+                            (valueChange)="onCreateDiskMountChange($event)" />
                     </div>
 
                     <div class="space-y-2">
                         <label for="storageFolder"
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Folder</label>
                         <input id="storageFolder" type="text" formControlName="folderName" placeholder="Nimble Photos"
-                            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                            class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
                     </div>
 
                     <div class="space-y-2">
-                        <label
-                            class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Category
+                        <label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Category
                             Template</label>
-                        <div class="relative">
-                            <button type="button" (click)="toggleTemplateMenu()"
-                                class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
-                                <span>{{ selectedCategoryTemplateLabel() }}</span>
-                                <span class="text-slate-400">v</span>
-                            </button>
-                            <input type="hidden" formControlName="categoryTemplate" />
-
-                            @if (templateMenuOpen()) {
-                            <div
-                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
-                                @for (template of categoryTemplates; track template.value) {
-                                <button type="button" (click)="selectCategoryTemplate(template)"
-                                    class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
-                                    <span>{{ template.label }}</span>
-                                    <span class="text-slate-500">{{ template.value }}</span>
-                                </button>
-                                }
-                            </div>
-                            <div class="fixed inset-0 z-10" (click)="closeTemplateMenu()"></div>
-                            }
-                        </div>
+                        <mtx-dropdown formControlName="categoryTemplate" [options]="categoryTemplates"
+                            [placeholder]="'Select a template'" />
                     </div>
 
                     @if (selectedDiskLabel().length) {
-                    <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
+                    <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
                         <div class="flex items-center justify-between">
                             <span>Available</span>
                             <span class="font-semibold text-white">{{ formatBytes(selectedDisk()!.availableBytes)
@@ -216,83 +165,33 @@
                         <label for="editStorageLabel"
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Name</label>
                         <input id="editStorageLabel" type="text" [formControl]="editForm.controls.label"
-                            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                            class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
                     </div>
 
                     <div class="space-y-2">
                         <label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Disk</label>
-                        <div class="relative">
-                            <button type="button" (click)="toggleEditDiskMenu()"
-                                class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
-                                <span>
-                                    @if (editSelectedDiskLabel().length) {
-                                    {{ editSelectedDiskLabel() }}
-                                    } @else {
-                                    Select a disk
-                                    }
-                                </span>
-                                <span class="text-slate-400">v</span>
-                            </button>
-                            <input type="hidden" [formControl]="editForm.controls.diskMount" />
-
-                            @if (editDiskMenuOpen()) {
-                            <div
-                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
-                                @if (!disks().length) {
-                                <div class="px-4 py-3 text-xs text-slate-500">No disks available</div>
-                                } @else {
-                                @for (disk of disks(); track disk.mountPoint) {
-                                <button type="button" (click)="selectEditDisk(disk)"
-                                    class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
-                                    <span>{{ disk.name }} ({{ disk.mountPoint }})</span>
-                                    <span class="text-slate-500">{{ formatBytes(disk.availableBytes) }} free / {{
-                                        formatBytes(disk.totalBytes) }} total</span>
-                                </button>
-                                }
-                                }
-                            </div>
-                            <div class="fixed inset-0 z-10" (click)="closeEditDiskMenu()"></div>
-                            }
-                        </div>
+                        <mtx-dropdown [formControl]="editForm.controls.diskMount" [options]="disks()"
+                            [placeholder]="'Select a disk'" [valueKey]="'mountPoint'" [labelFn]="diskLabel"
+                            [descriptionFn]="diskCapacity" (valueChange)="onEditDiskMountChange($event)" />
                     </div>
 
                     <div class="space-y-2">
                         <label for="editStorageFolder"
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Folder</label>
                         <input id="editStorageFolder" type="text" [formControl]="editForm.controls.folderName"
-                            class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                            class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
                     </div>
 
                     <div class="space-y-2">
-                        <label
-                            class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Category
-                            Template</label>
-                        <div class="relative">
-                            <button type="button" (click)="toggleEditTemplateMenu()"
-                                class="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08]">
-                                <span>{{ editSelectedCategoryTemplateLabel() }}</span>
-                                <span class="text-slate-400">v</span>
-                            </button>
-                            <input type="hidden" [formControl]="editForm.controls.categoryTemplate" />
-
-                            @if (editTemplateMenuOpen()) {
-                            <div
-                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl">
-                                @for (template of categoryTemplates; track template.value) {
-                                <button type="button" (click)="selectEditCategoryTemplate(template)"
-                                    class="flex w-full items-center justify-between px-4 py-3 text-left text-xs text-slate-300 hover:bg-white/5">
-                                    <span>{{ template.label }}</span>
-                                    <span class="text-slate-500">{{ template.value }}</span>
-                                </button>
-                                }
-                            </div>
-                            <div class="fixed inset-0 z-10" (click)="closeEditTemplateMenu()"></div>
-                            }
-                        </div>
+                        <label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">
+                            Category Template
+                        </label>
+                        <mtx-dropdown [formControl]="editForm.controls.categoryTemplate" [options]="categoryTemplates"
+                            [placeholder]="'Select a template'" />
                     </div>
 
                     @if (editSelectedDiskLabel().length) {
-                    <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
+                    <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
                         <div class="flex items-center justify-between">
                             <span>Available</span>
                             <span class="font-semibold text-white">{{ formatBytes(editSelectedDisk()!.availableBytes)
