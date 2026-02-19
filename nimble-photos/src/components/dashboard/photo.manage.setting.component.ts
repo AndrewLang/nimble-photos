@@ -111,7 +111,6 @@ export class PhotoManageSettingComponent implements OnInit {
     }
 
     onFileSelected(event: Event): void {
-        console.log('onFileSelected called', event);
         if (!this.canUpload()) {
             return;
         }

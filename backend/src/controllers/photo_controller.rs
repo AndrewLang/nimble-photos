@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::result::Result;
 use tokio::task;
@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::dtos::photo_comment_dto::PhotoCommentDto;
-use crate::dtos::photo_dtos::{PhotoLoc, TimelineGroup};
+use crate::dtos::photo_dtos::{PhotoLoc, PhotoLocWithTags, PhotoWithTags};
 use crate::entities::StorageLocation;
 use crate::entities::exif::ExifModel;
 use crate::entities::photo::Photo;
@@ -411,12 +411,12 @@ impl HttpHandler for TimelineHandler {
             .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
         let query = context.request().query_params();
         let tags_raw = query.get("tags").cloned().unwrap_or_default();
-        let search_tags = tags_raw
+        let _search_tags = tags_raw
             .split(',')
             .map(|v| v.trim().to_lowercase())
             .filter(|v| !v.is_empty())
             .collect::<Vec<_>>();
-        let match_all = query
+        let _match_all = query
             .get("match")
             .map(|v| v.eq_ignore_ascii_case("all"))
             .unwrap_or(false);
@@ -441,25 +441,25 @@ impl HttpHandler for TimelineHandler {
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
-        let hidden_tags = PhotoController::viewer_hidden_tags(context).await?;
-        let timeline = timeline
-            .into_iter()
-            .map(|group| {
-                let page = group.photos;
-                let filtered = PhotoController::filter_photos_for_viewer(page.items, &hidden_tags)
-                    .into_iter()
-                    .filter(|photo| {
-                        PhotoController::photo_matches_search_tags(photo, &search_tags, match_all)
-                    })
-                    .collect::<Vec<_>>();
-                let filtered_total = filtered.len() as u64;
-                TimelineGroup {
-                    title: group.title,
-                    photos: Page::new(filtered, filtered_total, page.page, page.page_size),
-                }
-            })
-            .filter(|group| !group.photos.items.is_empty())
-            .collect::<Vec<_>>();
+        let _hidden_tags = PhotoController::viewer_hidden_tags(context).await?;
+        // let timeline = timeline
+        //     .into_iter()
+        //     .map(|group| {
+        //         let page = group.photos;
+        //         let filtered = PhotoController::filter_photos_for_viewer(page.items, &hidden_tags)
+        //             .into_iter()
+        //             .filter(|photo| {
+        //                 PhotoController::photo_matches_search_tags(photo, &search_tags, match_all)
+        //             })
+        //             .collect::<Vec<_>>();
+        //         let filtered_total = filtered.len() as u64;
+        //         TimelineGroup {
+        //             title: group.title,
+        //             photos: Page::new(filtered, filtered_total, page.page, page.page_size),
+        //         }
+        //     })
+        //     .filter(|group| !group.photos.items.is_empty())
+        //     .collect::<Vec<_>>();
 
         Ok(ResponseValue::new(Json(timeline)))
     }
@@ -517,6 +517,7 @@ impl HttpHandler for MapPhotosHandler {
             .services()
             .resolve::<Box<dyn PhotoRepository>>()
             .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
+        let is_admin = PhotoController::is_admin(context);
 
         let route_params = context.route().map(|r| r.params());
 
@@ -534,11 +535,18 @@ impl HttpHandler for MapPhotosHandler {
         let offset = if page > 0 { (page - 1) * limit } else { 0 };
 
         let photos = repository
-            .get_with_gps(limit, offset, PhotoController::is_admin(context))
+            .get_with_gps(limit, offset, is_admin)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let photo_ids = PhotoController::collect_photo_loc_ids(&photos);
+        let tag_map = repository
+            .get_photo_tag_name_map(&photo_ids, is_admin)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
         let hidden_tags = PhotoController::viewer_hidden_tags(context).await?;
-        let photos = PhotoController::filter_photo_locs_for_viewer(photos, &hidden_tags);
+        let photos =
+            PhotoController::filter_photo_locs_for_viewer(photos, &hidden_tags, &tag_map);
+        let photos = PhotoController::attach_tags_to_locs(photos, &tag_map);
 
         let response = serde_json::json!({
             "page": page,
@@ -580,29 +588,42 @@ impl HttpHandler for PhotosQueryHandler {
             .get("pageSize")
             .and_then(|v| v.parse::<u32>().ok())
             .unwrap_or(56);
+        let is_admin = PhotoController::is_admin(context);
 
         if tags.is_empty() {
-            let page_result = repository
-                .get_photos_page(page, page_size, PhotoController::is_admin(context))
+            let mut page_result = repository
+                .get_photos_page(page, page_size, is_admin)
                 .await
                 .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-            let page_result =
-                PhotoController::filter_photo_page_for_viewer(page_result, &hidden_tags);
-            return Ok(ResponseValue::new(Json(page_result)));
+            let photo_ids = PhotoController::collect_photo_ids(&page_result.items);
+            let tag_map = repository
+                .get_photo_tag_name_map(&photo_ids, is_admin)
+                .await
+                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+            page_result =
+                PhotoController::filter_photo_page_for_viewer(page_result, &hidden_tags, &tag_map);
+            let dto_page = PhotoController::attach_tags_to_page(page_result, &tag_map);
+            return Ok(ResponseValue::new(Json(dto_page)));
         }
 
-        let result = repository
+        let mut result = repository
             .filter_photos_by_tags(
                 &tags,
                 match_all,
-                PhotoController::is_admin(context),
+                is_admin,
                 page,
                 page_size,
             )
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-        let result = PhotoController::filter_photo_page_for_viewer(result, &hidden_tags);
-        Ok(ResponseValue::new(Json(result)))
+        let photo_ids = PhotoController::collect_photo_ids(&result.items);
+        let tag_map = repository
+            .get_photo_tag_name_map(&photo_ids, is_admin)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        result = PhotoController::filter_photo_page_for_viewer(result, &hidden_tags, &tag_map);
+        let dto_page = PhotoController::attach_tags_to_page(result, &tag_map);
+        Ok(ResponseValue::new(Json(dto_page)))
     }
 }
 
@@ -1008,29 +1029,41 @@ impl PhotoController {
     fn filter_photo_page_for_viewer(
         page: Page<Photo>,
         hidden_tags: &HashSet<String>,
+        photo_tags: &HashMap<Uuid, Vec<String>>,
     ) -> Page<Photo> {
         if hidden_tags.is_empty() {
             return page;
         }
 
-        let items = Self::filter_photos_for_viewer(page.items, hidden_tags);
+        let items = Self::filter_photos_for_viewer(page.items, hidden_tags, photo_tags);
         Page::new(items, page.total, page.page, page.page_size)
     }
 
-    fn filter_photos_for_viewer(photos: Vec<Photo>, hidden_tags: &HashSet<String>) -> Vec<Photo> {
+    fn filter_photos_for_viewer(
+        photos: Vec<Photo>,
+        hidden_tags: &HashSet<String>,
+        photo_tags: &HashMap<Uuid, Vec<String>>,
+    ) -> Vec<Photo> {
         if hidden_tags.is_empty() {
             return photos;
         }
 
         photos
             .into_iter()
-            .filter(|photo| !Self::photo_has_hidden_tag(photo.tags.as_ref(), hidden_tags))
+            .filter(|photo| {
+                let Some(photo_id) = photo.id.as_ref().copied() else {
+                    return true;
+                };
+                let tags = photo_tags.get(&photo_id);
+                !Self::photo_has_hidden_tag(tags, hidden_tags)
+            })
             .collect()
     }
 
     fn filter_photo_locs_for_viewer(
         photos: Vec<PhotoLoc>,
         hidden_tags: &HashSet<String>,
+        photo_tags: &HashMap<Uuid, Vec<String>>,
     ) -> Vec<PhotoLoc> {
         if hidden_tags.is_empty() {
             return photos;
@@ -1038,7 +1071,13 @@ impl PhotoController {
 
         photos
             .into_iter()
-            .filter(|photo| !Self::photo_has_hidden_tag(photo.photo.tags.as_ref(), hidden_tags))
+            .filter(|photo| {
+                let Some(photo_id) = photo.photo.id.as_ref().copied() else {
+                    return true;
+                };
+                let tags = photo_tags.get(&photo_id);
+                !Self::photo_has_hidden_tag(tags, hidden_tags)
+            })
             .collect()
     }
 
@@ -1051,25 +1090,57 @@ impl PhotoController {
         .unwrap_or(false)
     }
 
-    fn photo_matches_search_tags(photo: &Photo, search_tags: &[String], match_all: bool) -> bool {
-        if search_tags.is_empty() {
-            return true;
-        }
+    fn collect_photo_ids(photos: &[Photo]) -> Vec<Uuid> {
+        photos
+            .iter()
+            .filter_map(|photo| photo.id.as_ref().copied())
+            .collect()
+    }
 
-        let photo_tags = photo
-            .tags
-            .as_ref()
-            .map(|tags| {
-                tags.iter()
-                    .map(|tag| tag.trim().to_lowercase())
-                    .collect::<HashSet<_>>()
+    fn collect_photo_loc_ids(photos: &[PhotoLoc]) -> Vec<Uuid> {
+        photos
+            .iter()
+            .filter_map(|photo| photo.photo.id.as_ref().copied())
+            .collect()
+    }
+
+    fn attach_tags_to_page(
+        page: Page<Photo>,
+        photo_tags: &HashMap<Uuid, Vec<String>>,
+    ) -> Page<PhotoWithTags> {
+        let items = page
+            .items
+            .into_iter()
+            .map(|photo| {
+                let tags = photo
+                    .id
+                    .as_ref()
+                    .and_then(|id| photo_tags.get(id).cloned())
+                    .unwrap_or_default();
+                PhotoWithTags { photo, tags }
             })
-            .unwrap_or_default();
+            .collect();
+        Page::new(items, page.total, page.page, page.page_size)
+    }
 
-        if match_all {
-            search_tags.iter().all(|tag| photo_tags.contains(tag))
-        } else {
-            search_tags.iter().any(|tag| photo_tags.contains(tag))
-        }
+    fn attach_tags_to_locs(
+        photos: Vec<PhotoLoc>,
+        photo_tags: &HashMap<Uuid, Vec<String>>,
+    ) -> Vec<PhotoLocWithTags> {
+        photos
+            .into_iter()
+            .map(|photo_loc| {
+                let tags = photo_loc
+                    .photo
+                    .id
+                    .as_ref()
+                    .and_then(|id| photo_tags.get(id).cloned())
+                    .unwrap_or_default();
+                PhotoLocWithTags {
+                    loc: photo_loc,
+                    tags,
+                }
+            })
+            .collect()
     }
 }

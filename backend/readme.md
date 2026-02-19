@@ -16,6 +16,7 @@ Run migration manually with Postgres `psql`:
 ```bash
 psql "$DATABASE_URL" -f backend/migrations/20260206_normalize_tags.up.sql
 psql "$DATABASE_URL" -f backend/migrations/20260206_photos_public_visible.up.sql
+psql "$DATABASE_URL" -f backend/migrations/20260219_photo_tags.up.sql
 ```
 
 Rollback:

@@ -1,4 +1,5 @@
 use crate::dtos::album_comment_dto::AlbumCommentDto;
+use crate::dtos::photo_dtos::PhotoWithTags;
 use crate::entities::album::Album;
 use crate::entities::album_comment::AlbumComment;
 use crate::entities::user_settings::UserSettings;
@@ -10,7 +11,7 @@ use chrono::Utc;
 use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use nimble_web::controller::controller::Controller;
@@ -78,7 +79,7 @@ impl HttpHandler for AlbumPhotosHandler {
             .map_err(|e| PipelineError::message(&format!("Failed to fetch album: {:?}", e)))?
             .ok_or_else(|| PipelineError::message("Album not found"))?;
 
-        let mut photos = Vec::new();
+        let mut photos: Vec<PhotoWithTags> = Vec::new();
         let mut total = 0u64;
 
         if let Some(rules_json) = album.rules_json {
@@ -99,12 +100,19 @@ impl HttpHandler for AlbumPhotosHandler {
                         .map(|ctx| ctx.identity().claims().roles().contains("admin"))
                         .unwrap_or(false);
 
-                    photos = photo_repo
+                    let mut resolved = photo_repo
                         .get_by_ids(slice, can_view_admin_only)
                         .await
                         .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+                    let photo_ids = AlbumController::collect_photo_ids(&resolved);
+                    let tag_map = photo_repo
+                        .get_photo_tag_name_map(&photo_ids, can_view_admin_only)
+                        .await
+                        .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
                     let hidden_tags = AlbumController::viewer_hidden_tags(context).await?;
-                    photos = AlbumController::filter_photos_for_viewer(photos, &hidden_tags);
+                    resolved =
+                        AlbumController::filter_photos_for_viewer(resolved, &hidden_tags, &tag_map);
+                    photos = AlbumController::attach_tags_to_photos(resolved, &tag_map);
                 }
             }
         }
@@ -491,6 +499,7 @@ impl AlbumController {
     fn filter_photos_for_viewer(
         photos: Vec<crate::entities::photo::Photo>,
         hidden_tags: &HashSet<String>,
+        photo_tags: &HashMap<Uuid, Vec<String>>,
     ) -> Vec<crate::entities::photo::Photo> {
         if hidden_tags.is_empty() {
             return photos;
@@ -499,14 +508,41 @@ impl AlbumController {
         photos
             .into_iter()
             .filter(|photo| {
-                !photo
-                    .tags
-                    .as_ref()
-                    .map(|tags| {
-                        tags.iter()
+                let Some(photo_id) = photo.id.as_ref().copied() else {
+                    return true;
+                };
+                let tags = photo_tags.get(&photo_id);
+                !tags
+                    .map(|items| {
+                        items
+                            .iter()
                             .any(|tag| hidden_tags.contains(&tag.trim().to_lowercase()))
                     })
                     .unwrap_or(false)
+            })
+            .collect()
+    }
+
+    fn collect_photo_ids(photos: &[crate::entities::photo::Photo]) -> Vec<Uuid> {
+        photos
+            .iter()
+            .filter_map(|photo| photo.id.as_ref().copied())
+            .collect()
+    }
+
+    fn attach_tags_to_photos(
+        photos: Vec<crate::entities::photo::Photo>,
+        photo_tags: &HashMap<Uuid, Vec<String>>,
+    ) -> Vec<PhotoWithTags> {
+        photos
+            .into_iter()
+            .map(|photo| {
+                let tags = photo
+                    .id
+                    .as_ref()
+                    .and_then(|id| photo_tags.get(id).cloned())
+                    .unwrap_or_default();
+                PhotoWithTags { photo, tags }
             })
             .collect()
     }

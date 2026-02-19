@@ -174,7 +174,6 @@ export class AlbumDetailComponent implements OnInit {
             .pipe(first())
             .subscribe({
                 next: comments => {
-                    console.log('Loaded comments for album', albumId, comments);
                     this.albumComments.set(comments);
                     this.commentsLoading.set(false);
                     const hasComments = (comments?.items.length ?? 0) > 0;

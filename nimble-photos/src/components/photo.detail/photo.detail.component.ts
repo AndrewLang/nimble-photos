@@ -44,7 +44,7 @@ export class PhotoDetailComponent implements OnInit {
     private readonly photoService = inject(PhotoService);
     private readonly settingsService = inject(SettingsService);
 
-    ngOnInit(): void {
+    async ngOnInit() {
         const initialAlbumId = this.route.snapshot.paramMap.get('albumId');
         this.albumId = initialAlbumId;
         const navigationState = this.router.getCurrentNavigation()?.extras.state as { returnUrl?: string } | undefined;
@@ -91,6 +91,7 @@ export class PhotoDetailComponent implements OnInit {
                 this.fetchAdjacents(result.id);
                 this.loadPhotoMetadata(result.id);
                 this.loadComments(result.id);
+                this.getPhotoPath();
             }
             this.loading.set(false);
         });
@@ -110,7 +111,6 @@ export class PhotoDetailComponent implements OnInit {
                     current ? { ...current, metadata: metadata ?? undefined } : current
                 );
                 this.metadataExpanded.set(false);
-                console.log('Photo ', this.photo());
             });
     }
 

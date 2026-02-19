@@ -32,8 +32,6 @@ async fn ensure_tag_schema_and_view(pool: &PgPool) -> Result<(), sqlx::Error> {
         CREATE TABLE IF NOT EXISTS photo_tags (
             photo_id UUID NOT NULL REFERENCES photos (id) ON DELETE CASCADE,
             tag_id BIGINT NOT NULL REFERENCES tags (id) ON DELETE CASCADE,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            created_by_user_id UUID NULL REFERENCES users (id) ON DELETE SET NULL,
             PRIMARY KEY (photo_id, tag_id)
         )
         "#,
@@ -108,7 +106,7 @@ async fn photo_visibility_view_hides_and_unhides_with_admin_only_tag() {
     .expect("upsert admin_only tag failed");
 
     sqlx::query(
-        "INSERT INTO photo_tags (photo_id, tag_id, created_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING",
+        "INSERT INTO photo_tags (photo_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
     )
     .bind(photo_id)
     .bind(tag_id)

@@ -1,5 +1,5 @@
-/* 
-   Many shared styles (masonry, photo-cards, shells) 
+/*
+   Many shared styles (masonry, photo-cards, shells)
    have been moved to src/styles.css for global reuse.
 */
 
@@ -187,13 +187,16 @@
 .timeline-year-item:hover,
 .timeline-year-item.active {
   color: #6366f1;
-  /* Indigo accent */
+
 }
 
 .timeline-year-item:hover .year-label,
 .timeline-year-item.active .year-label {
   opacity: 1;
   transform: translateX(0);
+  border-radius: 0 20px 20px 0;
+  color: #fff;
+  background-color: oklch(66.6% 0.179 58.318);
 }
 
 .timeline-year-item.active .year-dot {

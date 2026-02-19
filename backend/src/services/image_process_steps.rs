@@ -366,7 +366,6 @@ impl ImageProcessStep for PersistMetadataStep {
             thumbnail_height: context
                 .get_by_alias::<u32>(ImageProcessKeys::THUMBNAIL_HEIGHT)
                 .cloned(),
-            tags: None,
         };
 
         let saved_photo = self

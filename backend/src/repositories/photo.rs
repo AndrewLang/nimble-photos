@@ -1,5 +1,5 @@
 use crate::dtos::photo_dtos::{PhotoLoc, TimelineGroup};
-use crate::entities::photo::Photo;
+use crate::entities::photo::{Photo, PhotoViewModel};
 use crate::entities::tag::Tag;
 use async_trait::async_trait;
 use nimble_web::data::paging::Page;
@@ -7,7 +7,7 @@ use nimble_web::data::provider::{DataError, DataResult};
 use serde_json;
 use sqlx::FromRow;
 use sqlx::PgPool;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
 
 const TAG_VISIBILITY_ADMIN_ONLY: i16 = 1;
@@ -43,11 +43,16 @@ pub trait PhotoRepository: Send + Sync {
         &self,
         photo_id: Uuid,
         tag_refs: &[TagRef],
-        created_by_user_id: Option<Uuid>,
+        _created_by_user_id: Option<Uuid>,
     ) -> DataResult<()>;
     async fn add_photo_tag(&self, photo_id: Uuid, tag_name: &str) -> DataResult<()>;
     async fn remove_photo_tag(&self, photo_id: Uuid, tag_name_or_id: &str) -> DataResult<bool>;
     async fn get_photo_tags(&self, photo_id: Uuid, is_admin: bool) -> DataResult<Vec<Tag>>;
+    async fn get_photo_tag_name_map(
+        &self,
+        photo_ids: &[Uuid],
+        is_admin: bool,
+    ) -> DataResult<HashMap<Uuid, Vec<String>>>;
     async fn filter_photos_by_tags(
         &self,
         tag_names: &[String],
@@ -95,28 +100,6 @@ impl PostgresPhotoRepository {
         format!(
             "({is_admin_param} OR {tag_alias}.visibility <> {admin_only})",
             admin_only = TAG_VISIBILITY_ADMIN_ONLY
-        )
-    }
-
-    fn tags_json_expr(photo_alias: &str) -> String {
-        format!(
-            "COALESCE((
-                SELECT json_agg(t.name ORDER BY t.name)
-                FROM photo_tags pt
-                JOIN tags t ON t.id = pt.tag_id
-                WHERE pt.photo_id = {photo_alias}.id
-            ), '[]'::json)"
-        )
-    }
-
-    fn tags_json_text_expr(photo_alias: &str) -> String {
-        format!(
-            "COALESCE((
-                SELECT json_agg(t.name ORDER BY t.name)::text
-                FROM photo_tags pt
-                JOIN tags t ON t.id = pt.tag_id
-                WHERE pt.photo_id = {photo_alias}.id
-            ), '[]')"
         )
     }
 
@@ -197,70 +180,38 @@ impl PhotoRepository for PostgresPhotoRepository {
         offset: u32,
         is_admin: bool,
     ) -> DataResult<Vec<TimelineGroup>> {
-        let tags_expr = Self::tags_json_expr("pd");
         let photos = Self::photos_relation(is_admin);
         let sql = format!(
             r#"
             WITH target_days AS (
-                SELECT DISTINCT DATE(COALESCE(date_taken, created_at) AT TIME ZONE 'UTC') as day_date
+                SELECT DISTINCT
+                    DATE(date_taken AT TIME ZONE 'UTC') AS day_date
                 FROM {photos}
                 ORDER BY day_date DESC NULLS LAST
                 LIMIT $1 OFFSET $2
             )
             SELECT
-                COALESCE(to_char(td.day_date, 'YYYY-MM-DD'), 'xxxx') as day,
+                to_char(td.day_date, 'YYYY-MM-DD') AS day,
                 p_agg.total_count,
                 p_agg.photos_json
             FROM target_days td
             LEFT JOIN LATERAL (
                 SELECT
-                    count(*) as total_count,
-                    json_agg(json_build_object(
-                        'id', pd.id,
-                        'path', pd.path,
-                        'name', pd.name,
-                        'format', pd.format,
-                        'hash', pd.hash,
-                        'size', pd.size,
-                        'created_at', pd.created_at,
-                        'updated_at', pd.updated_at,
-                        'date_imported', pd.date_imported,
-                        'date_taken', pd.date_taken,
-                        'thumbnail_path', pd.thumbnail_path,
-                        'thumbnail_optimized', pd.thumbnail_optimized,
-                        'metadata_extracted', pd.metadata_extracted,
-                        'is_raw', pd.is_raw,
-                        'tags', {tags_expr},
-                        'width', pd.width,
-                        'height', pd.height,
-                        'thumbnail_width', pd.thumbnail_width,
-                        'thumbnail_height', pd.thumbnail_height
-                    ) ORDER BY pd.sort_date DESC) as photos_json
-                FROM (
-                    SELECT
-                        p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
-                        p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                        p.metadata_extracted, p.is_raw,
-                        CASE
-                            WHEN e.orientation IN (5, 6, 7, 8) THEN
-                                COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
-                            ELSE
-                                COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
-                        END as width,
-                        CASE
-                            WHEN e.orientation IN (5, 6, 7, 8) THEN
-                                COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
-                            ELSE
-                                COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
-                        END as height,
-                        p.thumbnail_width, p.thumbnail_height,
-                        COALESCE(p.date_taken, p.created_at) as sort_date
-                    FROM {photos} p
-                    LEFT JOIN exifs e ON p.id = e.image_id
-                    WHERE DATE(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC') = td.day_date
-                ) pd
+                    count(*) AS total_count,
+                    json_agg(
+                        json_build_object(
+                            'id', p.id,
+                            'hash', p.hash,
+                            'width', p.width,
+                            'height', p.height,
+                            'name', p.name
+                        )
+                        ORDER BY COALESCE(p.date_taken, p.created_at) DESC
+                    ) AS photos_json
+                FROM {photos} p
+                WHERE DATE(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC') = td.day_date
             ) p_agg ON true
-            ORDER BY td.day_date DESC NULLS LAST
+            ORDER BY td.day_date DESC NULLS LAST;
         "#
         );
 
@@ -284,7 +235,7 @@ impl PhotoRepository for PostgresPhotoRepository {
                 .try_get("photos_json")
                 .map_err(|e| DataError::Provider(e.to_string()))?;
 
-            let photos: Vec<Photo> = serde_json::from_value(photos_json)
+            let photos: Vec<PhotoViewModel> = serde_json::from_value(photos_json)
                 .map_err(|e| DataError::Provider(format!("Failed to deserialize photos: {}", e)))?;
 
             let count = total_count as u64;
@@ -352,14 +303,13 @@ impl PhotoRepository for PostgresPhotoRepository {
             return Ok(Vec::new());
         }
 
-        let tags_text = Self::tags_json_text_expr("p");
         let photos = Self::photos_relation(is_admin);
         let sql = format!(
             r#"
             SELECT
                 p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
                 p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                p.metadata_extracted, p.is_raw, {tags_text} as tags,
+                p.metadata_extracted, p.is_raw,
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
@@ -395,14 +345,13 @@ impl PhotoRepository for PostgresPhotoRepository {
         offset: u32,
         is_admin: bool,
     ) -> DataResult<Vec<PhotoLoc>> {
-        let tags_text = Self::tags_json_text_expr("p");
         let photos = Self::photos_relation(is_admin);
         let sql = format!(
             r#"
             SELECT
                 p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
                 p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                p.metadata_extracted, p.is_raw, {tags_text} as tags,
+                p.metadata_extracted, p.is_raw,
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
@@ -507,7 +456,7 @@ impl PhotoRepository for PostgresPhotoRepository {
         &self,
         photo_id: Uuid,
         tag_refs: &[TagRef],
-        created_by_user_id: Option<Uuid>,
+        _created_by_user_id: Option<Uuid>,
     ) -> DataResult<()> {
         let ids = self.resolve_tag_ids(tag_refs, 0).await?;
         let mut tx = self
@@ -524,11 +473,10 @@ impl PhotoRepository for PostgresPhotoRepository {
 
         for tag_id in ids {
             sqlx::query(
-                "INSERT INTO photo_tags (photo_id, tag_id, created_at, created_by_user_id) VALUES ($1, $2, NOW(), $3) ON CONFLICT DO NOTHING",
+                "INSERT INTO photo_tags (photo_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
             )
             .bind(photo_id)
             .bind(tag_id as i64)
-            .bind(created_by_user_id)
             .execute(&mut *tx)
             .await
             .map_err(|e| DataError::Provider(e.to_string()))?;
@@ -543,7 +491,7 @@ impl PhotoRepository for PostgresPhotoRepository {
     async fn add_photo_tag(&self, photo_id: Uuid, tag_name: &str) -> DataResult<()> {
         let tag = self.upsert_tag(tag_name, None).await?;
         sqlx::query(
-            "INSERT INTO photo_tags (photo_id, tag_id, created_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING",
+            "INSERT INTO photo_tags (photo_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
         )
         .bind(photo_id)
         .bind(tag.id)
@@ -608,6 +556,51 @@ impl PhotoRepository for PostgresPhotoRepository {
             .map_err(|e| DataError::Provider(e.to_string()))
     }
 
+    async fn get_photo_tag_name_map(
+        &self,
+        photo_ids: &[Uuid],
+        is_admin: bool,
+    ) -> DataResult<HashMap<Uuid, Vec<String>>> {
+        let mut map = HashMap::new();
+        if photo_ids.is_empty() {
+            return Ok(map);
+        }
+
+        let vis = Self::tag_visibility_filter("t", "$2::boolean");
+        let sql = format!(
+            r#"
+            SELECT pt.photo_id, t.name
+            FROM photo_tags pt
+            JOIN tags t ON t.id = pt.tag_id
+            WHERE pt.photo_id = ANY($1::uuid[])
+              AND {vis}
+            ORDER BY t.name ASC
+        "#
+        );
+
+        let rows = sqlx::query(&sql)
+            .bind(photo_ids)
+            .bind(is_admin)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DataError::Provider(e.to_string()))?;
+
+        for row in rows {
+            use sqlx::Row;
+            let photo_id: Uuid = row
+                .try_get("photo_id")
+                .map_err(|e| DataError::Provider(e.to_string()))?;
+            let tag_name: String = row
+                .try_get("name")
+                .map_err(|e| DataError::Provider(e.to_string()))?;
+            map.entry(photo_id)
+                .or_insert_with(Vec::new)
+                .push(tag_name);
+        }
+
+        Ok(map)
+    }
+
     async fn filter_photos_by_tags(
         &self,
         tag_names: &[String],
@@ -631,7 +624,6 @@ impl PhotoRepository for PostgresPhotoRepository {
             }
         }
 
-        let tags_text = Self::tags_json_text_expr("p");
         let photos = Self::photos_relation(is_admin);
         let limit = page_size.max(1);
         let page_value = page.max(1);
@@ -671,7 +663,7 @@ impl PhotoRepository for PostgresPhotoRepository {
             SELECT
                 p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
                 p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                p.metadata_extracted, p.is_raw, {tags_text} as tags,
+                p.metadata_extracted, p.is_raw,
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
@@ -720,7 +712,6 @@ impl PhotoRepository for PostgresPhotoRepository {
         page_size: u32,
         is_admin: bool,
     ) -> DataResult<Page<Photo>> {
-        let tags_text = Self::tags_json_text_expr("p");
         let photos = Self::photos_relation(is_admin);
         let limit = page_size.max(1);
         let page_value = page.max(1);
@@ -735,7 +726,7 @@ impl PhotoRepository for PostgresPhotoRepository {
             SELECT
                 p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
                 p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                p.metadata_extracted, p.is_raw, {tags_text} as tags,
+                p.metadata_extracted, p.is_raw,
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))

@@ -1,5 +1,5 @@
 
-import { Component, effect, ElementRef, OnInit, signal, ViewChild, inject } from '@angular/core';
+import { Component, effect, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { GroupedPhotos, Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
@@ -63,18 +63,21 @@ export class GroupedGallery implements OnInit {
 
   scrollToYear(year: string): void {
     const targetGroup = this.groups().find(g => g.title.startsWith(year));
+
     if (targetGroup) {
       this.scrollToGroup(targetGroup.title);
     } else {
-      // Fetch the offset and jump
       this.photoService.getTimelineYearOffset(year).subscribe(offset => {
         if (this.gallery) {
-          // Tell the gallery to load specifically the page containing this offset
           this.gallery.jumpToGroupOffset(offset, year);
         }
       });
     }
     this.activeYear.set(year);
+
+    if (this.monthsRuler) {
+      this.scrollMonthRulerToYear(year);
+    }
   }
 
   private scrollMonthRulerToYear(year: string): void {

@@ -28,6 +28,7 @@ pub mod permission;
 pub mod photo;
 pub mod photo_browse;
 pub mod photo_comment;
+pub mod photo_tag;
 pub mod photo_cursor;
 pub mod setting;
 pub mod storage_location;
@@ -254,9 +255,11 @@ pub async fn migrate_entities(app: &Application) {
             "CREATE INDEX IF NOT EXISTS idx_album_comments_album_id ON album_comments (album_id)",
             "CREATE TABLE IF NOT EXISTS tags (id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL, name_norm TEXT NOT NULL, visibility SMALLINT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), CONSTRAINT ck_tags_visibility CHECK (visibility IN (0, 1)))",
             "CREATE UNIQUE INDEX IF NOT EXISTS ux_tags_name_norm ON tags (name_norm)",
-            "CREATE TABLE IF NOT EXISTS photo_tags (photo_id UUID NOT NULL REFERENCES photos (id) ON DELETE CASCADE, tag_id BIGINT NOT NULL REFERENCES tags (id) ON DELETE CASCADE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), created_by_user_id UUID NULL REFERENCES users (id) ON DELETE SET NULL, PRIMARY KEY (photo_id, tag_id))",
+            "CREATE INDEX IF NOT EXISTS idx_tags_name ON tags (name)",
+            "CREATE TABLE IF NOT EXISTS photo_tags (photo_id UUID NOT NULL REFERENCES photos (id) ON DELETE CASCADE, tag_id BIGINT NOT NULL REFERENCES tags (id) ON DELETE CASCADE, PRIMARY KEY (photo_id, tag_id))",
             "CREATE TABLE IF NOT EXISTS album_tags (album_id UUID NOT NULL REFERENCES albums (id) ON DELETE CASCADE, tag_id BIGINT NOT NULL REFERENCES tags (id) ON DELETE CASCADE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), created_by_user_id UUID NULL REFERENCES users (id) ON DELETE SET NULL, PRIMARY KEY (album_id, tag_id))",
-            "CREATE INDEX IF NOT EXISTS idx_photo_tags_tag_id_photo_id ON photo_tags (tag_id, photo_id)",
+            "CREATE INDEX IF NOT EXISTS idx_photo_tags_photo ON photo_tags (photo_id)",
+            "CREATE INDEX IF NOT EXISTS idx_photo_tags_tag ON photo_tags (tag_id)",
             "CREATE INDEX IF NOT EXISTS idx_album_tags_tag_id_album_id ON album_tags (tag_id, album_id)",
             "CREATE OR REPLACE VIEW photos_public_visible AS SELECT p.* FROM photos p WHERE NOT EXISTS (SELECT 1 FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.photo_id = p.id AND t.visibility = 1)",
         ];

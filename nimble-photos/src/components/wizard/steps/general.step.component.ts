@@ -50,7 +50,6 @@ export class GeneralStepComponent {
                     isPublic: Boolean(settings.isPublic.value),
                     allowRegistration: Boolean(settings.allowRegistration.value),
                 });
-                console.log('Loaded Settings:', settings);
                 this.loading.set(false);
             },
             error: (err) => {

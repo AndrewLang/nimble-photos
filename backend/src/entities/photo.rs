@@ -2,7 +2,6 @@ use super::uuid_id::HasOptionalUuidId;
 use chrono::{DateTime, Utc};
 use nimble_web::Entity;
 use serde::{Deserialize, Serialize};
-use serde_json;
 use uuid::Uuid;
 
 #[cfg(feature = "postgres")]
@@ -16,6 +15,16 @@ use {
     sqlx::postgres::PgRow,
     sqlx::{FromRow, Row},
 };
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhotoViewModel {
+    pub id: Uuid,
+    pub hash: String,
+    pub name: String,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,7 +58,6 @@ pub struct Photo {
     pub thumbnail_width: Option<u32>,
     #[serde(alias = "thumbnail_height")]
     pub thumbnail_height: Option<u32>,
-    pub tags: Option<Vec<String>>,
 }
 
 impl Entity for Photo {
@@ -69,26 +77,6 @@ impl Entity for Photo {
 impl HasOptionalUuidId for Photo {
     fn id_slot(&mut self) -> &mut Option<Uuid> {
         &mut self.id
-    }
-}
-
-impl Photo {
-    fn parse_tags(raw: Option<String>) -> Option<Vec<String>> {
-        raw.and_then(|value| {
-            if value.trim().is_empty() {
-                return None;
-            }
-            serde_json::from_str::<Vec<String>>(&value).ok()
-        })
-    }
-
-    fn serialize_tags(tags: &Option<Vec<String>>) -> Option<String> {
-        tags.as_ref().and_then(|items| {
-            if items.is_empty() {
-                return None;
-            }
-            serde_json::to_string(items).ok()
-        })
     }
 }
 
@@ -115,7 +103,6 @@ impl<'r> FromRow<'r, PgRow> for Photo {
             height: PostgresExtensions::optional_i32_as_u32(row, "height")?,
             thumbnail_width: PostgresExtensions::optional_i32_as_u32(row, "thumbnail_width")?,
             thumbnail_height: PostgresExtensions::optional_i32_as_u32(row, "thumbnail_height")?,
-            tags: Self::parse_tags(row.try_get("tags")?),
         })
     }
 }
@@ -151,7 +138,6 @@ impl PostgresEntity for Photo {
             "height",
             "thumbnail_width",
             "thumbnail_height",
-            "tags",
         ]
     }
 
@@ -177,7 +163,6 @@ impl PostgresEntity for Photo {
             PostgresValueBuilder::optional_u32(self.height),
             PostgresValueBuilder::optional_u32(self.thumbnail_width),
             PostgresValueBuilder::optional_u32(self.thumbnail_height),
-            PostgresValueBuilder::optional_string(&Self::serialize_tags(&self.tags)),
         ]
     }
 
@@ -201,7 +186,6 @@ impl PostgresEntity for Photo {
             "height",
             "thumbnail_width",
             "thumbnail_height",
-            "tags",
         ]
     }
 
@@ -225,7 +209,6 @@ impl PostgresEntity for Photo {
             PostgresValueBuilder::optional_u32(self.height),
             PostgresValueBuilder::optional_u32(self.thumbnail_width),
             PostgresValueBuilder::optional_u32(self.thumbnail_height),
-            PostgresValueBuilder::optional_string(&Self::serialize_tags(&self.tags)),
         ]
     }
 
@@ -250,7 +233,6 @@ impl PostgresEntity for Photo {
             ColumnDef::new("height", ColumnType::Integer),
             ColumnDef::new("thumbnail_width", ColumnType::Integer),
             ColumnDef::new("thumbnail_height", ColumnType::Integer),
-            ColumnDef::new("tags", ColumnType::Text),
         ]
     }
 }
