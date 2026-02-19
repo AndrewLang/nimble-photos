@@ -2,7 +2,6 @@
 import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { catchError, first, of } from 'rxjs';
-import { Formatter } from '../../models/formatters';
 import { Photo, PhotoComment } from '../../models/photo';
 import { AuthService } from '../../services/auth.service';
 import { PhotoService } from '../../services/photo.service';
@@ -35,13 +34,12 @@ export class PhotoDetailComponent implements OnInit {
     readonly sidebarHidden = signal(false);
     readonly commentEditorVisible = signal(false);
     readonly allowComments = signal(false);
-    readonly formatBytes = (size?: number) => Formatter.formatBytes(size, { zeroLabel: 'n/a' });
 
     private albumId: string | null = null;
     private returnUrl = '/';
 
     private readonly route = inject(ActivatedRoute);
-    readonly router = inject(Router);
+    private readonly router = inject(Router);
     readonly authService = inject(AuthService);
     private readonly photoService = inject(PhotoService);
     private readonly settingsService = inject(SettingsService);
@@ -165,6 +163,7 @@ export class PhotoDetailComponent implements OnInit {
     toggleSidebar(): void {
         this.sidebarHidden.update(value => !value);
     }
+
     navigateToPhoto(id: string): void {
         const commands = this.albumId
             ? ['/album', this.albumId, 'photo', id]
@@ -217,6 +216,10 @@ export class PhotoDetailComponent implements OnInit {
 
     getPhotoPath(): string {
         return this.photoService.getThumbnailPath(this.photo()!);
+    }
+
+    getPreviewPath(): string {
+        return this.photoService.getPreviewPath(this.photo()!);
     }
 
     metadataSections(p?: Photo | null): { title: string; fields: { label: string; value: string }[] }[] {

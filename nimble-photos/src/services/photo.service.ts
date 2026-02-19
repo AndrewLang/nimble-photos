@@ -113,6 +113,14 @@ export class PhotoService {
     return photo.path;
   }
 
+  getPreviewPath(photo: Photo): string {
+    if (photo.hash) {
+      return `${this.apiBase}/photos/preview/${photo.hash}`;
+    }
+
+    return photo.path;
+  }
+
   getDownloadPath(photo: Photo): string {
     return `${this.apiBase}/photos/file/${photo.id}`;
   }

@@ -10,7 +10,7 @@ import { LogoEditorComponent } from '../../shared/logo-editor/logo.editor.compon
     templateUrl: './general.step.component.html',
 })
 export class GeneralStepComponent {
-    private readonly fb = inject(FormBuilder);
+    private readonly formBuilder = inject(FormBuilder);
     private readonly settingsService = inject(SettingsService);
 
     readonly loading = signal(false);
@@ -18,7 +18,7 @@ export class GeneralStepComponent {
     readonly error = signal<string | null>(null);
     readonly success = signal<string | null>(null);
 
-    readonly settingsForm = this.fb.nonNullable.group({
+    readonly settingsForm = this.formBuilder.nonNullable.group({
         title: ['', [Validators.required, Validators.minLength(2)]],
         tagline: ['', [Validators.required, Validators.minLength(2)]],
         logo: [''],

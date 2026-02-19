@@ -8,14 +8,14 @@ import { AuthService } from '../../../services/auth.service';
     templateUrl: './user.step.component.html',
 })
 export class UserStepComponent implements OnInit {
-    private readonly fb = inject(FormBuilder);
+    private readonly formBuilder = inject(FormBuilder);
     private readonly authService = inject(AuthService);
 
     readonly statusLoading = signal(true);
     readonly registrationBlocked = signal(false);
     readonly registrationMessage = signal('An administrator account already exists.');
 
-    readonly userForm = this.fb.nonNullable.group({
+    readonly userForm = this.formBuilder.nonNullable.group({
         name: ['', [Validators.required, Validators.minLength(2)]],
         email: ['', [Validators.required, Validators.email]],
         password: ['', [Validators.required, Validators.minLength(8)]],

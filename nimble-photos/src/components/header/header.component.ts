@@ -16,7 +16,6 @@ import { TagEditorComponent } from '../tag/tag.editor.component';
 
 @Component({
   selector: 'mtx-header',
-  standalone: true,
   imports: [RouterModule, SvgComponent],
   templateUrl: './header.component.html',
   styles: [`

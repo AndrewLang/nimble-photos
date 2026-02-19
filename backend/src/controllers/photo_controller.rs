@@ -4,8 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::result::Result;
+use tokio::task;
 use uuid::Uuid;
 
+use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::dtos::photo_comment_dto::PhotoCommentDto;
 use crate::dtos::photo_dtos::{PhotoLoc, TimelineGroup};
 use crate::entities::StorageLocation;
@@ -14,7 +16,8 @@ use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
 use crate::entities::user_settings::UserSettings;
 use crate::repositories::photo::{PhotoRepository, TagRef};
-use crate::services::{ImageProcessPipeline, PhotoUploadService, SettingService};
+use crate::repositories::photo_repo::PhotoRepositoryExtensions;
+use crate::services::{ImageProcessPipeline, PhotoUploadService, PreviewExtractor, SettingService};
 
 use nimble_web::DataProvider;
 use nimble_web::Repository;
@@ -40,6 +43,7 @@ impl Controller for PhotoController {
     fn routes() -> Vec<EndpointRoute> {
         vec![
             EndpointRoute::get("/api/photos/thumbnail/{hash}", ThumbnailHandler).build(),
+            EndpointRoute::get("/api/photos/preview/{hash}", PreviewHandler).build(),
             EndpointRoute::get("/api/photos/timeline/{page}/{pageSize}", TimelineHandler).build(),
             EndpointRoute::get("/api/photos/timeline/years", TimelineYearsHandler).build(),
             EndpointRoute::get("/api/photos/timeline/year-offset/{year}", YearOffsetHandler)
@@ -228,6 +232,163 @@ impl HttpHandler for ThumbnailHandler {
 
         log::debug!(
             "Thumbnail path resolved to: {}",
+            resolved_path.to_string_lossy()
+        );
+
+        Ok(ResponseValue::new(
+            FileResponse::from_path(resolved_path)
+                .with_content_type(content_type)
+                .with_header("Cache-Control", "public, max-age=31536000, immutable"),
+        ))
+    }
+}
+
+struct PreviewHandler;
+
+impl PreviewHandler {
+    fn preview_file_path(&self, root: &Path, hash: &str) -> PathBuf {
+        root.join(&hash[0..2])
+            .join(&hash[2..4])
+            .join(format!("{hash}.jpg"))
+    }
+
+    fn default_preview_root(&self) -> PathBuf {
+        if cfg!(windows) {
+            if let Ok(user_profile) = std::env::var("USERPROFILE") {
+                return Path::new(&user_profile)
+                    .join("AppData")
+                    .join("Local")
+                    .join("photon")
+                    .join("previews");
+            }
+        }
+
+        PathBuf::from("./.previews")
+    }
+
+    async fn resolve_preview_root(
+        &self,
+        context: &HttpContext,
+        photo: &Photo,
+        hash: &str,
+    ) -> PathBuf {
+        if let Some(storage_id) = photo.storage_id.as_ref() {
+            match Uuid::parse_str(storage_id) {
+                Ok(storage_uuid) => {
+                    if let Ok(storage_repo) = context.service::<Repository<StorageLocation>>() {
+                        match storage_repo.get(&storage_uuid).await {
+                            Ok(Some(storage)) => {
+                                return storage.normalized_path().join(".previews");
+                            }
+                            Ok(None) => {
+                                log::warn!(
+                                    "Storage {} not found while resolving preview for hash {}",
+                                    storage_id,
+                                    hash
+                                );
+                            }
+                            Err(err) => {
+                                log::warn!(
+                                    "Failed to load storage {} for preview hash {}: {:?}",
+                                    storage_id,
+                                    hash,
+                                    err
+                                );
+                            }
+                        }
+                    } else {
+                        log::warn!(
+                            "Storage repository unavailable while resolving preview for hash {}",
+                            hash
+                        );
+                    }
+                }
+                Err(err) => {
+                    log::warn!(
+                        "Invalid storage id {} on photo for hash {}: {:?}",
+                        storage_id,
+                        hash,
+                        err
+                    );
+                }
+            }
+        }
+
+        self.default_preview_root()
+    }
+
+    async fn build_preview(
+        &self,
+        context: &HttpContext,
+        photo: &Photo,
+        hash: &str,
+        output_root: &Path,
+    ) -> Result<Option<(PathBuf, &'static str)>, PipelineError> {
+        let source_path = PathBuf::from(&photo.path);
+        if !source_path.exists() {
+            log::warn!(
+                "Preview source file missing for hash {} at {}",
+                hash,
+                source_path.display()
+            );
+            return Ok(None);
+        }
+
+        let output_path = self.preview_file_path(output_root, hash);
+        let extractor = context.service::<PreviewExtractor>()?;
+        let output_path_clone = output_path.clone();
+        let source_path_clone = source_path.clone();
+
+        let generated = task::spawn_blocking(move || {
+            extractor.extract_to(source_path_clone, &output_path_clone)
+        })
+        .await
+        .ok()
+        .and_then(|result| result.ok());
+
+        if let Some(path) = generated {
+            if path.exists() {
+                return Ok(Some((path, "image/jpeg")));
+            }
+        }
+
+        Ok(None)
+    }
+}
+
+#[async_trait]
+impl HttpHandler for PreviewHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let hash = context.hash()?;
+        log::debug!("Serving preview for hash: {}", hash);
+
+        let photo_repo = context.service::<Repository<Photo>>()?;
+        let photo = photo_repo
+            .find_by_hash(&hash)
+            .await?
+            .ok_or_else(|| PipelineError::message("preview not found"))?;
+
+        let preview_root = self.resolve_preview_root(context, &photo, &hash).await;
+
+        let mut resolved: Option<(PathBuf, &'static str)> = None;
+        let jpeg_path = self.preview_file_path(&preview_root, &hash);
+        if jpeg_path.exists() {
+            resolved = Some((jpeg_path, "image/jpeg"));
+        }
+
+        if resolved.is_none() {
+            resolved = self
+                .build_preview(context, &photo, &hash, preview_root.as_path())
+                .await?;
+        }
+
+        log::info!("Preview request for hash: {}, at: {:?}", hash, resolved);
+
+        let (resolved_path, content_type) =
+            resolved.ok_or_else(|| PipelineError::message("preview not found"))?;
+
+        log::debug!(
+            "Preview path resolved to: {}",
             resolved_path.to_string_lossy()
         );
 

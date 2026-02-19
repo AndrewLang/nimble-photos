@@ -5,7 +5,6 @@ import { SvgIcon } from './svg.icons';
 
 @Component({
     selector: 'mtx-svg',
-    standalone: true,
     imports: [CommonModule],
     template: `
     <svg

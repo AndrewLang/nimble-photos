@@ -1,13 +1,12 @@
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
   selector: 'mtx-album-editor',
-  standalone: true,
   imports: [FormsModule, ReactiveFormsModule, SvgComponent],
   templateUrl: './album.editor.component.html'
 })

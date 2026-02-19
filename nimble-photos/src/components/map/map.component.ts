@@ -1,5 +1,5 @@
 
-import { Component, ElementRef, OnDestroy, OnInit, signal, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import * as L from 'leaflet';
 import { first } from 'rxjs';
@@ -10,7 +10,6 @@ import { SvgIcon } from '../svg/svg.icons';
 
 @Component({
   selector: 'mtx-map',
-  standalone: true,
   imports: [RouterModule, SvgComponent],
   templateUrl: './map.component.html',
   host: {
@@ -37,7 +36,6 @@ export class MapComponent implements OnInit, OnDestroy {
     });
 
     this.fetchPhotos();
-    // this.loading.set(false);
   }
 
   ngOnDestroy(): void {

@@ -32,17 +32,14 @@ export class WizardComponent {
                 description: child.data?.['description'] as string | undefined,
             }));
     });
-
     readonly activeIndex = computed(() => {
         const index = this.steps().findIndex(step => step.path === this.activePath());
         return index === -1 ? 0 : index;
     });
-
     readonly progress = computed(() => {
         const total = this.steps().length || 1;
         return ((this.activeIndex() + 1) / total) * 100;
     });
-
     readonly isLastStep = computed(() => this.activeIndex() >= this.steps().length - 1);
 
     constructor() {

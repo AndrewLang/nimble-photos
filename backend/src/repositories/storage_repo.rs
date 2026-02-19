@@ -69,7 +69,7 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
 
     async fn load_locations(&self) -> Result<Vec<StorageLocation>, PipelineError> {
         let locations = self
-            .query(nimble_web::data::query::Query::<StorageLocation>::new())
+            .query(Query::<StorageLocation>::new())
             .await
             .map_err(|_| PipelineError::message("failed to load storage settings"))?
             .items;

@@ -1,7 +1,7 @@
-import { Component, signal, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 
-import { RouterModule, Router, ActivatedRoute } from '@angular/router';
-import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { SettingsService } from '../../services/settings.service';
@@ -9,7 +9,6 @@ import { SvgComponent } from '../svg/svg.component';
 
 @Component({
     selector: 'mtx-login',
-    standalone: true,
     imports: [RouterModule, FormsModule, ReactiveFormsModule, SvgComponent],
     templateUrl: './login.component.html',
     host: {

@@ -24,6 +24,7 @@ pub trait HttpContextExtensions {
     fn parse_browse_request(&self) -> Result<BrowseRequest, PipelineError>;
     fn route_storage_id(&self) -> Result<Uuid, PipelineError>;
     fn current_client_id(&self) -> Result<Uuid, PipelineError>;
+    fn hash(&self) -> Result<String, PipelineError>;
     async fn load_client_storage_settings(
         &self,
         client_id: Uuid,
@@ -49,6 +50,7 @@ impl HttpContextExtensions for HttpContext {
             }
         }
     }
+
     fn require_admin(&self) -> Result<(), PipelineError> {
         let is_admin = self
             .get::<IdentityContext>()
@@ -120,6 +122,20 @@ impl HttpContextExtensions for HttpContext {
             .to_string();
 
         Uuid::parse_str(&subject).map_err(|_| PipelineError::message("invalid identity"))
+    }
+
+    fn hash(&self) -> Result<String, PipelineError> {
+        let hash = self
+            .route()
+            .and_then(|route| route.params().get("hash"))
+            .cloned()
+            .ok_or_else(|| PipelineError::message("hash parameter missing"))?;
+
+        if hash.len() < 4 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(PipelineError::message("invalid thumbnail hash"));
+        }
+
+        Ok(hash)
     }
 
     async fn load_client_storage_settings(

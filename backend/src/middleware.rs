@@ -31,7 +31,9 @@ impl Middleware for PublicAccessMiddleware {
             let method = context.request().method();
 
             if method == "GET" {
-                if !path.starts_with("/api/photos/thumbnail/") {
+                if !path.starts_with("/api/photos/thumbnail/")
+                    && !path.starts_with("/api/photos/preview/")
+                {
                     let site_public = settings.is_site_public().await?;
                     if !site_public && !authenticated {
                         context.response_mut().set_status(401);

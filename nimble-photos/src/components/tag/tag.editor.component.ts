@@ -5,14 +5,12 @@ import { SvgComponent } from '../svg/svg.component';
 
 @Component({
   selector: 'mtx-tag-editor',
-  standalone: true,
   imports: [FormsModule, SvgComponent],
   templateUrl: './tag.editor.component.html'
 })
 export class TagEditorComponent implements OnInit {
   readonly photos = input<Photo[]>([]);
   readonly existingTags = input<string[]>([]);
-
   readonly selectedTags = signal<string[]>([]);
   readonly draftTag = signal('');
 

@@ -55,7 +55,7 @@
         </div>
         } @else if (photo(); as p) {
         <div class="relative w-full h-full flex items-center justify-center p-4 lg:p-12">
-            <img [src]="getPhotoPath()" [alt]="p.name"
+            <img [src]="getPreviewPath()" [alt]="p.name"
                 class="max-w-full max-h-full object-contain shadow-2xl transition-all duration-500 rounded-sm">
         </div>
         } @else {
