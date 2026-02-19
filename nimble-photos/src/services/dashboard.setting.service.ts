@@ -28,7 +28,7 @@ export class DashboardSettingsService {
     }
 
     getSectionSettings(section: DashboardSystemSection): DashboardSetting[] {
-        return this.safeSettings().filter(setting => setting.section === section && setting.key !== 'storage.locations');
+        return this.safeSettings().filter(setting => setting.section === section);
     }
 
     getSectionLabel(section: DashboardSystemSection): string {

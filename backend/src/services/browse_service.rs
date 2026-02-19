@@ -21,7 +21,7 @@ impl BrowseService {
 
     pub async fn browse(
         &self,
-        storage_id: &str,
+        storage_id: &Uuid,
         path_segments: &[String],
         options: &BrowseOptions,
         page_size: i64,
@@ -44,7 +44,7 @@ impl BrowseService {
 
     async fn browse_folders(
         &self,
-        storage_id: &str,
+        storage_id: &Uuid,
         path_segments: &[String],
         options: &BrowseOptions,
         depth: usize,
@@ -74,7 +74,7 @@ impl BrowseService {
             where_clauses.join(" AND ")
         );
 
-        let mut query = sqlx::query(&sql).bind(storage_id.to_string());
+        let mut query = sqlx::query(&sql).bind(*storage_id);
         for param in params {
             query = match param {
                 SqlParam::Int(value) => query.bind(value),
@@ -118,7 +118,7 @@ impl BrowseService {
 
     async fn browse_photos(
         &self,
-        storage_id: &str,
+        storage_id: &Uuid,
         path_segments: &[String],
         options: &BrowseOptions,
         page_size: i64,
@@ -171,7 +171,7 @@ impl BrowseService {
             param_index
         );
 
-        let mut query = sqlx::query(&sql).bind(storage_id.to_string());
+        let mut query = sqlx::query(&sql).bind(*storage_id);
         for param in params {
             query = match param {
                 SqlParam::Int(value) => query.bind(value),

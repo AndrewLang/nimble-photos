@@ -20,7 +20,6 @@ impl SettingKeys {
     pub const SITE_ALLOW_REGISTRATION: &'static str = "site.allowRegistration";
     pub const SITE_ALLOW_COMMENTS: &'static str = "site.allowComments";
     pub const SECURITY_ROLE_PERMISSIONS: &'static str = "security.rolePermissions";
-    pub const STORAGE_LOCATIONS: &'static str = "storage.locations";
     pub const PHOTO_MANAGE_UPLOADS_ENABLED: &'static str = "photo.manage.uploadsEnabled";
     pub const PHOTO_MANAGE_VIEWER_HIDDEN_TAGS: &'static str = "photo.manage.viewerHiddenTags";
     pub const CLIENT_APPROVAL_POLICY: &'static str = "client.approvalPolicy";
@@ -510,16 +509,6 @@ impl SettingService {
                         "comments.create": false
                     }
                 }),
-                options: None,
-            },
-            SettingDefinition {
-                key: SettingKeys::STORAGE_LOCATIONS,
-                label: "Storage locations",
-                description: "Folders used to store uploaded photos and generated assets.",
-                section: SettingSection::General,
-                group: SettingSection::General.slug(),
-                value_type: SettingValueType::Json,
-                default_value: json!([]),
                 options: None,
             },
             SettingDefinition {

@@ -323,7 +323,7 @@ impl ImageProcessStep for PersistMetadataStep {
 
         let photo = Photo {
             id: Some(Uuid::new_v4()),
-            storage_id: Some(context.payload().storage.id.clone()),
+            storage_id: Some(context.payload().storage.id.to_string()),
             path: final_path.to_string_lossy().to_string(),
             name: final_path
                 .file_name()

@@ -129,7 +129,7 @@ impl HttpHandler for UploadPhotosHandler {
 
         let storage_query_id = context.request().query_param("storageId");
         let storage =
-            PhotoController::resolve_upload_storage(&settings, storage_query_id.as_deref()).await?;
+            PhotoController::resolve_upload_storage(context, storage_query_id.as_deref()).await?;
         let saved_files = upload_service
             .persist_to_storage_temp(Path::new(&storage.path), files)
             .await
@@ -146,7 +146,7 @@ impl HttpHandler for UploadPhotosHandler {
         }
 
         let response = UploadPhotosResponse {
-            storage_id: storage.id,
+            storage_id: storage.id.to_string(),
             storage_path: storage.path,
             uploaded_count: saved_files.len(),
             files: saved_files
@@ -180,16 +180,12 @@ impl HttpHandler for ThumbnailHandler {
         }
 
         let mut thumbnail_roots = Vec::<PathBuf>::new();
-        if let Ok(settings) = context.service::<SettingService>() {
-            if let Ok(storage_setting) = settings.get("storage.locations").await {
-                if let Ok(locations) =
-                    serde_json::from_value::<Vec<StorageLocation>>(storage_setting.value)
-                {
-                    for location in locations {
-                        let path = Path::new(&location.path).join(".thumbnails");
-                        if !thumbnail_roots.contains(&path) {
-                            thumbnail_roots.push(path);
-                        }
+        if let Ok(storage_repo) = context.service::<Repository<StorageLocation>>() {
+            if let Ok(page) = storage_repo.query(Query::<StorageLocation>::new()).await {
+                for location in page.items {
+                    let path = Path::new(&location.path).join(".thumbnails");
+                    if !thumbnail_roots.contains(&path) {
+                        thumbnail_roots.push(path);
                     }
                 }
             }
@@ -816,18 +812,23 @@ impl PhotoController {
     }
 
     async fn resolve_upload_storage(
-        service: &SettingService,
+        context: &HttpContext,
         storage_id: Option<&str>,
     ) -> Result<StorageLocation, PipelineError> {
-        let storage_setting = service.get("storage.locations").await?;
-        let locations: Vec<StorageLocation> = serde_json::from_value(storage_setting.value)
-            .map_err(|_| PipelineError::message("Invalid storage settings"))?;
+        let storage_repo = context.service::<Repository<StorageLocation>>()?;
+        let locations = storage_repo
+            .query(Query::<StorageLocation>::new())
+            .await
+            .map_err(|_| PipelineError::message("Failed to load storage locations"))?
+            .items;
 
         if locations.is_empty() {
             return Err(PipelineError::message("No storage location configured"));
         }
 
         if let Some(requested_storage_id) = storage_id {
+            let requested_storage_id = Uuid::parse_str(requested_storage_id)
+                .map_err(|_| PipelineError::message("Invalid storage location id"))?;
             let selected = locations
                 .into_iter()
                 .find(|location| location.id == requested_storage_id)

@@ -24,6 +24,7 @@ pub mod album_hooks;
 pub mod client;
 pub mod client_storage;
 pub mod exif;
+pub mod permission;
 pub mod photo;
 pub mod photo_browse;
 pub mod photo_comment;
@@ -36,6 +37,7 @@ pub mod user_settings;
 pub mod uuid_id;
 
 pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
+    builder.use_entity_with_operations::<StorageLocation>(&EntityOperation::all());
     builder.use_entity_with_operations_and_policy::<User>(
         &[EntityOperation::Get, EntityOperation::List],
         Policy::Authenticated,
@@ -113,6 +115,10 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             Repository::<ClientStorage>::new(Box::new(provider))
         });
         builder.register_singleton(|_| {
+            let provider = MemoryRepository::<StorageLocation>::new();
+            Repository::<StorageLocation>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
             let provider = MemoryRepository::<UserSettings>::new();
             Repository::<UserSettings>::new(Box::new(provider))
         });
@@ -171,6 +177,11 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let provider = PostgresProvider::<ClientStorage>::new((*pool).clone());
             Repository::<ClientStorage>::new(Box::new(provider))
         });
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<StorageLocation>::new((*pool).clone());
+            Repository::<StorageLocation>::new(Box::new(provider))
+        });
 
         builder.register_singleton(|p| {
             let pool = p.get::<PgPool>();
@@ -219,6 +230,7 @@ pub async fn migrate_entities(app: &Application) {
         let _ = app.migrate_entity::<User>().await;
         let _ = app.migrate_entity::<Client>().await;
         let _ = app.migrate_entity::<ClientStorage>().await;
+        let _ = app.migrate_entity::<StorageLocation>().await;
         let _ = app.migrate_entity::<UserSettings>().await;
         let _ = app.migrate_entity::<Photo>().await;
         let _ = app.migrate_entity::<Album>().await;
@@ -229,6 +241,11 @@ pub async fn migrate_entities(app: &Application) {
 
         log::info!("Creating additional indices for performance...");
         let sqls = [
+            "ALTER TABLE clientstorages ADD COLUMN IF NOT EXISTS id TEXT",
+            "UPDATE clientstorages SET id = client_id::text || ':' || storage_id::text WHERE id IS NULL OR id = ''",
+            "ALTER TABLE clientstorages DROP CONSTRAINT IF EXISTS clientstorages_pkey",
+            "ALTER TABLE clientstorages ADD CONSTRAINT clientstorages_pkey PRIMARY KEY (id)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_clientstorages_client_storage ON clientstorages (client_id, storage_id)",
             "CREATE INDEX IF NOT EXISTS idx_photos_date_taken ON photos (date_taken)",
             "CREATE INDEX IF NOT EXISTS idx_photos_created_at ON photos (created_at)",
             "CREATE INDEX IF NOT EXISTS idx_photos_sort_date_v2 ON photos ((DATE(COALESCE(date_taken, created_at) AT TIME ZONE 'UTC')))",

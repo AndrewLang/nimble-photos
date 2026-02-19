@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::controllers::httpcontext_extensions::HttpContextExtentions;
+use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::entities::client::Client;
 use crate::services::{EncryptService, SettingService};
 
@@ -78,7 +78,7 @@ struct ListClientsHandler;
 #[get("/api/clients", policy = Policy::Authenticated)]
 impl HttpHandler for ListClientsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        HttpContextExtentions::require_admin(context)?;
+        context.require_admin()?;
 
         let repo = context.service::<Repository<Client>>()?;
         let page = repo
@@ -102,7 +102,7 @@ struct ApproveClientHandler;
 #[put("/api/clients/{id}/approve", policy = Policy::Authenticated)]
 impl HttpHandler for ApproveClientHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        HttpContextExtentions::require_admin(context)?;
+        context.require_admin()?;
 
         let setting_service = context.service::<SettingService>()?;
         let policy = setting_service.client_approval_policy().await?;
@@ -112,7 +112,7 @@ impl HttpHandler for ApproveClientHandler {
             ));
         }
 
-        let client_id = HttpContextExtentions::route_uuid(context, "id")?;
+        let client_id = context.route_uuid("id")?;
         let repo = context.service::<Repository<Client>>()?;
         let mut client = repo
             .get(&client_id)
@@ -120,7 +120,7 @@ impl HttpHandler for ApproveClientHandler {
             .map_err(|_| PipelineError::message("failed to load client"))?
             .ok_or_else(|| PipelineError::message("client not found"))?;
 
-        let approver_id = HttpContextExtentions::current_user_id(context)?;
+        let approver_id = context.current_user_id()?;
         client.is_approved = true;
         client.is_active = true;
         client.approved_by = Some(approver_id);
@@ -140,9 +140,9 @@ struct RevokeClientHandler;
 #[put("/api/clients/{id}/revoke", policy = Policy::Authenticated)]
 impl HttpHandler for RevokeClientHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        HttpContextExtentions::require_admin(context)?;
+        context.require_admin()?;
 
-        let client_id = HttpContextExtentions::route_uuid(context, "id")?;
+        let client_id = context.route_uuid("id")?;
         let repo = context.service::<Repository<Client>>()?;
         let mut client = repo
             .get(&client_id)
@@ -167,9 +167,9 @@ struct DeleteClientHandler;
 #[delete("/api/clients/{id}", policy = Policy::Authenticated)]
 impl HttpHandler for DeleteClientHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        HttpContextExtentions::require_admin(context)?;
+        context.require_admin()?;
 
-        let client_id = HttpContextExtentions::route_uuid(context, "id")?;
+        let client_id = context.route_uuid("id")?;
         let repo = context.service::<Repository<Client>>()?;
         let deleted = repo
             .delete(&client_id)
@@ -249,7 +249,7 @@ impl HttpHandler for RegisterClientHandler {
         let device_type = Self::normalized(&request.device_type, "deviceType")?;
         let client_version = Self::normalized(&request.client_version, "clientVersion")?;
 
-        let user_id = HttpContextExtentions::current_user_id(context)?;
+        let user_id = context.current_user_id()?;
 
         let setting_service = context.service::<SettingService>()?;
         let encrypt_service = context.service::<EncryptService>()?;
