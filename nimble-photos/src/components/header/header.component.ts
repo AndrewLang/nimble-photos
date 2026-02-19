@@ -33,6 +33,9 @@ export class HeaderComponent implements OnInit {
   private readonly dialogService = inject(DialogService);
   private readonly settingsService = inject(SettingsService);
   private readonly document = inject(DOCUMENT);
+  readonly selectionService = inject(SelectionService);
+  readonly photoService = inject(PhotoService);
+  readonly authService = inject(AuthService);
 
   readonly isMenuOpen = signal(false);
   readonly isUserMenuOpen = signal(false);
@@ -42,13 +45,6 @@ export class HeaderComponent implements OnInit {
   readonly allowRegistration = signal(true);
 
   @ViewChild('userMenuRoot') userMenuRoot?: ElementRef<HTMLElement>;
-
-  constructor(
-    public readonly selectionService: SelectionService,
-    public readonly photoService: PhotoService,
-    public readonly authService: AuthService,
-    public readonly settingService: SettingsService,
-  ) { }
 
   ngOnInit(): void {
     this.setBrowserTitle(this.siteTitle());

@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, input, signal } from '@angular/core';
 
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Photo } from '../../models/photo';
@@ -12,23 +12,18 @@ import { SvgComponent } from '../svg/svg.component';
   templateUrl: './album.editor.component.html'
 })
 export class AlbumEditorComponent implements OnInit {
-  @Input() photos: Photo[] = [];
+  readonly photos = input<Photo[]>([]);
 
   readonly selectedPhotos = signal<Photo[]>([]);
-  albumForm!: FormGroup;
+  readonly albumForm: FormGroup = inject(FormBuilder).group({
+    name: ['', [Validators.required, Validators.minLength(1)]],
+    description: ['']
+  });
 
-  constructor(
-    private readonly fb: FormBuilder,
-    private readonly photoService: PhotoService
-  ) {
-    this.albumForm = this.fb.group({
-      name: ['', [Validators.required, Validators.minLength(1)]],
-      description: ['']
-    });
-  }
+  private readonly photoService = inject(PhotoService);
 
   ngOnInit() {
-    this.selectedPhotos.set([...this.photos]);
+    this.selectedPhotos.set([...this.photos()]);
   }
 
   removePhoto(photo: Photo) {

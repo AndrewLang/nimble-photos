@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, HostListener, Input, Output, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, input, output, signal } from '@angular/core';
 import { SvgComponent } from '../svg/svg.component';
 
 export interface ActionSelectorItem {
@@ -14,31 +14,31 @@ export interface ActionSelectorItem {
 export class ActionSelectorComponent {
     private readonly host = inject(ElementRef<HTMLElement>);
 
-    @Input() actions: readonly ActionSelectorItem[] = [];
-    @Input() selectedKeys: readonly string[] = [];
-    @Input() disabled = false;
-    @Input() readOnly = false;
-    @Output() selectedKeysChange = new EventEmitter<string[]>();
+    readonly actions = input<readonly ActionSelectorItem[]>([]);
+    readonly selectedKeys = input<readonly string[]>([]);
+    readonly disabled = input(false);
+    readonly readOnly = input(false);
+    readonly selectedKeysChange = output<string[]>();
 
     readonly isOpen = signal(false);
 
     toggleOpen(): void {
-        if (this.disabled || this.readOnly) {
+        if (this.disabled() || this.readOnly()) {
             return;
         }
         this.isOpen.update(current => !current);
     }
 
     isSelected(key: string): boolean {
-        return this.selectedKeys.includes(key);
+        return this.selectedKeys().includes(key);
     }
 
     toggleAction(key: string, checked: boolean): void {
-        if (this.disabled || this.readOnly) {
+        if (this.disabled() || this.readOnly()) {
             return;
         }
 
-        const selected = new Set(this.selectedKeys);
+        const selected = new Set(this.selectedKeys());
         if (checked) {
             selected.add(key);
         } else {
@@ -48,18 +48,20 @@ export class ActionSelectorComponent {
     }
 
     summary(): string {
-        if (!this.actions.length) {
+        const actions = this.actions();
+        if (!actions.length) {
             return 'No actions';
         }
 
-        const selectedCount = this.actions.filter(action => this.selectedKeys.includes(action.key)).length;
-        if (selectedCount === this.actions.length) {
+        const selectedSet = new Set(this.selectedKeys());
+        const selectedCount = actions.filter(action => selectedSet.has(action.key)).length;
+        if (selectedCount === actions.length) {
             return 'All actions';
         }
         if (selectedCount === 0) {
             return 'No actions';
         }
-        return `${selectedCount} of ${this.actions.length} actions`;
+        return `${selectedCount} of ${actions.length} actions`;
     }
 
     @HostListener('document:click', ['$event'])
@@ -73,4 +75,3 @@ export class ActionSelectorComponent {
         }
     }
 }
-

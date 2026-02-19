@@ -7,7 +7,7 @@
   <cdk-virtual-scroll-viewport [itemSize]="targetHeight()" (scrolledIndexChange)="onScroll($event)"
     class="h-full w-full scroll-container">
     <div class="px-4 py-8 min-h-full">
-      @if (showHeader) {
+      @if (showHeader()) {
       <header class="mb-12 px-2">
         <h1
           class="text-4xl font-bold tracking-tight bg-linear-to-r from-white to-slate-400 bg-clip-text text-transparent">
@@ -32,7 +32,7 @@
             </span>
           </div>
 
-          @if (selectionEnabled) {
+          @if (selectionEnabled()) {
           <button (click)="toggleGroupSelection(item.title)"
             class="w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center hover:scale-110 active:scale-95"
             [class.border-indigo-500]="isGroupSelected(item.title)" [class.bg-indigo-500]="isGroupSelected(item.title)"
@@ -48,7 +48,7 @@
         <div class="flex items-stretch justify-start overflow-hidden mb-[6px]" [style.height.px]="item.row.height">
           @for (photo of item.row.photos; track photo.id; let lastPhoto = $last) {
           <article (click)="isSelectionMode() ? togglePhotoSelection(photo, $event) : null"
-            [routerLink]="!isSelectionMode() ? (albumId ? ['/album', albumId, 'photo', photo.id] : ['/photo', photo.id]) : null"
+            [routerLink]="!isSelectionMode() ? (albumId() ? ['/album', albumId(), 'photo', photo.id] : ['/photo', photo.id]) : null"
             [state]="!isSelectionMode() ? { returnUrl: router.url } : undefined"
             class="photo-item relative group cursor-pointer overflow-hidden rounded-sm bg-slate-900/50 transition-all duration-300 h-full"
             [style.width.px]="getPhotoWidth(photo, item.row.height)" [class.mr-[6px]]="!lastPhoto"
@@ -62,7 +62,7 @@
             <div class="absolute inset-0 ring-2 ring-inset ring-indigo-500 z-40 pointer-events-none rounded-sm"></div>
             }
 
-            @if (selectionEnabled) {
+            @if (selectionEnabled()) {
             <div class="absolute top-2 left-2 z-30 transition-opacity duration-200"
               [class.opacity-0]="!isSelectionMode() && !isSelected(photo.id)"
               [class.group-hover:opacity-100]="!isSelectionMode()">

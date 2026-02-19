@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, signal } from '@angular/core';
+import { Component, input } from '@angular/core';
 
 import { SvgIcon } from './svg.icons';
 
@@ -9,10 +9,10 @@ import { SvgIcon } from './svg.icons';
     imports: [CommonModule],
     template: `
     <svg
-        [attr.viewBox]="iconDef.viewBox" [attr.width]="size" [attr.height]="size" [attr.aria-hidden]="ariaHidden"
-        [attr.role]="ariaLabel ? 'img' : 'presentation'" [attr.aria-label]="ariaLabel || null" [ngClass]="svgClass"
-        [attr.fill]="fillColor" [attr.stroke]="strokeColor" stroke-linecap="round" stroke-linejoin="round"
-        [attr.stroke-width]="strokeThickness">
+        [attr.viewBox]="iconDef.viewBox" [attr.width]="size()" [attr.height]="size()" [attr.aria-hidden]="ariaHidden"
+        [attr.role]="ariaLabel() ? 'img' : 'presentation'" [attr.aria-label]="ariaLabel() || null" [ngClass]="svgClass()"
+        [attr.fill]="fillColor()" [attr.stroke]="strokeColor()" stroke-linecap="round" stroke-linejoin="round"
+        [attr.stroke-width]="strokeThickness()">
 
         @for(d of iconDef.paths; track d){
             @if (isMarkupPath(d)) {
@@ -25,27 +25,24 @@ import { SvgIcon } from './svg.icons';
     `
 })
 export class SvgComponent {
-    private readonly iconName = signal<string>('');
-    @Input() set name(value: string) {
-        this.iconName.set(value ?? '');
-    }
-    @Input() size = 20;
-    @Input() strokeThickness = 1.5;
-    @Input() strokeColor = 'currentColor';
-    @Input() fillColor = 'none';
-    @Input() svgClass = '';
-    @Input() ariaLabel?: string;
+    readonly name = input('');
+    readonly size = input(20);
+    readonly strokeThickness = input(1.5);
+    readonly strokeColor = input('currentColor');
+    readonly fillColor = input('none');
+    readonly svgClass = input('');
+    readonly ariaLabel = input<string | undefined>(undefined);
 
     constructor() { }
 
     ngOnInit() { }
 
     get ariaHidden(): 'true' | 'false' {
-        return this.ariaLabel ? 'false' : 'true';
+        return this.ariaLabel() ? 'false' : 'true';
     }
 
     get iconDef(): SvgIcon {
-        let icon = SvgIcon.getIcon(this.iconName());
+        const icon = SvgIcon.getIcon(this.name() || '');
 
         return icon || { name: 'default', viewBox: '0 0 24 24', paths: [] };
     }

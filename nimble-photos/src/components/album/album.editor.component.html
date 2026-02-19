@@ -20,7 +20,7 @@
             </label>
         </div>
 
-        <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+        <div class="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-75 overflow-y-auto pr-2 custom-scrollbar">
             @for (photo of selectedPhotos(); track photo.id) {
             <div class="relative group aspect-square rounded-lg overflow-hidden border border-white/5">
                 <img [src]="getThumbnail(photo)"
@@ -35,4 +35,3 @@
         </div>
     </div>
 </div>
-

@@ -1,5 +1,5 @@
-﻿
-import { Component, effect, ElementRef, OnInit, signal, ViewChild } from '@angular/core';
+
+import { Component, effect, ElementRef, OnInit, signal, ViewChild, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { GroupedPhotos, Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
@@ -23,14 +23,13 @@ export class GroupedGallery implements OnInit {
   readonly activeYear = signal('');
   readonly selectedPhotos = signal<Photo[]>([]);
 
-  constructor(private readonly photoService: PhotoService) {
-    effect(() => {
-      const year = this.activeYear();
-      if (year && this.monthsRuler) {
-        this.scrollMonthRulerToYear(year);
-      }
-    });
-  }
+  private readonly photoService = inject(PhotoService);
+  private readonly scrollEffect = effect(() => {
+    const year = this.activeYear();
+    if (year && this.monthsRuler) {
+      this.scrollMonthRulerToYear(year);
+    }
+  });
 
   ngOnInit(): void {
     this.photoService.getTimelineYears().subscribe(years => {

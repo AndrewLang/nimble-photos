@@ -1,4 +1,4 @@
-﻿import { Component, computed, Input, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 
 import { Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
@@ -19,40 +19,41 @@ export class GalleryComponent implements OnInit {
   readonly photos = signal<Photo[]>([]);
   readonly totalPhotos = signal(0);
   readonly isFetching = signal(false);
+  private readonly photoService = inject(PhotoService);
+  private readonly selectionService = inject(SelectionService);
+  readonly router = inject(Router);
   readonly selectedIds = computed(() => this.selectionService.selectedIds());
   readonly selectedPhotos = computed(() => this.selectionService.selectedPhotos());
-  readonly isSelectionMode = computed(() => this.selectionEnabled || this.selectionService.hasSelection());
+  readonly isSelectionMode = computed(() => this.selectionEnabled() || this.selectionService.hasSelection());
 
-  @Input() set initialPhotos(value: Photo[]) {
+  readonly initialPhotos = input<Photo[]>([]);
+  private readonly syncInitialPhotosEffect = effect(() => {
+    const value = this.initialPhotos() ?? [];
     this.photos.set(value);
-    if (!this.autoFetch) {
+    if (!this.autoFetch()) {
       this.totalPhotos.set(value.length);
     }
-  }
+  });
 
-  @Input() set initialTotal(value: number) {
-    this.totalPhotos.set(value);
-  }
+  readonly initialTotal = input(0);
+  private readonly syncInitialTotalEffect = effect(() => {
+    const value = this.initialTotal();
+    this.totalPhotos.set(value ?? 0);
+  });
 
-  @Input() autoFetch = true;
-  @Input() albumId?: string | null = null;
-  @Input() showHeader = true;
-  @Input() paddingTop = '56px';
-  @Input() selectionEnabled = false;
+  readonly autoFetch = input(true);
+  readonly albumId = input<string | null>(null);
+  readonly showHeader = input(true);
+  readonly paddingTop = input('56px');
+  readonly selectionEnabled = input(false);
 
   private currentPage = 1;
   private readonly pageSize = 56;
   private hasMore = true;
   private lastSelectedIndex: number | null = null;
 
-  constructor(
-    private readonly photoService: PhotoService,
-    private readonly selectionService: SelectionService,
-    public readonly router: Router
-  ) { }
-
   ngOnInit(): void {
-    if (this.autoFetch && this.photos().length === 0) {
+    if (this.autoFetch() && this.photos().length === 0) {
       this.fetchNextPage();
     }
   }
@@ -63,8 +64,9 @@ export class GalleryComponent implements OnInit {
     }
 
     this.isFetching.set(true);
-    const fetch$ = this.albumId
-      ? this.photoService.getAlbumPhotos(this.albumId, this.currentPage, this.pageSize)
+    const albumId = this.albumId();
+    const fetch$ = albumId
+      ? this.photoService.getAlbumPhotos(albumId, this.currentPage, this.pageSize)
       : this.photoService.getPhotos(this.currentPage, this.pageSize);
 
     fetch$

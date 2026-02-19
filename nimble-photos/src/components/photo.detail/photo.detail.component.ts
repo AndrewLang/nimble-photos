@@ -1,5 +1,5 @@
 
-import { Component, HostListener, OnInit, signal } from '@angular/core';
+import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { catchError, first, of } from 'rxjs';
 import { Formatter } from '../../models/formatters';
@@ -40,13 +40,11 @@ export class PhotoDetailComponent implements OnInit {
     private albumId: string | null = null;
     private returnUrl = '/';
 
-    constructor(
-        private readonly route: ActivatedRoute,
-        private readonly router: Router,
-        public readonly authService: AuthService,
-        private readonly photoService: PhotoService,
-        private readonly settingsService: SettingsService
-    ) { }
+    private readonly route = inject(ActivatedRoute);
+    readonly router = inject(Router);
+    readonly authService = inject(AuthService);
+    private readonly photoService = inject(PhotoService);
+    private readonly settingsService = inject(SettingsService);
 
     ngOnInit(): void {
         const initialAlbumId = this.route.snapshot.paramMap.get('albumId');

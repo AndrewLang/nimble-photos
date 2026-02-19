@@ -1,13 +1,16 @@
-import { Component, Input, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 
 import { Formatter } from '../../models/formatters';
+import { NamedValue } from '../../models/namedvalue';
 import { StorageDiskInfo, StorageLocation } from '../../models/storage.model';
 import { DialogService } from '../../services/dialog.service';
 import { StorageService } from '../../services/storage.service';
 import { DropdownComponent } from '../dropdown/dropdown.component';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
+
+type DiskOption = NamedValue<string> & { disk: StorageDiskInfo };
 
 @Component({
     selector: 'mtx-storage-manage',
@@ -15,7 +18,7 @@ import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.
     templateUrl: './storage.manage.component.html',
 })
 export class StorageManageComponent {
-    @Input() showHeading = true;
+    readonly showHeading = input(true);
 
     private readonly fb = inject(FormBuilder);
     private readonly storageService = inject(StorageService);
@@ -78,18 +81,25 @@ export class StorageManageComponent {
         const disk = this.editSelectedDisk();
         return disk ? `${disk.name} (${disk.mountPoint})` : '';
     });
+    readonly diskOptions = computed<DiskOption[]>(() =>
+        this.disks().map((disk) => ({
+            name: disk.name,
+            value: disk.mountPoint,
+            disk,
+        })),
+    );
     readonly formatBytes = Formatter.formatBytes;
     readonly formatAvailablePercent = Formatter.formatAvailablePercent;
-    readonly categoryTemplates = [
-        { value: 'hash', label: 'Hash' },
-        { value: 'date', label: 'Date' },
-    ] as const;
-    readonly diskLabel = (option: unknown): string => {
-        const disk = option as StorageDiskInfo;
+    readonly categoryTemplates: readonly NamedValue<string>[] = [
+        { value: 'hash', name: 'Hash' },
+        { value: 'date', name: 'Date' },
+    ];
+    readonly diskLabel = (option: NamedValue<unknown>): string => {
+        const disk = (option as DiskOption).disk;
         return `${disk.name} (${disk.mountPoint})`;
     };
-    readonly diskCapacity = (option: unknown): string => {
-        const disk = option as StorageDiskInfo;
+    readonly diskCapacity = (option: NamedValue<unknown>): string => {
+        const disk = (option as DiskOption).disk;
         return `${this.formatBytes(disk.availableBytes)} free / ${this.formatBytes(disk.totalBytes)} total`;
     };
     constructor() {

@@ -1,5 +1,5 @@
 <div class="flex flex-col gap-8">
-    @if (showHeading) {
+    @if (showHeading()) {
     <div class="flex flex-col gap-4">
         <h2 class="text-2xl font-semibold text-white md:text-3xl">Storage Manage</h2>
         <p class="max-w-4xl text-sm text-slate-400">
@@ -102,8 +102,8 @@
 
                     <div class="space-y-2">
                         <label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Disk</label>
-                        <mtx-dropdown formControlName="diskMount" [options]="disks()" [placeholder]="'Select a disk'"
-                            [valueKey]="'mountPoint'" [labelFn]="diskLabel" [descriptionFn]="diskCapacity"
+                        <mtx-dropdown formControlName="diskMount" [options]="diskOptions()" [placeholder]="'Select a disk'"
+                            [labelFn]="diskLabel" [descriptionFn]="diskCapacity"
                             (valueChange)="onCreateDiskMountChange($event)" />
                     </div>
 
@@ -170,8 +170,8 @@
 
                     <div class="space-y-2">
                         <label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Disk</label>
-                        <mtx-dropdown [formControl]="editForm.controls.diskMount" [options]="disks()"
-                            [placeholder]="'Select a disk'" [valueKey]="'mountPoint'" [labelFn]="diskLabel"
+                        <mtx-dropdown [formControl]="editForm.controls.diskMount" [options]="diskOptions()"
+                            [placeholder]="'Select a disk'" [labelFn]="diskLabel"
                             [descriptionFn]="diskCapacity" (valueChange)="onEditDiskMountChange($event)" />
                     </div>
 

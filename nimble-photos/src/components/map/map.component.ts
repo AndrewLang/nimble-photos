@@ -1,5 +1,5 @@
-﻿
-import { Component, ElementRef, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+
+import { Component, ElementRef, OnDestroy, OnInit, signal, ViewChild, inject } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import * as L from 'leaflet';
 import { first } from 'rxjs';
@@ -25,10 +25,8 @@ export class MapComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly hasGpsData = signal(false);
 
-  constructor(
-    private readonly photoService: PhotoService,
-    private readonly router: Router
-  ) { }
+  private readonly photoService = inject(PhotoService);
+  readonly router = inject(Router);
 
   ngOnInit(): void {
     delete (L.Icon.Default.prototype as any)._getIconUrl;

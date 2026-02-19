@@ -1,8 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output, forwardRef, signal } from '@angular/core';
+import { Component, computed, forwardRef, input, output, signal } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 import { SvgComponent } from '../svg/svg.component';
+import { NamedValue } from '../../models/namedvalue';
+
+type DropdownOption = NamedValue<unknown>;
 
 @Component({
     selector: 'mtx-dropdown',
@@ -17,23 +20,25 @@ import { SvgComponent } from '../svg/svg.component';
     ],
 })
 export class DropdownComponent implements ControlValueAccessor {
-    @Input() options: readonly unknown[] = [];
-    @Input() placeholder = 'Select an option';
-    @Input() emptyText = 'No options available';
-    @Input() disabled = false;
-    @Input() valueKey = 'value';
-    @Input() labelKey = 'label';
-    @Input() descriptionKey = '';
-    @Input() labelFn?: (option: unknown) => string;
-    @Input() descriptionFn?: (option: unknown) => string;
-    @Input() valueFn?: (option: unknown) => unknown;
-    @Output() valueChange = new EventEmitter<unknown>();
-    @Output() optionChange = new EventEmitter<unknown>();
+    readonly options = input<readonly DropdownOption[]>([]);
+    readonly placeholder = input('Select an option');
+    readonly emptyText = input('No options available');
+    readonly disabled = input(false);
+    readonly valueKey = input('value');
+    readonly labelKey = input('name');
+    readonly descriptionKey = input('');
+    readonly labelFn = input<((option: DropdownOption) => string) | undefined>(undefined);
+    readonly descriptionFn = input<((option: DropdownOption) => string) | undefined>(undefined);
+    readonly valueFn = input<((option: DropdownOption) => unknown) | undefined>(undefined);
+    readonly valueChange = output<unknown>();
+    readonly optionChange = output<DropdownOption>();
 
     readonly open = signal(false);
+    private readonly disabledState = signal(false);
     private value: unknown = null;
     private onChange: (value: unknown) => void = () => { };
     private onTouched: () => void = () => { };
+    readonly isDisabled = computed(() => this.disabled() || this.disabledState());
 
     writeValue(value: unknown): void {
         this.value = value;
@@ -48,11 +53,11 @@ export class DropdownComponent implements ControlValueAccessor {
     }
 
     setDisabledState(isDisabled: boolean): void {
-        this.disabled = isDisabled;
+        this.disabledState.set(isDisabled);
     }
 
     toggle(): void {
-        if (this.disabled) {
+        if (this.isDisabled()) {
             return;
         }
         this.open.set(!this.open());
@@ -63,12 +68,13 @@ export class DropdownComponent implements ControlValueAccessor {
     }
 
     selectedLabel(): string {
-        const selected = this.options.find((option) => this.valuesEqual(this.getOptionValue(option), this.value));
-        return selected ? this.getOptionLabel(selected) : this.placeholder;
+        const options = this.options();
+        const selected = options.find((option) => this.valuesEqual(this.getOptionValue(option), this.value));
+        return selected ? this.getOptionLabel(selected) : this.placeholder();
     }
 
-    select(option: unknown): void {
-        if (this.disabled) {
+    select(option: DropdownOption): void {
+        if (this.isDisabled()) {
             return;
         }
 
@@ -81,44 +87,44 @@ export class DropdownComponent implements ControlValueAccessor {
         this.close();
     }
 
-    isSelected(option: unknown): boolean {
+    isSelected(option: DropdownOption): boolean {
         return this.valuesEqual(this.getOptionValue(option), this.value);
     }
 
-    getOptionLabel(option: unknown): string {
-        if (this.labelFn) {
-            return this.labelFn(option);
+    getOptionLabel(option: DropdownOption): string {
+        const labelFn = this.labelFn();
+        if (labelFn) {
+            return labelFn(option);
         }
-        return this.readString(option, this.labelKey);
+        return this.readString(option, this.labelKey());
     }
 
-    getOptionDescription(option: unknown): string {
-        if (this.descriptionFn) {
-            return this.descriptionFn(option);
+    getOptionDescription(option: DropdownOption): string {
+        const descriptionFn = this.descriptionFn();
+        if (descriptionFn) {
+            return descriptionFn(option);
         }
-        if (!this.descriptionKey) {
+        if (!this.descriptionKey()) {
             return '';
         }
-        return this.readString(option, this.descriptionKey);
+        return this.readString(option, this.descriptionKey());
     }
 
-    private getOptionValue(option: unknown): unknown {
-        if (this.valueFn) {
-            return this.valueFn(option);
+    private getOptionValue(option: DropdownOption): unknown {
+        const valueFn = this.valueFn();
+        if (valueFn) {
+            return valueFn(option);
         }
-        return this.readProperty(option, this.valueKey);
+        return this.readProperty(option, this.valueKey());
     }
 
-    private readString(option: unknown, key: string): string {
+    private readString(option: DropdownOption, key: string): string {
         const value = this.readProperty(option, key);
         return typeof value === 'string' ? value : String(value ?? '');
     }
 
-    private readProperty(option: unknown, key: string): unknown {
-        if (!option || typeof option !== 'object') {
-            return null;
-        }
-        return (option as Record<string, unknown>)[key];
+    private readProperty(option: DropdownOption, key: string): unknown {
+        return (option as Record<string, unknown>)[key] ?? null;
     }
 
     private valuesEqual(left: unknown, right: unknown): boolean {

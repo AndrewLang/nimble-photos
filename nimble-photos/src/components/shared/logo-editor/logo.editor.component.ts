@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { Component, effect, input, output, signal, inject } from '@angular/core';
 import { SettingsService } from '../../../services/settings.service';
 
 @Component({
@@ -6,7 +6,7 @@ import { SettingsService } from '../../../services/settings.service';
     templateUrl: './logo.editor.component.html',
 })
 export class LogoEditorComponent {
-    private readonly settingsService: SettingsService;
+    private readonly settingsService = inject(SettingsService);
 
     readonly logoPreview = signal<string | null>(null);
     readonly logoUploading = signal(false);
@@ -15,20 +15,18 @@ export class LogoEditorComponent {
 
     private currentPath = '';
 
-    @Input() disabled = false;
-    @Input() showHelpText = true;
+    readonly disabled = input(false);
+    readonly showHelpText = input(true);
+    readonly logoPath = input<string | null | undefined>(undefined);
 
-    @Input() set logoPath(value: string | null | undefined) {
+    private readonly logoPathEffect = effect(() => {
+        const value = this.logoPath();
         this.currentPath = value ?? '';
         const url = this.settingsService.buildLogoUrl(this.currentPath);
         this.logoPreview.set(url ? url : null);
-    }
+    });
 
-    @Output() logoChanged = new EventEmitter<string>();
-
-    constructor(settingsService: SettingsService) {
-        this.settingsService = settingsService;
-    }
+    readonly logoChanged = output<string>();
 
     onLogoSelected(event: Event): void {
         const input = event.target as HTMLInputElement;
@@ -63,7 +61,7 @@ export class LogoEditorComponent {
     }
 
     private handleLogoFile(file?: File): void {
-        if (!file || this.logoUploading() || this.disabled) {
+        if (!file || this.logoUploading() || this.disabled()) {
             return;
         }
 

@@ -1,6 +1,6 @@
-﻿import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
+import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 import { CommonModule, DatePipe } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnInit, Output, ViewChild, computed, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnInit, ViewChild, computed, effect, inject, input, output, signal } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
 
@@ -31,27 +31,30 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     @ViewChild('container') container?: ElementRef<HTMLElement>;
     @ViewChild(CdkVirtualScrollViewport) viewport?: CdkVirtualScrollViewport;
 
-    @Output() activeTitleChange = new EventEmitter<string>();
-    @Output() timelineLoaded = new EventEmitter<GroupedPhotos[]>();
+    readonly activeTitleChange = output<string>();
+    readonly timelineLoaded = output<GroupedPhotos[]>();
 
-    @Input() showHeader = true;
-    @Input() selectionEnabled = true;
-    @Input() autoFetch = true;
-    @Input() albumId?: string;
+    readonly showHeader = input(true);
+    readonly selectionEnabled = input(true);
+    readonly autoFetch = input(true);
+    readonly albumId = input<string | undefined>(undefined);
+
+    private readonly photoService = inject(PhotoService);
+    private readonly selectionService = inject(SelectionService);
+    readonly router = inject(Router);
 
     readonly selectedIds = computed(() => this.selectionService.selectedIds());
     readonly selectedPhotos = computed(() => this.selectionService.selectedPhotos());
     readonly isSelectionMode = computed(() => this.selectionService.hasSelection());
 
-    @Output() selectionChange = new EventEmitter<Photo[]>();
+    readonly selectionChange = output<Photo[]>();
 
     private readonly _timeline = signal<GroupedPhotos[]>([]);
-    @Input() set timeline(value: GroupedPhotos[]) {
-        this._timeline.set(value);
-    }
-    get timeline() {
-        return this._timeline();
-    }
+    readonly timeline = input<GroupedPhotos[]>([]);
+    private readonly syncTimelineEffect = effect(() => {
+        const value = this.timeline();
+        this._timeline.set(value ?? []);
+    });
 
     readonly containerWidth = signal<number>(0);
     readonly targetHeight = signal<number>(180);
@@ -149,14 +152,8 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     private isRestoring = false;
     private lastSelectedIndex: number | null = null;
 
-    constructor(
-        private readonly photoService: PhotoService,
-        private readonly selectionService: SelectionService,
-        public readonly router: Router
-    ) { }
-
     ngOnInit() {
-        if (!this.autoFetch) {
+        if (!this.autoFetch()) {
             if (this._timeline().length > 0) {
                 this.timelineLoaded.emit(this._timeline());
             }
@@ -315,7 +312,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
             }
         }
 
-        if (index > 0 && index > currentItems.length - 15 && !this.isFetching() && this.hasMore && this.autoFetch) {
+        if (index > 0 && index > currentItems.length - 15 && !this.isFetching() && this.hasMore && this.autoFetch()) {
             this.fetchNextPage();
         }
     }

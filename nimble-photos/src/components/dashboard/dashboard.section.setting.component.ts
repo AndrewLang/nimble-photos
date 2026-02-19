@@ -1,21 +1,19 @@
-import { Component, Input, OnInit, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { DashboardSetting, DashboardSystemSection } from '../../models/dashboard.settings.model';
 import { DashboardSettingsService } from '../../services/dashboard.setting.service';
-import { SvgComponent } from '../svg/svg.component';
 import { LogoEditorComponent } from '../shared/logo-editor/logo.editor.component';
+import { SvgComponent } from '../svg/svg.component';
 
 @Component({
     selector: 'mtx-dashboard-section-setting',
-    imports: [FormsModule, SvgComponent, LogoEditorComponent],
+    imports: [FormsModule, LogoEditorComponent, SvgComponent],
     templateUrl: './dashboard.section.setting.component.html',
 })
 export class DashboardSectionSettingComponent implements OnInit {
-    @Input({ required: true }) section!: DashboardSystemSection;
-
+    readonly section = input.required<DashboardSystemSection>();
     readonly store = inject(DashboardSettingsService);
-
     readonly logoSetting = computed(() => this.store.getSettingByName('site.logo'));
 
     ngOnInit(): void {
@@ -23,7 +21,7 @@ export class DashboardSectionSettingComponent implements OnInit {
     }
 
     getSectionLabel(): string {
-        return this.store.getSectionLabel(this.section) || this.getFallbackLabel();
+        return this.store.getSectionLabel(this.section()) || this.getFallbackLabel();
     }
 
     getSectionTitle(): string {
@@ -43,7 +41,7 @@ export class DashboardSectionSettingComponent implements OnInit {
     }
 
     getSectionSettings(): DashboardSetting[] {
-        return this.store.getSectionSettings(this.section);
+        return this.store.getSectionSettings(this.section());
     }
 
     getVisibleSettings(): DashboardSetting[] {
@@ -51,7 +49,7 @@ export class DashboardSectionSettingComponent implements OnInit {
     }
 
     showLogoEditor(): boolean {
-        return this.section === 'general' && !!this.logoSetting();
+        return this.section() === 'general' && !!this.logoSetting();
     }
 
     onLogoChanged(path: string): void {
@@ -69,7 +67,7 @@ export class DashboardSectionSettingComponent implements OnInit {
     }
 
     private getFallbackLabel(): string {
-        switch (this.section) {
+        switch (this.section()) {
             case 'general':
                 return 'General Settings';
             case 'photo-manage':
@@ -80,10 +78,10 @@ export class DashboardSectionSettingComponent implements OnInit {
     }
 
     private getTitleKey(): string {
-        return `dashboard.${this.section}.title`;
+        return `dashboard.${this.section()}.title`;
     }
 
     private getSubtitleKey(): string {
-        return `dashboard.${this.section}.subtitle`;
+        return `dashboard.${this.section()}.subtitle`;
     }
 }

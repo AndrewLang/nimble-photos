@@ -1,7 +1,7 @@
 <div class="flex flex-col gap-6">
     <div class="space-y-2">
         <label class="text-xs font-bold uppercase tracking-widest text-slate-500">Selected photos</label>
-        <p class="text-sm text-slate-300">{{ photos.length }} photo{{ photos.length === 1 ? '' : 's' }}</p>
+        <p class="text-sm text-slate-300">{{ photos().length }} photo{{ photos().length === 1 ? '' : 's' }}</p>
     </div>
 
     <div class="space-y-2">
@@ -36,11 +36,11 @@
 
     <div class="space-y-2">
         <label class="text-xs font-bold uppercase tracking-widest text-slate-500">Existing tags</label>
-        @if (existingTags.length === 0) {
+        @if (existingTags().length === 0) {
         <p class="text-xs text-slate-500">No existing tags yet.</p>
         } @else {
         <div class="flex max-h-40 flex-wrap gap-2 overflow-y-auto pr-1">
-            @for (tag of existingTags; track tag) {
+            @for (tag of existingTags(); track tag) {
             <button type="button" (click)="toggleSuggestedTag(tag)"
                 [class.bg-emerald-500/20]="selectedTags().includes(tag)"
                 [class.border-emerald-400/50]="selectedTags().includes(tag)"
@@ -52,4 +52,3 @@
         }
     </div>
 </div>
-

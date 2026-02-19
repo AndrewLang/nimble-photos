@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, signal } from '@angular/core';
+import { Component, OnInit, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Photo } from '../../models/photo';
 import { SvgComponent } from '../svg/svg.component';
@@ -10,15 +10,15 @@ import { SvgComponent } from '../svg/svg.component';
   templateUrl: './tag.editor.component.html'
 })
 export class TagEditorComponent implements OnInit {
-  @Input() photos: Photo[] = [];
-  @Input() existingTags: string[] = [];
+  readonly photos = input<Photo[]>([]);
+  readonly existingTags = input<string[]>([]);
 
   readonly selectedTags = signal<string[]>([]);
   readonly draftTag = signal('');
 
   ngOnInit(): void {
     const merged = new Set<string>();
-    for (const photo of this.photos) {
+    for (const photo of this.photos()) {
       for (const tag of photo.tags ?? []) {
         const normalized = tag.trim();
         if (normalized) {
@@ -67,13 +67,12 @@ export class TagEditorComponent implements OnInit {
 
   getFormValue() {
     return {
-      photoIds: this.photos.map(photo => photo.id),
+      photoIds: this.photos().map(photo => photo.id),
       tags: this.selectedTags(),
     };
   }
 
   isValid() {
-    return this.photos.length > 0;
+    return this.photos().length > 0;
   }
 }
-

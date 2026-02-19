@@ -15,9 +15,9 @@
         </div>
         <div class="flex flex-col gap-2">
             <input id="siteLogo" type="file" accept="image/*" (change)="onLogoSelected($event)"
-                [disabled]="logoUploading() || disabled"
+                [disabled]="logoUploading() || disabled()"
                 class="block w-full text-xs text-slate-300 file:mr-4 file:rounded-full file:border-0 file:bg-indigo-500/20 file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-wider file:text-indigo-200 hover:file:bg-indigo-500/30 disabled:opacity-60" />
-            <button type="button" (click)="clearLogo()" [disabled]="!logoPreview() || disabled"
+            <button type="button" (click)="clearLogo()" [disabled]="!logoPreview() || disabled()"
                 class="text-left text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-white disabled:opacity-40">
                 Remove logo
             </button>
@@ -27,7 +27,7 @@
         </div>
     </div>
 
-    @if (showHelpText) {
+    @if (showHelpText()) {
     <p class="text-xs text-slate-500">Upload a PNG, JPG, or SVG. The logo will be stored with your settings.</p>
     }
 
