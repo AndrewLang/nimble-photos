@@ -358,7 +358,7 @@ export class PhotoService {
       id: dto.id,
       parentId: dto.parentId ?? undefined,
       name: dto.name,
-      createDate: this.toDate(dto.createDate),
+      createDate: this.toDate(dto.createDate) || new Date(),
       description: dto.description ?? undefined,
       category: dto.category ?? undefined,
       kind: (dto.kind === 'smart' ? 'smart' : 'manual') as Album['kind'],

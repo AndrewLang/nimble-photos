@@ -31,25 +31,25 @@
         </div>
 
         <div class="flex items-center gap-2 pr-1">
-            <button (click)="createAlbum()" title="Create Album"
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
+            <button (click)="createAlbum()" title="Create a New Album with selected photos"
+                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.5rem] md:text-xs uppercase text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
                 <mtx-svg name="plus"></mtx-svg>
                 <span class="hidden xl:inline whitespace-nowrap">Create Album</span>
             </button>
-            <button (click)="addToAlbum()" title="Add to Album"
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
+            <button (click)="addToAlbum()" title="Add selected photos to existing Album"
+                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.5rem] md:text-xs uppercase  text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
                 <mtx-svg name="folderPlus"></mtx-svg>
                 <span class="hidden xl:inline whitespace-nowrap">Add to Album</span>
             </button>
 
-            <button (click)="tagPhotos()" title="Tag Photos"
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
+            <button (click)="tagPhotos()" title="Tag selected photos"
+                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.5rem] md:text-xs uppercase  text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
                 <mtx-svg name="tag"></mtx-svg>
                 <span class="hidden xl:inline whitespace-nowrap">Tag Photos</span>
             </button>
 
-            <button (click)="downloadSelected()" title="Download"
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.65rem] md:text-xs font-medium uppercase tracking-wider text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
+            <button (click)="downloadSelected()" title="Download selected photos"
+                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.5rem] md:text-xs uppercase  text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
                 <mtx-svg name="download"></mtx-svg>
                 <span class="hidden xl:inline whitespace-nowrap">Download</span>
             </button>
@@ -100,7 +100,7 @@
                         </p>
                         <p class="text-xs font-semibold text-white truncate">{{ authService.currentUser()?.displayName
                             }}</p>
-                        <p class="text-[0.65rem] text-slate-400 truncate mt-1">{{ authService.currentUser()?.email }}
+                        <p class="text-[0.5rem] text-slate-400 truncate mt-1">{{ authService.currentUser()?.email }}
                         </p>
                     </div>
                     @if (authService.canAccessDashboard()) {

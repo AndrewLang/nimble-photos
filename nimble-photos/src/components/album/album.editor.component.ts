@@ -3,6 +3,7 @@ import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Photo } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
+import { SelectionService } from '../../services/selection.service';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
@@ -12,7 +13,6 @@ import { SvgComponent } from '../svg/svg.component';
 })
 export class AlbumEditorComponent implements OnInit {
   readonly photos = input<Photo[]>([]);
-
   readonly selectedPhotos = signal<Photo[]>([]);
   readonly albumForm: FormGroup = inject(FormBuilder).group({
     name: ['', [Validators.required, Validators.minLength(1)]],
@@ -20,9 +20,10 @@ export class AlbumEditorComponent implements OnInit {
   });
 
   private readonly photoService = inject(PhotoService);
+  private readonly selectionService = inject(SelectionService);
 
   ngOnInit() {
-    this.selectedPhotos.set([...this.photos()]);
+    this.selectedPhotos.set(this.selectionService.selectedPhotos());
   }
 
   removePhoto(photo: Photo) {
