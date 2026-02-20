@@ -12,6 +12,7 @@ use crate::dtos::auth_dtos::{
 use crate::dtos::user_profile_dto::UserProfileDto;
 use crate::entities::{user::User, user_settings::UserSettings};
 use crate::services::{AuthService, SettingService};
+use serde_json::json;
 
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
@@ -78,8 +79,12 @@ impl HttpHandler for RegisterHandler {
         }
 
         let auth_service = context.service::<AuthService>()?;
+        let setting_service = context.service::<SettingService>()?;
         let response = auth_service
             .register(&payload.email, &payload.password, &payload.display_name)
+            .await?;
+        setting_service
+            .update("site.initialized", json!(true))
             .await?;
 
         Ok(ResponseValue::json(response))
@@ -96,10 +101,19 @@ impl HttpHandler for RegistrationStatusHandler {
 
         let has_admin = auth_service.has_admin_user().await?;
         let allow_registration = setting_service.is_registration_allowed().await?;
+        let mut initialized = setting_service.is_site_initialized().await?;
+
+        if has_admin && !initialized {
+            setting_service
+                .update("site.initialized", json!(true))
+                .await?;
+            initialized = true;
+        }
 
         Ok(ResponseValue::json(RegistrationStatusResponse {
             has_admin,
             allow_registration,
+            initialized,
         }))
     }
 }

@@ -53,7 +53,15 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     readonly timeline = input<GroupedPhotos[]>([]);
     private readonly syncTimelineEffect = effect(() => {
         const value = this.timeline();
-        this._timeline.set(value ?? []);
+        if (!this.autoFetch()) {
+            this._timeline.set(value ?? []);
+            return;
+        }
+
+        // In auto-fetch mode, avoid wiping loaded/cache data with the default empty input.
+        if ((value?.length ?? 0) > 0) {
+            this._timeline.set(value);
+        }
     });
 
     readonly containerWidth = signal<number>(0);
@@ -212,7 +220,6 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
         this.photoService.getTimeline(this.currentPage, this.pageSize)
             .pipe(first())
             .subscribe(groups => {
-                // console.log(`Timeline ${this.currentPage} loaded with ${groups.length} groups`, groups);
                 if (groups.length < this.pageSize) {
                     this.hasMore = false;
                 }

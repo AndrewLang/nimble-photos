@@ -25,7 +25,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             }
 
             if (!authService.getRefreshToken()) {
-                authService.handleAuthFailure();
+                if (authService.isAuthenticated()) {
+                    authService.handleAuthFailure();
+                }
                 return throwError(() => error);
             }
 

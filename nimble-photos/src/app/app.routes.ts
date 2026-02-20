@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { AdminGuard } from './guards/admin.guard';
 
 export const routes: Routes = [
-    { path: '', loadComponent: () => import('../components/grouped.gallery/grouped.gallery').then(m => m.GroupedGallery) },
+    { path: '', loadComponent: () => import('../components/grouped.gallery/grouped.gallery').then(m => m.GroupedGalleryComponent) },
     { path: 'photo/:id', loadComponent: () => import('../components/photo.detail/photo.detail.component').then(m => m.PhotoDetailComponent) },
     { path: 'album/:id', loadComponent: () => import('../components/album.detail/album.detail.component').then(m => m.AlbumDetailComponent) },
     { path: 'albums', loadComponent: () => import('../components/albums/albums.component').then(m => m.AlbumsComponent) },

@@ -60,4 +60,5 @@ pub struct VerifyEmailRequest {
 pub struct RegistrationStatusResponse {
     pub has_admin: bool,
     pub allow_registration: bool,
+    pub initialized: bool,
 }

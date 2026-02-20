@@ -13,7 +13,7 @@ import { JustifiedGalleryComponent } from '../justified.gallery/justified.galler
     class: 'block flex-1 min-h-0',
   },
 })
-export class GroupedGallery implements OnInit {
+export class GroupedGalleryComponent implements OnInit {
   @ViewChild(JustifiedGalleryComponent) gallery?: JustifiedGalleryComponent;
   @ViewChild('monthsRuler') monthsRuler?: ElementRef<HTMLElement>;
 
@@ -74,8 +74,6 @@ export class GroupedGallery implements OnInit {
   }
 
   scrollToYear(year: string): void {
-    console.log(`Go to year ${year}`);
-
     const targetGroup = this.groups().find(g => g.title.startsWith(year));
 
     if (targetGroup) {

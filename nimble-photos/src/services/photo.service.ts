@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
-import { catchError, map, Observable, of, switchMap, tap, forkJoin } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of, switchMap, tap } from 'rxjs';
 
 import { AlbumModel } from '../models/album.model';
 import { PagedAlbumsModel } from '../models/paged.albums.model';
@@ -192,7 +192,6 @@ export class PhotoService {
   }
 
   getTimelineRange(startPage: number, endPage: number, pageSize: number = 10): Observable<GroupedPhotos[]> {
-    console.log(`getTimelineRange(${startPage}, ${endPage}, ${pageSize})`);
     if (startPage > endPage) {
       return of([]);
     }

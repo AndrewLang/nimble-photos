@@ -44,11 +44,11 @@ export class GeneralStepComponent {
         }).subscribe({
             next: (settings) => {
                 this.settingsForm.patchValue({
-                    title: settings.title.value as string,
-                    tagline: settings.tagline.value as string,
-                    logo: (settings.logo.value as string) ?? '',
-                    isPublic: Boolean(settings.isPublic.value),
-                    allowRegistration: Boolean(settings.allowRegistration.value),
+                    title: settings.title?.value as string,
+                    tagline: settings.tagline?.value as string,
+                    logo: (settings.logo?.value as string) ?? '',
+                    isPublic: Boolean(settings.isPublic?.value),
+                    allowRegistration: Boolean(settings.allowRegistration?.value),
                 });
                 this.loading.set(false);
             },

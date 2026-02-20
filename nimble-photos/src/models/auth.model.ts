@@ -18,6 +18,7 @@ export interface LoginRequest {
 export interface RegistrationStatus {
     hasAdmin: boolean;
     allowRegistration: boolean;
+    initialized: boolean;
 }
 
 export interface RefreshTokenRequest {

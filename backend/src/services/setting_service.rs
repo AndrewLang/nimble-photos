@@ -13,6 +13,7 @@ use nimble_web::pipeline::pipeline::PipelineError;
 pub struct SettingKeys;
 
 impl SettingKeys {
+    pub const SITE_INITIALIZED: &'static str = "site.initialized";
     pub const SITE_TITLE: &'static str = "site.title";
     pub const SITE_TAGLINE: &'static str = "site.tagline";
     pub const SITE_LOGO: &'static str = "site.logo";
@@ -165,6 +166,10 @@ impl SettingService {
     pub async fn is_registration_allowed(&self) -> Result<bool, PipelineError> {
         self.get_bool_setting(SettingKeys::SITE_ALLOW_REGISTRATION)
             .await
+    }
+
+    pub async fn is_site_initialized(&self) -> Result<bool, PipelineError> {
+        self.get_bool_setting(SettingKeys::SITE_INITIALIZED).await
     }
 
     pub async fn is_photo_upload_enabled(&self) -> Result<bool, PipelineError> {
@@ -427,6 +432,16 @@ impl SettingService {
 
     fn build_definitions() -> Vec<SettingDefinition> {
         vec![
+            SettingDefinition {
+                key: SettingKeys::SITE_INITIALIZED,
+                label: "Site initialized",
+                description: "Tracks whether first-time setup has been completed.",
+                section: SettingSection::General,
+                group: SettingSection::General.slug(),
+                value_type: SettingValueType::Boolean,
+                default_value: json!(false),
+                options: None,
+            },
             SettingDefinition {
                 key: SettingKeys::SITE_TITLE,
                 label: "Site title",
