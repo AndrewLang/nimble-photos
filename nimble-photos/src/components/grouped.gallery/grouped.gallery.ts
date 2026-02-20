@@ -40,6 +40,18 @@ export class GroupedGallery implements OnInit {
     });
   }
 
+  getYear(title: string): string {
+    return title ? title.split('-')[0] : '';
+  }
+
+  isNewYear(index: number): boolean {
+    const groups = this.groups();
+    if (!groups || groups.length === 0 || index === 0) return true;
+    const currentYear = this.getYear(groups[index].title);
+    const prevYear = this.getYear(groups[index - 1].title);
+    return currentYear !== prevYear;
+  }
+
   getMonthName(monthStr: string): string {
     try {
       if (!monthStr)
@@ -62,6 +74,8 @@ export class GroupedGallery implements OnInit {
   }
 
   scrollToYear(year: string): void {
+    console.log(`Go to year ${year}`);
+
     const targetGroup = this.groups().find(g => g.title.startsWith(year));
 
     if (targetGroup) {
@@ -94,10 +108,12 @@ export class GroupedGallery implements OnInit {
   }
 
   onTimelineLoaded(groups: GroupedPhotos[]): void {
-    this.groups.set(groups);
-    if (groups.length > 0 && !this.activeGroupTitle()) {
-      this.activeGroupTitle.set(groups[0].title);
-    }
+    queueMicrotask(() => {
+      this.groups.set(groups);
+      if (groups.length > 0 && !this.activeGroupTitle()) {
+        this.activeGroupTitle.set(groups[0].title);
+      }
+    });
   }
 
   onActiveTitleChange(title: string): void {
