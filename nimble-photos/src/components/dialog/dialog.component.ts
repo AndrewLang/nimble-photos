@@ -61,7 +61,7 @@ export class DialogComponent implements AfterViewInit, OnInit {
   }
 
   getActionClasses(action: DialogAction): string {
-    const base = 'px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center min-w-[80px] border ';
+    const base = 'px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center min-w-[80px] border ';
 
     switch (action.style) {
       case 'danger':

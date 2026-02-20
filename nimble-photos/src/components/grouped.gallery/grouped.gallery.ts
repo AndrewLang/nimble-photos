@@ -74,16 +74,20 @@ export class GroupedGalleryComponent implements OnInit {
   }
 
   scrollToYear(year: string): void {
+    console.log(`Scrolling to year: ${year}`);
     const targetGroup = this.groups().find(g => g.title.startsWith(year));
 
+    console.log('Target group:', targetGroup);
     if (targetGroup) {
       this.scrollToGroup(targetGroup.title);
     } else {
-      this.photoService.getTimelineYearOffset(year).subscribe(offset => {
-        if (this.gallery) {
-          this.gallery.jumpToGroupOffset(offset, year);
-        }
-      });
+      this.photoService.getTimelineYearOffset(year)
+        .subscribe(offset => {
+          console.log(`Year ${year} offset:`, offset, this.gallery);
+          if (this.gallery) {
+            this.gallery.jumpToGroupOffset(offset, year);
+          }
+        });
     }
     this.activeYear.set(year);
 

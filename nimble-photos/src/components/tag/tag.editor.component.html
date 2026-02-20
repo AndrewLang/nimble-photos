@@ -9,9 +9,9 @@
         <div class="flex gap-2">
             <input type="text" [ngModel]="draftTag()" (ngModelChange)="draftTag.set($event ?? '')"
                 (keydown)="onTagInputKeydown($event)" placeholder="e.g. landscape, flower"
-                class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all">
+                class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all">
             <button type="button" (click)="addDraftTag()"
-                class="px-4 py-3 rounded-xl border border-indigo-500/30 bg-indigo-600/90 text-white text-xs font-bold uppercase tracking-widest hover:bg-indigo-500 transition-all">
+                class="px-4 py-3 rounded-lg border border-indigo-500/30 bg-indigo-600/90 text-white text-xs font-bold uppercase tracking-widest hover:bg-indigo-500 transition-all">
                 Add
             </button>
         </div>

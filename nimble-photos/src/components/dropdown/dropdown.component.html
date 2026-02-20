@@ -1,12 +1,12 @@
 <div class="relative">
     <button type="button" (click)="toggle()" [disabled]="isDisabled()"
-        class="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] disabled:opacity-50">
+        class="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] disabled:opacity-50">
         <span>{{ selectedLabel() }}</span>
         <mtx-svg name="chevronDownSolid" [svgClass]="'h-3 w-3 text-white'" />
     </button>
 
     @if (open()) {
-    <div class="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/95 shadow-2xl">
+    <div class="absolute z-20 mt-2 w-full overflow-hidden rounded-lg border border-white/10 bg-slate-950/95 shadow-2xl">
         @if (!options().length) {
         <div class="px-4 py-3 text-xs text-slate-500">{{ emptyText() }}</div>
         } @else {

@@ -1,5 +1,5 @@
 <div class="max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <header class="mb-8 p-8 rounded-3xl border border-white/5 bg-linear-to-r from-sky-500/10 via-slate-900/40 to-transparent">
+    <header class="mb-8 p-8 rounded-2xl border border-white/5 bg-linear-to-r from-sky-500/10 via-slate-900/40 to-transparent">
         <h1 class="text-3xl font-bold tracking-tight text-white mb-2">Client Manage</h1>
         <p class="text-slate-400 text-sm max-w-2xl leading-relaxed">
             Review registered clients and approve or revoke access.
@@ -13,13 +13,13 @@
     }
 
     @if (loading()) {
-    <div class="rounded-2xl border border-white/10 bg-slate-900/60 p-8 text-slate-400 text-sm">Loading clients...</div>
+    <div class="rounded-xl border border-white/10 bg-slate-900/60 p-8 text-slate-400 text-sm">Loading clients...</div>
     } @else if (!clients().length) {
-    <div class="rounded-2xl border border-white/10 bg-slate-900/60 p-8 text-slate-400 text-sm">No clients found.</div>
+    <div class="rounded-xl border border-white/10 bg-slate-900/60 p-8 text-slate-400 text-sm">No clients found.</div>
     } @else {
     <div class="space-y-3">
         @for (client of clients(); track client.id) {
-        <div class="flex flex-col gap-4 rounded-2xl border border-white/10 bg-slate-900/60 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex flex-col gap-4 rounded-xl border border-white/10 bg-slate-900/60 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div class="space-y-1">
                 <p class="text-sm font-semibold text-white">{{ client.name }}</p>
                 <p class="text-xs text-slate-400">Client ID: {{ client.id }}</p>

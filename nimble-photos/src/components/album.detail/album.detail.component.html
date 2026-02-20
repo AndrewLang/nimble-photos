@@ -47,7 +47,7 @@
         paddingTop="20px" [selectionEnabled]="isEditMode()"></mtx-gallery>
 
 
-    <section class="bg-slate-900/50 border border-white/10 rounded-2xl p-4 md:p-6 space-y-5">
+    <section class="bg-slate-900/50 border border-white/10 rounded-xl p-4 md:p-6 space-y-5">
         <div class="flex items-center justify-between gap-4">
             <div>
                 <p class="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">Comments</p>
@@ -73,7 +73,7 @@
             } @else {
             <div class="space-y-3">
                 @for (comment of albumCommentsList; track comment.id) {
-                <article class="space-y-2 rounded-2xl border border-white/10 bg-slate-900/60 p-3">
+                <article class="space-y-2 rounded-xl border border-white/10 bg-slate-900/60 p-3">
                     <div class="flex items-center justify-between gap-2">
                         <div class="flex items-center gap-3">
                             <span class="text-sm font-semibold text-white">
@@ -108,7 +108,7 @@
             @if (allowComments() && commentEditorVisible() && isAuthenticated()) {
             <textarea rows="3" [value]="commentDraft()" (input)="handleCommentInput($event)"
                 [attr.maxlength]="maxCommentLength" placeholder="Share your thoughts about this album..."
-                class="w-full bg-slate-900/60 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition duration-200 resize-none">
+                class="w-full bg-slate-900/60 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition duration-200 resize-none">
             </textarea>
             @if (commentError()) {
             <p class="text-[10px] text-rose-400">{{ commentError() }}</p>

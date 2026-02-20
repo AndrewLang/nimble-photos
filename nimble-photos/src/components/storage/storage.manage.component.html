@@ -9,14 +9,14 @@
     }
 
     @if (error()) {
-    <div class="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-xs text-red-200">
+    <div class="rounded-lg border border-red-500/20 bg-red-500/10 px-5 py-4 text-xs text-red-200">
         {{ error() }}
     </div>
     }
 
     <div class="grid gap-6">
         <div class="space-y-6">
-            <div class="rounded-3xl border border-white/5 bg-slate-950/60 p-6">
+            <div class="rounded-2xl border border-white/5 bg-slate-950/60 p-6">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <h3 class="text-sm font-semibold text-white">Named Storages</h3>
@@ -29,14 +29,14 @@
                 </div>
 
                 @if (!locations().length) {
-                <div class="mt-6 rounded-xl border border-white/10 bg-white/5 px-5 py-6 text-xs text-slate-400">
+                <div class="mt-6 rounded-lg border border-white/10 bg-white/5 px-5 py-6 text-xs text-slate-400">
                     No storage created.
                 </div>
                 } @else {
                 <div class="mt-4 grid gap-4">
                     @for (location of locations(); track location.id) {
                     <div
-                        class="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-4">
+                        class="rounded-lg border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-4">
                         <div class="min-w-55 space-y-1.5">
                             <div class="flex flex-wrap items-center gap-2">
                                 <p class="text-sm font-semibold text-white">{{ location.label }}</p>
@@ -86,7 +86,7 @@
             </div>
 
             @if (showCreateForm()) {
-            <div class="rounded-3xl border border-white/5 bg-slate-950/60 p-6">
+            <div class="rounded-2xl border border-white/5 bg-slate-950/60 p-6">
                 <h3 class="text-sm font-semibold text-white">Create Storage</h3>
                 <p class="text-xs text-slate-400 mt-1">
                     Name the storage and choose a disk. The folder name will be created under the selected mount.
@@ -97,7 +97,7 @@
                         <label for="storageLabel"
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Name</label>
                         <input id="storageLabel" type="text" formControlName="label" placeholder="Primary Library"
-                            class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                            class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
                     </div>
 
                     <div class="space-y-2">
@@ -111,7 +111,7 @@
                         <label for="storageFolder"
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Folder</label>
                         <input id="storageFolder" type="text" formControlName="folderName" placeholder="Nimble Photos"
-                            class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                            class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
                     </div>
 
                     <div class="space-y-2">
@@ -122,7 +122,7 @@
                     </div>
 
                     @if (selectedDiskLabel().length) {
-                    <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
+                    <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
                         <div class="flex items-center justify-between">
                             <span>Available</span>
                             <span class="font-semibold text-white">{{ formatBytes(selectedDisk()!.availableBytes)
@@ -154,7 +154,7 @@
             }
 
             @if (editingLocation()) {
-            <div class="rounded-3xl border border-white/5 bg-slate-950/60 p-6">
+            <div class="rounded-2xl border border-white/5 bg-slate-950/60 p-6">
                 <h3 class="text-sm font-semibold text-white">Edit Storage</h3>
                 <p class="text-xs text-slate-400 mt-1">
                     Update the storage label and location. The folder name will be set under the selected mount.
@@ -165,7 +165,7 @@
                         <label for="editStorageLabel"
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Name</label>
                         <input id="editStorageLabel" type="text" [formControl]="editForm.controls.label"
-                            class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                            class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
                     </div>
 
                     <div class="space-y-2">
@@ -179,7 +179,7 @@
                         <label for="editStorageFolder"
                             class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Folder</label>
                         <input id="editStorageFolder" type="text" [formControl]="editForm.controls.folderName"
-                            class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
+                            class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all" />
                     </div>
 
                     <div class="space-y-2">
@@ -191,7 +191,7 @@
                     </div>
 
                     @if (editSelectedDiskLabel().length) {
-                    <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
+                    <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-4 text-xs text-slate-300">
                         <div class="flex items-center justify-between">
                             <span>Available</span>
                             <span class="font-semibold text-white">{{ formatBytes(editSelectedDisk()!.availableBytes)

@@ -1,6 +1,6 @@
 <div class="flex flex-col gap-8 pb-8">
     <header
-        class="rounded-3xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent p-8">
+        class="rounded-2xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent p-8">
         <h1 class="text-3xl font-bold tracking-tight text-white">Role & Security</h1>
         <p class="mt-2 max-w-3xl text-sm text-slate-400">
             Manage user roles and control what each role is allowed to do in the dashboard and app actions.
@@ -23,7 +23,7 @@
     </header>
 
     @if (activeTab() === 'users') {
-    <section class="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+    <section class="rounded-2xl border border-white/10 bg-slate-900/60 p-6">
         <div class="mb-4 flex items-center justify-between">
             <div>
                 <h2 class="text-lg font-semibold text-white">Manage Users</h2>
@@ -37,23 +37,23 @@
         </div>
 
         @if (usersError()) {
-        <div class="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+        <div class="mb-4 rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
             {{ usersError() }}
         </div>
         }
 
         @if (loadingUsers()) {
-        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
             Loading users...
         </div>
         } @else if (!users().length) {
-        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
             No users found.
         </div>
         } @else {
         <div class="grid gap-3">
             @for (user of users(); track trackUser($index, user)) {
-            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div class="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-white">{{ user.displayName || user.email }}</p>
@@ -109,7 +109,7 @@
     }
 
     @if (activeTab() === 'roles') {
-    <section class="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+    <section class="rounded-2xl border border-white/10 bg-slate-900/60 p-6">
         <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="text-lg font-semibold text-white">Role Actions</h2>
@@ -118,7 +118,7 @@
             <div class="flex items-center gap-2">
                 <input type="text" [ngModel]="newRoleName()" (ngModelChange)="newRoleName.set($event)"
                     placeholder="new_role"
-                    class="w-36 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-500/50 focus:outline-none" />
+                    class="w-36 rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-500/50 focus:outline-none" />
                 <button type="button" (click)="addRole()"
                     class="rounded-full border border-white/10 px-3 py-2 text-[0.65rem] font-semibold uppercase tracking-widest text-slate-300 hover:text-white">
                     Add Role
@@ -127,19 +127,19 @@
         </div>
 
         @if (permissionsError()) {
-        <div class="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+        <div class="mb-4 rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
             {{ permissionsError() }}
         </div>
         }
 
         @if (!roleNames().length) {
-        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
             No roles defined yet.
         </div>
         } @else {
         <div class="grid gap-4">
             @for (role of roleNames(); track role) {
-            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div class="rounded-xl border border-white/10 bg-white/5 p-4">
                 <div class="mb-3 flex items-center justify-between gap-3">
                     <div>
                         <p class="text-sm font-semibold text-white">{{ role }}</p>

@@ -2,12 +2,12 @@
 
 <div class="absolute top-6 left-6 right-6 z-20 pointer-events-none">
     <div class="max-w-md pointer-events-auto">
-        <div class="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 shadow-2xl">
+        <div class="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-xl p-6 shadow-2xl">
             <h1 class="text-2xl font-bold text-white mb-1">Globetrotter</h1>
             <p class="text-slate-400 text-xs uppercase tracking-[0.2em] font-medium mb-6">Discover stories across
                 the world</p>
 
-            <div class="flex items-center gap-4 bg-white/5 border border-white/5 rounded-xl px-4 py-3">
+            <div class="flex items-center gap-4 bg-white/5 border border-white/5 rounded-lg px-4 py-3">
                 <div class="h-8 w-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
                     <mtx-svg name="mapPin"></mtx-svg>
                 </div>
@@ -29,7 +29,7 @@
 
 @if (!hasGpsData() && !loading()) {
 <div class="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-    <div class="bg-slate-900/70 border border-white/10 px-6 py-4 rounded-2xl text-center text-slate-300">
+    <div class="bg-slate-900/70 border border-white/10 px-6 py-4 rounded-xl text-center text-slate-300">
         <p class="text-sm">Location metadata is not available yet. Upload images with GPS information to populate
             the map.</p>
     </div>

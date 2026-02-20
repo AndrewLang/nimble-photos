@@ -1,8 +1,4 @@
-<div #container class="h-full w-full relative bg-[#010409]">
-  <div class="absolute inset-0 pointer-events-none overflow-hidden">
-    <div class="absolute top-0 left-1/4 w-1/2 h-1/2 bg-indigo-500/5 blur-[120px] rounded-full opacity-50"></div>
-    <div class="absolute bottom-0 right-1/4 w-1/2 h-1/2 bg-violet-500/5 blur-[120px] rounded-full opacity-50"></div>
-  </div>
+<div #container class="h-full w-full relative">
 
   <cdk-virtual-scroll-viewport [itemSize]="targetHeight()" (scrolledIndexChange)="onScroll($event)"
     class="h-full w-full scroll-container">
@@ -21,8 +17,7 @@
 
       <div *cdkVirtualFor="let item of items(); let last = last">
         @if (item.type === 'header') {
-        <div
-          class="group-header sticky top-0 z-20 py-4 bg-[#010409]/95 backdrop-blur-sm -mx-4 px-6 mb-2 flex items-center gap-4">
+        <div class="group-header sticky top-0 z-20 py-4 backdrop-blur-sm -mx-4 px-6 mb-2 flex items-center gap-4">
           <div class="flex items-baseline gap-4 flex-1">
             <h2 class="text-xl font-bold text-slate-100 tracking-tight">
               {{ item.title && item.title !== 'xxxx' ? (item.title | date:'EEE, MMM d') : '' }}

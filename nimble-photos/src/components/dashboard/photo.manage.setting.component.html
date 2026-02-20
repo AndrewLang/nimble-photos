@@ -1,6 +1,6 @@
-﻿<div class="max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+<div class="max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
     <header
-        class="mb-10 p-8 rounded-3xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent">
+        class="mb-10 p-8 rounded-2xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent">
         <h1 class="text-3xl font-bold tracking-tight text-white mb-2">{{ title() }}</h1>
         <p class="text-slate-400 text-sm max-w-2xl leading-relaxed">{{ subtitle() }}</p>
 
@@ -21,7 +21,7 @@
     </header>
 
     @if (activeTab() === 'visibility') {
-    <section class="mb-6 rounded-2xl border border-white/10 bg-slate-900/40 p-6">
+    <section class="mb-6 rounded-xl border border-white/10 bg-slate-900/40 p-6">
         <div class="flex items-start justify-between gap-4 flex-col md:flex-row">
             <div>
                 <h2 class="text-lg font-semibold text-white">Viewer Tag Visibility</h2>
@@ -59,7 +59,7 @@
     }
 
     @if (activeTab() === 'upload') {
-    <section class="mb-6 rounded-2xl border border-white/10 bg-slate-900/40 p-6">
+    <section class="mb-6 rounded-xl border border-white/10 bg-slate-900/40 p-6">
         <div class="flex items-start justify-between gap-6 flex-col lg:flex-row">
             <div>
                 <h2 class="text-lg font-semibold text-white">Storage destination</h2>
@@ -82,11 +82,11 @@
         @if (storageLoading()) {
         <div class="mt-5 text-xs text-slate-400">Loading storage locations...</div>
         } @else if (!hasStorages()) {
-        <div class="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+        <div class="mt-5 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
             No storage locations exist yet. Add a storage location to enable uploads.
         </div>
         } @else if (selectedStorage()) {
-        <div class="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4 text-xs text-slate-300">
+        <div class="mt-5 rounded-xl border border-white/10 bg-slate-950/40 px-4 py-4 text-xs text-slate-300">
             <div class="flex flex-wrap items-center gap-2">
                 <span class="text-sm font-semibold text-white">{{ selectedStorage()!.label }}</span>
                 @if (selectedStorage()!.isDefault) {
@@ -106,14 +106,14 @@
             }
         </div>
         } @else {
-        <div class="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+        <div class="mt-5 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
             No storage selected. Select a destination to enable uploads.
         </div>
         }
     </section>
 
     @if(selectedStorage()){
-    <section class="rounded-2xl border border-white/10 bg-slate-900/40 p-6" [class.opacity-60]="!canUpload()">
+    <section class="rounded-xl border border-white/10 bg-slate-900/40 p-6" [class.opacity-60]="!canUpload()">
         <div class="flex items-start justify-between gap-6 flex-col lg:flex-row">
             <div>
                 <h2 class="text-lg font-semibold text-white">Upload photos</h2>
@@ -138,7 +138,7 @@
             <input type="file" multiple class="hidden" #fileInput [disabled]="!canUpload()"
                 accept=".jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.tiff,.bmp,.raw,.dng" />
             <div id="file-drop"
-                class="mt-4 flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-10 text-center transition-all cursor-pointer"
+                class="mt-4 flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center transition-all cursor-pointer"
                 [class.border-indigo-400]="isDragActive()" [class.bg-indigo-500/10]="isDragActive()"
                 [class.border-white/10]="!isDragActive()" [class.bg-slate-950/50]="!isDragActive()"
                 (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">

@@ -1,4 +1,10 @@
 <div class="relative flex-1 overflow-hidden h-full bg-[#010409]">
+
+    <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <img src="./images/bg.jpg" class="w-full h-full object-cover blur-2xl opacity-30 scale-110">
+        <div class="absolute inset-0 bg-black/10"></div>
+    </div>
+
     <div class="h-full flex flex-col min-w-0 overflow-hidden">
         <mtx-justified-gallery [showHeader]="false" (timelineLoaded)="onTimelineLoaded($event)"
             (activeTitleChange)="onActiveTitleChange($event)" (selectionChange)="onSelectionChange($event)">

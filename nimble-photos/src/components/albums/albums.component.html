@@ -6,7 +6,7 @@
         <div class="mt-5 max-w-md">
             <input type="search" [value]="searchQuery()" (input)="onSearchInput($event)"
                 placeholder="Search albums..."
-                class="w-full rounded-xl border border-white/10 bg-slate-900/50 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500/50 focus:outline-none" />
+                class="w-full rounded-lg border border-white/10 bg-slate-900/50 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500/50 focus:outline-none" />
         </div>
     </div>
 
@@ -22,7 +22,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         @for (album of filteredAlbums(); track album.id) {
         <a [routerLink]="['/album', album.id]"
-            class="group relative flex flex-col overflow-hidden rounded-3xl bg-slate-900/40 border border-white/5 transition-all duration-500 hover:border-white/20 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/10 h-[400px]">
+            class="group relative flex flex-col overflow-hidden rounded-2xl bg-slate-900/40 border border-white/5 transition-all duration-500 hover:border-white/20 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/10 h-[400px]">
 
 
             <div class="relative h-2/3 w-full overflow-hidden bg-slate-800">
