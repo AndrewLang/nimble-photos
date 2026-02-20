@@ -1,6 +1,9 @@
-import { Component, OnInit, input, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { catchError, first, of } from 'rxjs';
 import { Photo } from '../../models/photo';
+import { PhotoService } from '../../services/photo.service';
+import { SelectionService } from '../../services/selection.service';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
@@ -9,14 +12,19 @@ import { SvgComponent } from '../svg/svg.component';
   templateUrl: './tag.editor.component.html'
 })
 export class TagEditorComponent implements OnInit {
-  readonly photos = input<Photo[]>([]);
-  readonly existingTags = input<string[]>([]);
+  private readonly selectionService = inject(SelectionService);
+  private readonly photoService = inject(PhotoService);
+
+  readonly selectedPhotos = signal<Photo[]>([]);
+  readonly availableTags = signal<string[]>([]);
   readonly selectedTags = signal<string[]>([]);
   readonly draftTag = signal('');
 
   ngOnInit(): void {
+    this.selectedPhotos.set(this.selectionService.selectedPhotos());
+
     const merged = new Set<string>();
-    for (const photo of this.photos()) {
+    for (const photo of this.selectedPhotos()) {
       for (const tag of photo.tags ?? []) {
         const normalized = tag.trim();
         if (normalized) {
@@ -25,6 +33,15 @@ export class TagEditorComponent implements OnInit {
       }
     }
     this.selectedTags.set(Array.from(merged).sort((a, b) => a.localeCompare(b)));
+
+    this.photoService.getAllPhotoTags()
+      .pipe(
+        first(),
+        catchError(() => of([]))
+      )
+      .subscribe(tags => {
+        this.availableTags.set(tags);
+      });
   }
 
   addDraftTag(): void {
@@ -65,12 +82,12 @@ export class TagEditorComponent implements OnInit {
 
   getFormValue() {
     return {
-      photoIds: this.photos().map(photo => photo.id),
+      photoIds: this.selectedPhotos().map(photo => photo.id),
       tags: this.selectedTags(),
     };
   }
 
   isValid() {
-    return this.photos().length > 0;
+    return this.selectedPhotos().length > 0;
   }
 }

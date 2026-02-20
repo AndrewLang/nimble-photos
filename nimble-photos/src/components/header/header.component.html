@@ -18,7 +18,7 @@
         </div>
     </div>
 
-    @if (selectionService.hasSelection()) {
+    @if (hasSelection()) {
     <div
         class="absolute left-1/2 -translate-x-1/2 z-60 bg-transparent text-white px-2 py-2 rounded-full flex items-center gap-2 animate-in fade-in zoom-in-95 duration-300">
         <div class="flex items-center gap-2 pl-3 pr-2 border-r border-white/20">
@@ -26,33 +26,19 @@
                 title="Clear Selection">
                 <mtx-svg name="closeSolid"></mtx-svg>
             </button>
-            <span class="text-xs font-bold uppercase tracking-widest whitespace-nowrap">{{
-                selectionService.selectedCount() }} <span class="hidden md:inline">selected</span></span>
+            <span class="text-xs font-bold uppercase tracking-widest whitespace-nowrap">
+                {{ selectionService.selectedCount() }}
+                <span class="hidden md:inline">selected</span></span>
         </div>
 
         <div class="flex items-center gap-2 pr-1">
-            <button (click)="createAlbum()" title="Create a New Album with selected photos"
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.5rem] md:text-xs uppercase text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <mtx-svg name="plus"></mtx-svg>
-                <span class="hidden xl:inline whitespace-nowrap">Create Album</span>
+            @for(command of selectionCommands(); track command.id) {
+            <button (click)="command.action()" [title]="command.description"
+                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[0.5rem] md:text-xs uppercase text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
+                <mtx-svg [name]="command.icon"></mtx-svg>
+                <span class="hidden xl:inline whitespace-nowrap">{{ command.name }}</span>
             </button>
-            <button (click)="addToAlbum()" title="Add selected photos to existing Album"
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.5rem] md:text-xs uppercase  text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <mtx-svg name="folderPlus"></mtx-svg>
-                <span class="hidden xl:inline whitespace-nowrap">Add to Album</span>
-            </button>
-
-            <button (click)="tagPhotos()" title="Tag selected photos"
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.5rem] md:text-xs uppercase  text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <mtx-svg name="tag"></mtx-svg>
-                <span class="hidden xl:inline whitespace-nowrap">Tag Photos</span>
-            </button>
-
-            <button (click)="downloadSelected()" title="Download selected photos"
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[0.5rem] md:text-xs uppercase  text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <mtx-svg name="download"></mtx-svg>
-                <span class="hidden xl:inline whitespace-nowrap">Download</span>
-            </button>
+            }
         </div>
     </div>
     }

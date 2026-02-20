@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 
 import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -42,6 +42,39 @@ export class HeaderComponent implements OnInit {
   readonly siteTagline = signal('My Photo Stories');
   readonly siteLogo = signal<string | null>(null);
   readonly allowRegistration = signal(true);
+  readonly photoCommands = signal([
+    {
+      id: 'createAlbum',
+      name: 'Create Album',
+      description: 'Create a new album with the selected photos',
+      icon: 'plus',
+      action: () => this.createAlbum()
+    },
+    {
+      id: 'addToAlbum',
+      name: 'Add to Album',
+      description: 'Add the selected photos to an existing album',
+      icon: 'folderPlus',
+      action: () => this.addToAlbum()
+    },
+    {
+      id: 'tagPhotos',
+      name: 'Tag Photos',
+      description: 'Add tags to the selected photos',
+      icon: 'tag',
+      action: () => this.tagPhotos()
+    },
+    {
+      id: 'downloadPhotos',
+      name: 'Download Photos',
+      description: 'Download the selected photos',
+      icon: 'download',
+      isHidden: true,
+      action: () => { }
+    }
+  ]);
+  readonly selectionCommands = computed(() => this.photoCommands().filter(cmd => !cmd.isHidden));
+  readonly hasSelection = computed(() => this.selectionService.hasSelection());
 
   @ViewChild('userMenuRoot') userMenuRoot?: ElementRef<HTMLElement>;
 
@@ -219,37 +252,30 @@ export class HeaderComponent implements OnInit {
       return;
     }
 
-    this.photoService.getAllPhotoTags()
-      .pipe(
-        first(),
-        catchError(() => of([]))
-      )
-      .subscribe(async existingTags => {
-        const ref = this.dialogService.open(TagEditorComponent, {
-          title: 'Tag Photos',
-          width: '700px',
-          data: { photos, existingTags },
-          actions: [
-            { label: 'Cancel', value: false, style: 'ghost' },
-            { label: 'Apply Tags', value: 'submit', style: 'primary' }
-          ]
-        });
+    const ref = this.dialogService.open(TagEditorComponent, {
+      title: 'Tag Photos',
+      width: '700px',
+      actions: [
+        { label: 'Cancel', value: false, style: 'ghost' },
+        { label: 'Apply', value: 'submit', style: 'primary' }
+      ]
+    });
 
-        const result = await ref.afterClosed();
-        if (!result || result === 'submit' || result === false) {
-          return;
+    ref.afterClosed().then(result => {
+      if (!result || result === 'submit' || result === false) {
+        return;
+      }
+
+      this.photoService.updatePhotoTags(result.photoIds, result.tags).subscribe({
+        next: () => {
+          this.selectionService.clearSelection();
+        },
+        error: (err) => {
+          console.error('Failed to update tags', err);
+          alert('Failed to update photo tags.');
         }
-
-        this.photoService.updatePhotoTags(result.photoIds, result.tags).subscribe({
-          next: () => {
-            this.selectionService.clearSelection();
-          },
-          error: (err) => {
-            console.error('Failed to update tags', err);
-            alert('Failed to update photo tags.');
-          }
-        });
       });
+    });
   }
 
   private loadSiteSettings(): void {

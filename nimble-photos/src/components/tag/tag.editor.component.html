@@ -1,7 +1,8 @@
 <div class="flex flex-col gap-6">
     <div class="space-y-2">
         <label class="text-xs font-bold uppercase tracking-widest text-slate-500">Selected photos</label>
-        <p class="text-sm text-slate-300">{{ photos().length }} photo{{ photos().length === 1 ? '' : 's' }}</p>
+        <p class="text-sm text-slate-300">{{ selectedPhotos().length }} photo{{ selectedPhotos().length === 1 ? '' : 's'
+            }}</p>
     </div>
 
     <div class="space-y-2">
@@ -9,7 +10,7 @@
         <div class="flex gap-2">
             <input type="text" [ngModel]="draftTag()" (ngModelChange)="draftTag.set($event ?? '')"
                 (keydown)="onTagInputKeydown($event)" placeholder="e.g. landscape, flower"
-                class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all">
+                class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all">
             <button type="button" (click)="addDraftTag()"
                 class="px-4 py-3 rounded-lg border border-indigo-500/30 bg-indigo-600/90 text-white text-xs font-bold uppercase tracking-widest hover:bg-indigo-500 transition-all">
                 Add
@@ -36,11 +37,11 @@
 
     <div class="space-y-2">
         <label class="text-xs font-bold uppercase tracking-widest text-slate-500">Existing tags</label>
-        @if (existingTags().length === 0) {
+        @if (availableTags().length === 0) {
         <p class="text-xs text-slate-500">No existing tags yet.</p>
         } @else {
         <div class="flex max-h-40 flex-wrap gap-2 overflow-y-auto pr-1">
-            @for (tag of existingTags(); track tag) {
+            @for (tag of availableTags(); track tag) {
             <button type="button" (click)="toggleSuggestedTag(tag)"
                 [class.bg-emerald-500/20]="selectedTags().includes(tag)"
                 [class.border-emerald-400/50]="selectedTags().includes(tag)"
