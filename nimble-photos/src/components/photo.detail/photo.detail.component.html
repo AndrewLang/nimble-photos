@@ -55,8 +55,19 @@
         </div>
         } @else if (photo(); as p) {
         <div class="relative w-full h-full flex items-center justify-center p-4 lg:p-12">
-            <img [src]="getPreviewPath()" [alt]="p.name"
+            <img [src]="getPhotoPath()" [alt]="p.name"
                 class="max-w-full max-h-full object-contain shadow-2xl transition-all duration-500 rounded-sm">
+
+            @if (previewReady() && previewSrc()) {
+            <img [src]="previewSrc()!" [alt]="p.name"
+                class="absolute inset-0 m-auto max-w-full max-h-full object-contain shadow-2xl transition-all duration-500 rounded-sm">
+            }
+
+            @if (previewLoading()) {
+            <div class="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-300 backdrop-blur-md border border-white/10">
+                Loading preview...
+            </div>
+            }
         </div>
         } @else {
         <p class="text-sm text-slate-400">Photo not found.</p>
@@ -127,7 +138,7 @@
                             @if (authService.isAuthenticated()) {
                             <button type="button" (click)="toggleCommentEditor()"
                                 class="px-2 py-1 text-[10px] font-semibold uppercase rounded-full border border-white/10 bg-indigo-600 text-white transition duration-200 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500">
-                                {{ commentEditorVisible() ? 'Hide editor' : 'Add comment' }}
+                                {{ commentEditorVisible() ? 'Cancel' : 'Add comment' }}
                             </button>
                             }
                         </div>

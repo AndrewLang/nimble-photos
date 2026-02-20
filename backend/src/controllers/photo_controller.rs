@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::result::Result;
+use std::time::Instant;
 use tokio::task;
 use uuid::Uuid;
 
@@ -44,6 +45,7 @@ impl Controller for PhotoController {
         vec![
             EndpointRoute::get("/api/photos/thumbnail/{hash}", ThumbnailHandler).build(),
             EndpointRoute::get("/api/photos/preview/{hash}", PreviewHandler).build(),
+            EndpointRoute::get("/api/photos/haspreview/{hash}", HasPreviewHandler).build(),
             EndpointRoute::get("/api/photos/timeline/{page}/{pageSize}", TimelineHandler).build(),
             EndpointRoute::get("/api/photos/timeline/years", TimelineYearsHandler).build(),
             EndpointRoute::get("/api/photos/timeline/year-offset/{year}", YearOffsetHandler)
@@ -246,72 +248,14 @@ impl HttpHandler for ThumbnailHandler {
 struct PreviewHandler;
 
 impl PreviewHandler {
-    fn preview_file_path(&self, root: &Path, hash: &str) -> PathBuf {
-        root.join(&hash[0..2])
-            .join(&hash[2..4])
-            .join(format!("{hash}.jpg"))
-    }
-
-    fn default_preview_root(&self) -> PathBuf {
-        if cfg!(windows) {
-            if let Ok(user_profile) = std::env::var("USERPROFILE") {
-                return Path::new(&user_profile)
-                    .join("AppData")
-                    .join("Local")
-                    .join("photon")
-                    .join("previews");
-            }
-        }
-
-        PathBuf::from("./.previews")
-    }
-
-    async fn resolve_preview_root(
-        &self,
-        context: &HttpContext,
-        photo: &Photo,
-        hash: &str,
-    ) -> PathBuf {
-        let storage_id = photo.storage_id;
-        if let Ok(storage_repo) = context.service::<Repository<StorageLocation>>() {
-            match storage_repo.get(&storage_id).await {
-                Ok(Some(storage)) => {
-                    return storage.normalized_path().join(".previews");
-                }
-                Ok(None) => {
-                    log::warn!(
-                        "Storage {} not found while resolving preview for hash {}",
-                        storage_id,
-                        hash
-                    );
-                }
-                Err(err) => {
-                    log::warn!(
-                        "Failed to load storage {} for preview hash {}: {:?}",
-                        storage_id,
-                        hash,
-                        err
-                    );
-                }
-            }
-        } else {
-            log::warn!(
-                "Storage repository unavailable while resolving preview for hash {}",
-                hash
-            );
-        }
-
-        self.default_preview_root()
-    }
-
     async fn build_preview(
         &self,
         context: &HttpContext,
         photo: &Photo,
         hash: &str,
-        output_root: &Path,
     ) -> Result<Option<(PathBuf, &'static str)>, PipelineError> {
         let source_path = PathBuf::from(&photo.path);
+
         if !source_path.exists() {
             log::warn!(
                 "Preview source file missing for hash {} at {}",
@@ -321,7 +265,13 @@ impl PreviewHandler {
             return Ok(None);
         }
 
-        let output_path = self.preview_file_path(output_root, hash);
+        let start = Instant::now();
+        log::debug!(
+            "Generating preview for hash {} from source {}",
+            hash,
+            source_path.display()
+        );
+        let output_path = context.get_preview_path(hash).await?;
         let extractor = context.service::<PreviewExtractor>()?;
         let output_path_clone = output_path.clone();
         let source_path_clone = source_path.clone();
@@ -332,6 +282,13 @@ impl PreviewHandler {
         .await
         .ok()
         .and_then(|result| result.ok());
+
+        log::debug!(
+            "Preview generation for hash {} completed in {:?} at {}",
+            hash,
+            start.elapsed(),
+            output_path.display()
+        );
 
         if let Some(path) = generated {
             if path.exists() {
@@ -355,34 +312,40 @@ impl HttpHandler for PreviewHandler {
             .await?
             .ok_or_else(|| PipelineError::message("preview not found"))?;
 
-        let preview_root = self.resolve_preview_root(context, &photo, &hash).await;
-
         let mut resolved: Option<(PathBuf, &'static str)> = None;
-        let jpeg_path = self.preview_file_path(&preview_root, &hash);
+        let jpeg_path = context.get_preview_path(&hash).await?;
+
         if jpeg_path.exists() {
             resolved = Some((jpeg_path, "image/jpeg"));
         }
 
         if resolved.is_none() {
-            resolved = self
-                .build_preview(context, &photo, &hash, preview_root.as_path())
-                .await?;
+            resolved = self.build_preview(context, &photo, &hash).await?;
         }
-
-        log::info!("Preview request for hash: {}, at: {:?}", hash, resolved);
 
         let (resolved_path, content_type) =
             resolved.ok_or_else(|| PipelineError::message("preview not found"))?;
-
-        log::debug!(
-            "Preview path resolved to: {}",
-            resolved_path.to_string_lossy()
-        );
 
         Ok(ResponseValue::new(
             FileResponse::from_path(resolved_path)
                 .with_content_type(content_type)
                 .with_header("Cache-Control", "public, max-age=31536000, immutable"),
+        ))
+    }
+}
+
+struct HasPreviewHandler;
+
+#[async_trait]
+impl HttpHandler for HasPreviewHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let hash = context.hash()?;
+        log::debug!("Checking preview existence for hash: {}", hash);
+
+        let exists = context.is_preview_exists(&hash).await;
+
+        Ok(ResponseValue::json(
+            serde_json::json!({ "hasPreview": exists }),
         ))
     }
 }

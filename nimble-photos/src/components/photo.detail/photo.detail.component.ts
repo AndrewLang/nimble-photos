@@ -22,6 +22,9 @@ export class PhotoDetailComponent implements OnInit {
     readonly photo = signal<Photo | null>(null);
     readonly loading = signal(false);
     readonly adjacents = signal<{ prevId: string | null; nextId: string | null }>({ prevId: null, nextId: null });
+    readonly previewLoading = signal(false);
+    readonly previewReady = signal(false);
+    readonly previewSrc = signal<string | null>(null);
 
     readonly commentDraft = signal('');
     readonly commentSaving = signal(false);
@@ -37,6 +40,7 @@ export class PhotoDetailComponent implements OnInit {
 
     private albumId: string | null = null;
     private returnUrl = '/';
+    private previewRequestSeq = 0;
 
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
@@ -85,16 +89,54 @@ export class PhotoDetailComponent implements OnInit {
 
     private fetchPhoto(id: string): void {
         this.loading.set(true);
+        this.previewLoading.set(false);
+        this.previewReady.set(false);
+        this.previewSrc.set(null);
+
         this.photoService.getPhotoById(id).pipe(first()).subscribe(result => {
             this.photo.set(result);
             if (result) {
                 this.fetchAdjacents(result.id);
                 this.loadPhotoMetadata(result.id);
                 this.loadComments(result.id);
-                this.getPhotoPath();
+                this.loadPreview(result);
             }
             this.loading.set(false);
         });
+    }
+
+    private loadPreview(photo: Photo): void {
+        const previewBasePath = this.photoService.getPreviewPath(photo);
+        if (!photo.hash || previewBasePath === photo.path) {
+            this.previewReady.set(false);
+            this.previewLoading.set(false);
+            this.previewSrc.set(null);
+            return;
+        }
+
+        const seq = ++this.previewRequestSeq;
+        this.previewLoading.set(true);
+        this.previewReady.set(false);
+
+        const previewRequestPath = `${previewBasePath}?v=${Date.now()}`;
+        const image = new Image();
+        image.onload = () => {
+            if (seq !== this.previewRequestSeq) {
+                return;
+            }
+            this.previewSrc.set(previewRequestPath);
+            this.previewReady.set(true);
+            this.previewLoading.set(false);
+        };
+        image.onerror = () => {
+            if (seq !== this.previewRequestSeq) {
+                return;
+            }
+            this.previewReady.set(false);
+            this.previewLoading.set(false);
+            this.previewSrc.set(null);
+        };
+        image.src = previewRequestPath;
     }
 
     private fetchAdjacents(id: string): void {
@@ -219,7 +261,7 @@ export class PhotoDetailComponent implements OnInit {
     }
 
     getPreviewPath(): string {
-        return this.photoService.getPreviewPath(this.photo()!);
+        return this.previewSrc() ?? this.photoService.getPreviewPath(this.photo()!);
     }
 
     metadataSections(p?: Photo | null): { title: string; fields: { label: string; value: string }[] }[] {

@@ -1,4 +1,7 @@
+use std::path::{Path, PathBuf};
+
 use async_trait::async_trait;
+use chrono::Utc;
 use nimble_web::DataProvider;
 use nimble_web::data::query::{Filter, FilterOperator, Query, Value};
 use nimble_web::data::repository::Repository;
@@ -11,8 +14,11 @@ use uuid::Uuid;
 use crate::entities::client::Client;
 use crate::entities::client_storage::ClientStorage;
 use crate::entities::permission::Permission;
+use crate::entities::photo::Photo;
 use crate::entities::photo_browse::BrowseOptions;
 use crate::entities::photo_browse::BrowseRequest;
+use crate::entities::storage_location::StorageLocation;
+use crate::repositories::photo_repo::PhotoRepositoryExtensions;
 
 #[async_trait]
 pub trait HttpContextExtensions {
@@ -25,12 +31,16 @@ pub trait HttpContextExtensions {
     fn route_storage_id(&self) -> Result<Uuid, PipelineError>;
     fn current_client_id(&self) -> Result<Uuid, PipelineError>;
     fn hash(&self) -> Result<String, PipelineError>;
+    fn default_preview_root(&self) -> PathBuf;
+    async fn is_preview_exists(&self, hash: &str) -> bool;
     async fn load_client_storage_settings(
         &self,
         client_id: Uuid,
         storage_id: Uuid,
     ) -> Result<BrowseOptions, PipelineError>;
     async fn validate_api_key(&mut self, api_key: &str) -> Result<Client, PipelineError>;
+    async fn get_preview_root(&self, hash: &str) -> Result<PathBuf, PipelineError>;
+    async fn get_preview_path(&self, hash: &str) -> Result<PathBuf, PipelineError>;
 }
 
 #[async_trait]
@@ -138,6 +148,19 @@ impl HttpContextExtensions for HttpContext {
         Ok(hash)
     }
 
+    fn default_preview_root(&self) -> PathBuf {
+        if cfg!(windows) {
+            if let Ok(user_profile) = std::env::var("USERPROFILE") {
+                return Path::new(&user_profile)
+                    .join("AppData")
+                    .join("Local")
+                    .join("photon");
+            }
+        }
+
+        PathBuf::from("./previews")
+    }
+
     async fn load_client_storage_settings(
         &self,
         client_id: Uuid,
@@ -210,6 +233,103 @@ impl HttpContextExtensions for HttpContext {
                 self.response_mut().set_status(401);
                 Err(PipelineError::message("invalid api key"))
             }
+        }
+    }
+
+    async fn get_preview_root(&self, hash: &str) -> Result<PathBuf, PipelineError> {
+        let preview_storage_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")
+            .map_err(|_| PipelineError::message("invalid preview storage id"))?;
+        let preview_root = self.default_preview_root();
+
+        if let Ok(storage_repo) = self.service::<Repository<StorageLocation>>() {
+            match storage_repo.get(&preview_storage_id).await {
+                Ok(Some(_)) => {}
+                Ok(None) => {
+                    if let Err(err) = std::fs::create_dir_all(&preview_root) {
+                        log::warn!(
+                            "Failed to create default preview root '{}': {:?}",
+                            preview_root.display(),
+                            err
+                        );
+                    }
+
+                    let preview_storage = StorageLocation {
+                        id: preview_storage_id,
+                        label: "Preview Cache".to_string(),
+                        path: preview_root.to_string_lossy().to_string(),
+                        is_default: false,
+                        created_at: Utc::now().to_rfc3339(),
+                        category_template: "{year}/{date:%Y-%m-%d}/{fileName}".to_string(),
+                    };
+
+                    if let Err(err) = storage_repo.insert(preview_storage).await {
+                        log::warn!(
+                            "Failed to create preview storage {}: {:?}",
+                            preview_storage_id,
+                            err
+                        );
+                    }
+                }
+                Err(err) => {
+                    log::warn!(
+                        "Failed to load preview storage {}: {:?}",
+                        preview_storage_id,
+                        err
+                    );
+                }
+            }
+        }
+
+        let photo_repo = self.service::<Repository<Photo>>()?;
+        let photo = photo_repo
+            .find_by_hash(&hash)
+            .await?
+            .ok_or_else(|| PipelineError::message("preview not found"))?;
+
+        let storage_id = photo.storage_id;
+        if let Ok(storage_repo) = self.service::<Repository<StorageLocation>>() {
+            match storage_repo.get(&storage_id).await {
+                Ok(Some(storage)) => {
+                    return Ok(storage.normalized_path().join(".previews"));
+                }
+                Ok(None) => {
+                    log::warn!(
+                        "Storage {} not found while resolving preview for hash {}",
+                        storage_id,
+                        hash
+                    );
+                }
+                Err(err) => {
+                    log::warn!(
+                        "Failed to load storage {} for preview hash {}: {:?}",
+                        storage_id,
+                        hash,
+                        err
+                    );
+                }
+            }
+        } else {
+            log::warn!(
+                "Storage repository unavailable while resolving preview for hash {}",
+                hash
+            );
+        }
+
+        Ok(preview_root)
+    }
+
+    async fn get_preview_path(&self, hash: &str) -> Result<PathBuf, PipelineError> {
+        let preview_root = self.get_preview_root(hash).await?;
+        Ok(preview_root
+            .join(&hash[0..2])
+            .join(&hash[2..4])
+            .join(format!("{hash}.jpg")))
+    }
+
+    async fn is_preview_exists(&self, hash: &str) -> bool {
+        match self.get_preview_path(hash).await {
+            Ok(path) => path.exists(),
+            Err(_) => false,
         }
     }
 }
