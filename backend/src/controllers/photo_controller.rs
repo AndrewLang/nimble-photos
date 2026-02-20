@@ -265,30 +265,32 @@ impl PreviewHandler {
             return Ok(None);
         }
 
-        let start = Instant::now();
-        log::debug!(
-            "Generating preview for hash {} from source {}",
-            hash,
-            source_path.display()
-        );
         let output_path = context.get_preview_path(hash).await?;
         let extractor = context.service::<PreviewExtractor>()?;
         let output_path_clone = output_path.clone();
         let source_path_clone = source_path.clone();
+        let enqueue_at = Instant::now();
 
         let generated = task::spawn_blocking(move || {
-            extractor.extract_to(source_path_clone, &output_path_clone)
+            let started_at = Instant::now();
+            let queue_wait = started_at.duration_since(enqueue_at);
+            let extract_started = Instant::now();
+            let result = extractor.extract_to(source_path_clone, &output_path_clone);
+            let extract_elapsed = extract_started.elapsed();
+
+            (result, queue_wait, extract_elapsed)
         })
         .await
         .ok()
-        .and_then(|result| result.ok());
-
-        log::debug!(
-            "Preview generation for hash {} completed in {:?} at {}",
-            hash,
-            start.elapsed(),
-            output_path.display()
-        );
+        .and_then(|(result, queue_wait, extract_elapsed)| {
+            log::debug!(
+                "Preview blocking task timing for hash {}: queue_wait={:?}, extract={:?}",
+                hash,
+                queue_wait,
+                extract_elapsed
+            );
+            result.ok()
+        });
 
         if let Some(path) = generated {
             if path.exists() {

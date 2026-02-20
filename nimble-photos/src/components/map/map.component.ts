@@ -5,12 +5,13 @@ import * as L from 'leaflet';
 import { first } from 'rxjs';
 import { Photo, PhotoLoc } from '../../models/photo';
 import { PhotoService } from '../../services/photo.service';
+import { BackgroundComponent } from '../background/background.component';
 import { SvgComponent } from '../svg/svg.component';
 import { SvgIcon } from '../svg/svg.icons';
 
 @Component({
   selector: 'mtx-map',
-  imports: [RouterModule, SvgComponent],
+  imports: [RouterModule, SvgComponent, BackgroundComponent],
   templateUrl: './map.component.html',
   host: {
     class: 'block flex-1 min-h-0',
@@ -75,11 +76,9 @@ export class MapComponent implements OnInit, OnDestroy {
         attributionControl: false
       });
 
-
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 20
       }).addTo(this.map);
-
 
       L.control.zoom({
         position: 'bottomright'
