@@ -9,5 +9,5 @@ use sqlx::FromRow;
 #[serde(rename_all = "camelCase")]
 pub struct PhotoTag {
     pub photo_id: Uuid,
-    pub tag_id: i64,
+    pub tag_id: Uuid,
 }

@@ -23,7 +23,7 @@ fn user_settings_and_profile_dto_conversion() {
     };
 
     let settings = UserSettings {
-        user_id: USER_ID_STR.to_string(),
+        user_id,
         display_name: "Display Name".to_string(),
         avatar_url: None,
         theme: "dark".to_string(),
@@ -34,7 +34,7 @@ fn user_settings_and_profile_dto_conversion() {
 
     let dto: UserProfileDto = (user, settings).into();
 
-    assert_eq!(dto.id.to_string(), USER_ID_STR);
+    assert_eq!(dto.id, user_id);
     assert_eq!(dto.email, "me@example.com");
     assert_eq!(dto.display_name, "Display Name");
     assert_eq!(dto.theme, "dark");

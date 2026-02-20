@@ -41,7 +41,9 @@ async fn main() -> std::result::Result<(), AppError> {
     app.log_routes();
 
     log::info!("Migrating database...");
-    migrate_entities(&app).await;
+    migrate_entities(&app)
+        .await
+        .map_err(|err| AppError::Runtime(format!("migrate entities: {err}")))?;
 
     app.start().await?;
 

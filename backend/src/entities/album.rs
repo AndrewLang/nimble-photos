@@ -1,4 +1,3 @@
-use super::uuid_id::HasOptionalUuidId;
 use chrono::{DateTime, Utc};
 use nimble_web::Entity;
 use serde::{Deserialize, Serialize};
@@ -34,7 +33,8 @@ impl AlbumKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Album {
-    pub id: Option<Uuid>,
+    #[serde(default)]
+    pub id: Uuid,
     #[serde(alias = "parent_id")]
     pub parent_id: Option<Uuid>,
     pub name: String,
@@ -80,19 +80,11 @@ impl Entity for Album {
     type Id = Uuid;
 
     fn id(&self) -> &Self::Id {
-        self.id
-            .as_ref()
-            .expect("Album entity requires an id for Entity trait operations")
+        &self.id
     }
 
     fn name() -> &'static str {
         "album"
-    }
-}
-
-impl HasOptionalUuidId for Album {
-    fn id_slot(&mut self) -> &mut Option<Uuid> {
-        &mut self.id
     }
 }
 
@@ -123,9 +115,8 @@ impl PostgresEntity for Album {
     }
 
     fn insert_values(&self) -> Vec<Value> {
-        let id = self.id.as_ref().expect("id not set for Album insert");
         vec![
-            Value::Uuid(*id),
+            Value::Uuid(self.id),
             PostgresValueBuilder::optional_uuid(self.parent_id),
             Value::String(self.name.clone()),
             PostgresValueBuilder::optional_datetime(&self.create_date),
@@ -171,7 +162,9 @@ impl PostgresEntity for Album {
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
-            ColumnDef::new("id", ColumnType::Uuid).primary_key(),
+            ColumnDef::new("id", ColumnType::Uuid)
+                .primary_key()
+                .default("gen_random_uuid()"),
             ColumnDef::new("parent_id", ColumnType::Uuid),
             ColumnDef::new("name", ColumnType::Text).not_null(),
             ColumnDef::new("create_date", ColumnType::Timestamp),

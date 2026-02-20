@@ -203,9 +203,9 @@ const EXIF_UPDATE_COLUMNS: &[&str] = &[
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ExifModel {
-    pub id: Option<Uuid>,
-    pub image_id: Option<Uuid>,
-    pub hash: Option<String>,
+    pub id: Uuid,
+    pub image_id: Uuid,
+    pub hash: String,
 
     // Basic metadata
     pub make: Option<String>,
@@ -358,9 +358,7 @@ impl Entity for ExifModel {
     type Id = Uuid;
 
     fn id(&self) -> &Self::Id {
-        self.id
-            .as_ref()
-            .expect("ExifModel requires an id for Entity trait operations")
+        &self.id
     }
 
     fn name() -> &'static str {
@@ -369,8 +367,16 @@ impl Entity for ExifModel {
 }
 
 impl HasOptionalUuidId for ExifModel {
-    fn id_slot(&mut self) -> &mut Option<Uuid> {
-        &mut self.id
+    fn current_id(&self) -> Option<Uuid> {
+        if self.id.is_nil() {
+            None
+        } else {
+            Some(self.id)
+        }
+    }
+
+    fn set_id(&mut self, id: Uuid) {
+        self.id = id;
     }
 }
 
@@ -510,11 +516,10 @@ impl PostgresEntity for ExifModel {
     }
 
     fn insert_values(&self) -> Vec<Value> {
-        let id = self.id.as_ref().expect("id not set for Exif insert");
         vec![
-            Value::Uuid(*id),
-            PostgresValueBuilder::optional_uuid(self.image_id),
-            PostgresValueBuilder::optional_string(&self.hash),
+            Value::Uuid(self.id),
+            Value::Uuid(self.image_id),
+            Value::String(self.hash.clone()),
             PostgresValueBuilder::optional_string(&self.make),
             PostgresValueBuilder::optional_string(&self.model),
             PostgresValueBuilder::optional_string(&self.lens_make),
@@ -619,8 +624,8 @@ impl PostgresEntity for ExifModel {
     fn table_columns() -> Vec<ColumnDef> {
         vec![
             ColumnDef::new("id", ColumnType::Uuid).primary_key(),
-            ColumnDef::new("image_id", ColumnType::Uuid),
-            ColumnDef::new("hash", ColumnType::Text),
+            ColumnDef::new("image_id", ColumnType::Uuid).not_null(),
+            ColumnDef::new("hash", ColumnType::Text).not_null(),
             ColumnDef::new("make", ColumnType::Text),
             ColumnDef::new("model", ColumnType::Text),
             ColumnDef::new("lens_make", ColumnType::Text),

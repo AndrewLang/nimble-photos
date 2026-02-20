@@ -94,8 +94,8 @@ export interface PhotoMetadata {
 
 export interface Photo {
   id: string;
+  storageId: string;
   path: string;
-  thumbnailPath?: string;
   name: string;
   tags?: string[];
   format?: string;
@@ -105,13 +105,12 @@ export interface Photo {
   updatedAt?: Date;
   dateImported?: Date;
   dateTaken?: Date;
-  thumbnailOptimized?: boolean;
+  dayDate?: Date;
+  sortDate?: Date;
   metadataExtracted?: boolean;
   isRaw?: boolean;
-  width?: number;
-  height?: number;
-  thumbnailWidth?: number;
-  thumbnailHeight?: number;
+  width: number;
+  height: number;
   metadata?: PhotoMetadata;
 }
 

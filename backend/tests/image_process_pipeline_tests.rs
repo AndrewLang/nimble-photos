@@ -21,6 +21,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use uuid::Uuid;
 
 fn unique_temp_dir(name: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now()
@@ -63,9 +64,9 @@ fn test_configuration(thumbnail_root: &Path, preview_root: &Path) -> Configurati
     Configuration::from_values(values)
 }
 
-fn create_storage(id: &str, label: &str, root: &Path) -> StorageLocation {
+fn create_storage(id: Uuid, label: &str, root: &Path) -> StorageLocation {
     StorageLocation {
-        id: id.to_string(),
+        id,
         label: label.to_string(),
         path: root.to_string_lossy().to_string(),
         is_default: false,
@@ -109,7 +110,7 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
         content_type: Some("image/jpeg".to_string()),
     };
 
-    let storage = create_storage("storage-1", "Primary", &storage_root);
+    let storage = create_storage(Uuid::new_v4(), "Primary", &storage_root);
 
     let mut container = ServiceContainer::new();
     container.register_singleton::<BackgroundTaskRunner, _>(|_| BackgroundTaskRunner::new(2));
@@ -117,12 +118,12 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
     container.register_singleton::<ExifService, _>(|_| ExifService::new());
     container.register_singleton::<ThumbnailExtractor, _>(|_| ThumbnailExtractor::new());
     container.register_singleton::<PreviewExtractor, _>(|_| PreviewExtractor::new());
-    container.register_singleton::<Repository<Photo>, _>(|_| Repository::new(Box::new(
-        MemoryRepository::<Photo>::new(),
-    )));
-    container.register_singleton::<Repository<ExifModel>, _>(|_| Repository::new(Box::new(
-        MemoryRepository::<ExifModel>::new(),
-    )));
+    container.register_singleton::<Repository<Photo>, _>(|_| {
+        Repository::new(Box::new(MemoryRepository::<Photo>::new()))
+    });
+    container.register_singleton::<Repository<ExifModel>, _>(|_| {
+        Repository::new(Box::new(MemoryRepository::<ExifModel>::new()))
+    });
     container.register_singleton::<FileService, _>(|_| FileService::new());
     let provider = Arc::new(container.build());
 
@@ -147,11 +148,7 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
     assert_eq!(photos.len(), 1, "one photo should be persisted");
     let photo = &photos[0];
     assert!(photo.hash.is_some(), "hash should be persisted");
-    assert_eq!(photo.storage_id.as_deref(), Some("storage-1"));
-    assert!(
-        photo.thumbnail_path.is_some(),
-        "thumbnail path should be set"
-    );
+    assert_eq!(photo.storage_id, storage.id);
     assert_eq!(photo.size, Some(file_size as i64));
 
     let final_path = PathBuf::from(&photo.path);
@@ -163,12 +160,6 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
             .map(|value| value == file_name)
             .unwrap_or(false),
         "categorized file should keep original file name"
-    );
-
-    let thumbnail_path = PathBuf::from(photo.thumbnail_path.clone().unwrap());
-    assert!(
-        thumbnail_path.exists(),
-        "thumbnail should be written to thumbnail root"
     );
 
     let exif_repo = provider.get::<Repository<ExifModel>>();
@@ -192,12 +183,12 @@ fn enqueue_uploaded_files_schedules_task_for_each_file() {
     container.register_singleton::<ExifService, _>(|_| ExifService::new());
     container.register_singleton::<ThumbnailExtractor, _>(|_| ThumbnailExtractor::new());
     container.register_singleton::<PreviewExtractor, _>(|_| PreviewExtractor::new());
-    container.register_singleton::<Repository<Photo>, _>(|_| Repository::new(Box::new(
-        MemoryRepository::<Photo>::new(),
-    )));
-    container.register_singleton::<Repository<ExifModel>, _>(|_| Repository::new(Box::new(
-        MemoryRepository::<ExifModel>::new(),
-    )));
+    container.register_singleton::<Repository<Photo>, _>(|_| {
+        Repository::new(Box::new(MemoryRepository::<Photo>::new()))
+    });
+    container.register_singleton::<Repository<ExifModel>, _>(|_| {
+        Repository::new(Box::new(MemoryRepository::<ExifModel>::new()))
+    });
     container.register_singleton::<FileService, _>(|_| FileService::new());
     let provider = Arc::new(container.build());
 
@@ -206,7 +197,7 @@ fn enqueue_uploaded_files_schedules_task_for_each_file() {
         test_configuration(&thumbnail_root, &preview_root),
     ));
 
-    let storage = create_storage("enqueue-storage", "Enqueue", &storage_root);
+    let storage = create_storage(Uuid::new_v4(), "Enqueue", &storage_root);
     let files = vec![
         StoredUploadFile {
             file_name: "first.jpg".to_string(),

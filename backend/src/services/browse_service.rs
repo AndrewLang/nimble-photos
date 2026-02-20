@@ -89,8 +89,14 @@ impl BrowseService {
         for row in rows {
             let folder_name = row
                 .try_get::<String, _>("folder")
-                .or_else(|_| row.try_get::<i32, _>("folder").map(|value| value.to_string()))
-                .or_else(|_| row.try_get::<i64, _>("folder").map(|value| value.to_string()))
+                .or_else(|_| {
+                    row.try_get::<i32, _>("folder")
+                        .map(|value| value.to_string())
+                })
+                .or_else(|_| {
+                    row.try_get::<i64, _>("folder")
+                        .map(|value| value.to_string())
+                })
                 .map_err(|_| anyhow!("invalid folder value"))?;
 
             let full_path = if path_segments.is_empty() {
@@ -142,30 +148,30 @@ impl BrowseService {
         if let Some(cursor_value) = cursor {
             let condition = if order_dir == "DESC" {
                 format!(
-                    "(p.date_taken < ${} OR (p.date_taken = ${} AND p.id < ${}))",
+                    "(p.sort_date < ${} OR (p.sort_date = ${} AND p.id < ${}))",
                     param_index,
                     param_index,
                     param_index + 1
                 )
             } else {
                 format!(
-                    "(p.date_taken > ${} OR (p.date_taken = ${} AND p.id > ${}))",
+                    "(p.sort_date > ${} OR (p.sort_date = ${} AND p.id > ${}))",
                     param_index,
                     param_index,
                     param_index + 1
                 )
             };
             where_clauses.push(condition);
-            cursor_values = Some((cursor_value.date_taken, cursor_value.id));
+            cursor_values = Some((cursor_value.sort_date, cursor_value.id));
             param_index += 2;
         }
 
         let normalized_size = page_size.clamp(1, 200);
         let sql = format!(
-            "SELECT p.id, p.name AS file_name, COALESCE(p.hash, '') AS hash, p.date_taken, p.width, p.height
+            "SELECT p.id, p.name AS file_name, COALESCE(p.hash, '') AS hash, p.date_taken, p.width, p.height, p.sort_date
              FROM photos p
              WHERE {}
-             ORDER BY p.date_taken {order_dir}, p.id {order_dir}
+             ORDER BY p.sort_date {order_dir}, p.id {order_dir}
              LIMIT ${}",
             where_clauses.join(" AND "),
             param_index
@@ -186,31 +192,40 @@ impl BrowseService {
         let rows = query.fetch_all(&*self.pool).await?;
         let has_next = rows.len() as i64 > normalized_size;
         let rows = if has_next {
-            rows.into_iter().take(normalized_size as usize).collect::<Vec<_>>()
+            rows.into_iter()
+                .take(normalized_size as usize)
+                .collect::<Vec<_>>()
         } else {
             rows
         };
 
-        let mut photos = Vec::<BrowsePhoto>::new();
+        let mut entries = Vec::<(BrowsePhoto, DateTime<Utc>)>::new();
         for row in rows {
-            photos.push(BrowsePhoto {
+            let sort_date: DateTime<Utc> = row.try_get("sort_date")?;
+            let photo = BrowsePhoto {
                 id: row.try_get("id")?,
                 file_name: row.try_get("file_name")?,
                 hash: row.try_get("hash")?,
                 date_taken: row.try_get("date_taken")?,
                 width: row.try_get("width")?,
                 height: row.try_get("height")?,
-            });
+            };
+            entries.push((photo, sort_date));
         }
 
         let next_cursor = if has_next {
-            photos
-                .last()
-                .and_then(|photo| photo.date_taken.map(|date| (date, photo.id)))
-                .map(|(date_taken, id)| PhotoCursor { date_taken, id }.encode())
+            entries.last().map(|(photo, sort_date)| {
+                PhotoCursor {
+                    sort_date: sort_date.clone(),
+                    id: photo.id,
+                }
+                .encode()
+            })
         } else {
             None
         };
+
+        let photos = entries.into_iter().map(|(photo, _)| photo).collect();
 
         Ok(BrowseResponse {
             node_type: BrowseNodeType::Photos,

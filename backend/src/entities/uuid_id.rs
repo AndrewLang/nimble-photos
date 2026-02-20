@@ -7,7 +7,8 @@ use uuid::Uuid;
 use crate::services::IdGenerationService;
 
 pub trait HasOptionalUuidId {
-    fn id_slot(&mut self) -> &mut Option<Uuid>;
+    fn current_id(&self) -> Option<Uuid>;
+    fn set_id(&mut self, id: Uuid);
 }
 
 pub struct EnsureUuidIdHooks<T>(PhantomData<T>);
@@ -29,9 +30,8 @@ where
             .resolve::<IdGenerationService>()
             .ok_or_else(|| HttpError::new(500, "IdGenerationService is not registered"))?;
 
-        let id_slot = entity.id_slot();
-        if id_slot.is_none() {
-            *id_slot = Some(generator.generate());
+        if entity.current_id().is_none() {
+            entity.set_id(generator.generate());
         }
 
         Ok(())

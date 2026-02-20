@@ -327,8 +327,8 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     }
 
     getPhotoWidth(photo: Photo, rowHeight: number): number {
-        const isValid = !!(photo.width && photo.height && photo.width > 0 && photo.height > 0);
-        const aspectRatio = isValid ? (photo.width! / photo.height!) : (4 / 3);
+        const isValid = (photo.width > 0 && photo.height > 0);
+        const aspectRatio = isValid ? (photo.width / photo.height) : (4 / 3);
         return rowHeight * aspectRatio;
     }
 

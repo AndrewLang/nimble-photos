@@ -3,6 +3,7 @@ use chrono::Utc;
 use serde_json::{Value, json};
 
 use nimble_web::testbot::{AssertResponse, TestBot, TestError, TestResult, TestScenario, TestStep};
+use uuid::Uuid;
 
 pub struct PhotoScenario;
 
@@ -67,30 +68,29 @@ struct CreatePhotoStep {
     name: String,
     format: String,
     size: i64,
-    thumbnail_path: String,
     width: u32,
     height: u32,
-    thumbnail_width: u32,
-    thumbnail_height: u32,
-    thumbnail_optimized: bool,
+    storage_id: Uuid,
+    day_date: String,
+    sort_date: String,
     metadata_extracted: bool,
     is_raw: bool,
 }
 
 impl CreatePhotoStep {
     fn new() -> Self {
+        let now = Utc::now();
         Self {
             hash: "testhash".to_string(),
             path: "/photos/testhash".to_string(),
             name: "test-photo".to_string(),
             format: "jpeg".to_string(),
             size: 1024,
-            thumbnail_path: "/photos/testhash/thumbnail".to_string(),
             width: 1920,
             height: 1080,
-            thumbnail_width: 320,
-            thumbnail_height: 180,
-            thumbnail_optimized: true,
+            storage_id: Uuid::new_v4(),
+            day_date: now.date_naive().to_string(),
+            sort_date: now.to_rfc3339(),
             metadata_extracted: true,
             is_raw: false,
         }
@@ -110,6 +110,7 @@ impl TestStep for CreatePhotoStep {
     async fn run(&self, bot: &mut TestBot) -> TestResult {
         let now = Utc::now();
         let payload = json!({
+            "storage_id": self.storage_id.to_string(),
             "hash": self.hash,
             "path": self.path,
             "name": self.name,
@@ -119,14 +120,12 @@ impl TestStep for CreatePhotoStep {
             "updated_at": now.to_rfc3339(),
             "date_imported": now.to_rfc3339(),
             "date_taken": now.to_rfc3339(),
-            "thumbnail_path": self.thumbnail_path,
-            "thumbnail_optimized": self.thumbnail_optimized,
+            "day_date": self.day_date,
+            "sort_date": self.sort_date,
             "metadata_extracted": self.metadata_extracted,
             "is_raw": self.is_raw,
             "width": self.width,
             "height": self.height,
-            "thumbnail_width": self.thumbnail_width,
-            "thumbnail_height": self.thumbnail_height,
         });
 
         let response = bot.post_auth(self.endpoint(), &payload).await?;
@@ -220,7 +219,6 @@ impl TestStep for UpdatePhotoStep {
         );
         obj.insert("format".to_string(), Value::String("png".to_string()));
         obj.insert("size".to_string(), Value::from(2048));
-        obj.insert("thumbnail_optimized".to_string(), Value::Bool(false));
         obj.insert("metadata_extracted".to_string(), Value::Bool(false));
         obj.insert(
             "updated_at".to_string(),

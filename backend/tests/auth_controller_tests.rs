@@ -201,7 +201,7 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
 
     let settings_repo = MemoryRepository::<UserSettings>::new();
     settings_repo.seed(vec![UserSettings {
-        user_id: TEST_USER_ID_STR.to_string(),
+        user_id: test_user_id,
         display_name: "Display Name".to_string(),
         avatar_url: None,
         theme: "dark".to_string(),

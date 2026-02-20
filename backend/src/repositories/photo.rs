@@ -14,7 +14,7 @@ const TAG_VISIBILITY_ADMIN_ONLY: i16 = 1;
 
 #[derive(Debug, Clone)]
 pub enum TagRef {
-    Id(i64),
+    Id(Uuid),
     Name(String),
 }
 
@@ -37,7 +37,7 @@ pub trait PhotoRepository: Send + Sync {
     ) -> DataResult<Vec<PhotoLoc>>;
 
     async fn list_all_tags(&self, is_admin: bool) -> DataResult<Vec<Tag>>;
-    async fn get_tags_by_ids(&self, ids: &[i64], is_admin: bool) -> DataResult<Vec<Tag>>;
+    async fn get_tags_by_ids(&self, ids: &[Uuid], is_admin: bool) -> DataResult<Vec<Tag>>;
     async fn upsert_tag(&self, name: &str, visibility: Option<i16>) -> DataResult<Tag>;
     async fn set_photo_tags(
         &self,
@@ -125,8 +125,8 @@ impl PostgresPhotoRepository {
         &self,
         refs: &[TagRef],
         default_visibility: i16,
-    ) -> DataResult<Vec<i64>> {
-        let mut ids = Vec::<i64>::new();
+    ) -> DataResult<Vec<Uuid>> {
+        let mut ids = Vec::<Uuid>::new();
         let mut names = Vec::<String>::new();
 
         for item in refs {
@@ -145,7 +145,7 @@ impl PostgresPhotoRepository {
             .map_err(|e| DataError::Provider(e.to_string()))?;
 
         for (name, name_norm) in normalized {
-            let tag_id: i64 = sqlx::query_scalar(
+            let tag_id: Uuid = sqlx::query_scalar(
                 r#"
                 INSERT INTO tags (name, name_norm, visibility, created_at)
                 VALUES ($1, $2, $3, NOW())
@@ -166,7 +166,7 @@ impl PostgresPhotoRepository {
             .await
             .map_err(|e| DataError::Provider(e.to_string()))?;
 
-        ids.sort_unstable();
+        ids.sort_unstable_by(|a, b| a.as_bytes().cmp(b.as_bytes()));
         ids.dedup();
         Ok(ids)
     }
@@ -185,9 +185,9 @@ impl PhotoRepository for PostgresPhotoRepository {
             r#"
             WITH target_days AS (
                 SELECT DISTINCT
-                    DATE(date_taken AT TIME ZONE 'UTC') AS day_date
-                FROM {photos}
-                ORDER BY day_date DESC NULLS LAST
+                    p.day_date
+                FROM {photos} p
+                ORDER BY p.day_date DESC
                 LIMIT $1 OFFSET $2
             )
             SELECT
@@ -206,12 +206,12 @@ impl PhotoRepository for PostgresPhotoRepository {
                             'height', p.height,
                             'name', p.name
                         )
-                        ORDER BY COALESCE(p.date_taken, p.created_at) DESC
+                        ORDER BY p.sort_date DESC
                     ) AS photos_json
                 FROM {photos} p
-                WHERE DATE(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC') = td.day_date
+                WHERE p.day_date = td.day_date
             ) p_agg ON true
-            ORDER BY td.day_date DESC NULLS LAST;
+            ORDER BY td.day_date DESC;
         "#
         );
 
@@ -252,7 +252,7 @@ impl PhotoRepository for PostgresPhotoRepository {
         let photos = Self::photos_relation(is_admin);
         let sql = format!(
             r#"
-            SELECT DISTINCT to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY') as year
+            SELECT DISTINCT to_char(p.day_date, 'YYYY') as year
             FROM {photos} p
             ORDER BY year DESC
         "#
@@ -277,7 +277,7 @@ impl PhotoRepository for PostgresPhotoRepository {
         let sql = format!(
             r#"
             WITH day_groups AS (
-                SELECT DISTINCT to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD') as day
+                SELECT DISTINCT to_char(p.day_date, 'YYYY-MM-DD') as day
                 FROM {photos} p
             )
             SELECT count(*) as offset
@@ -307,8 +307,8 @@ impl PhotoRepository for PostgresPhotoRepository {
         let sql = format!(
             r#"
             SELECT
-                p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
-                p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
+                p.id, p.storage_id, p.path, p.name, p.format, p.hash, p.size,
+                p.created_at, p.updated_at, p.date_imported, p.date_taken,
                 p.metadata_extracted, p.is_raw,
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
@@ -322,11 +322,11 @@ impl PhotoRepository for PostgresPhotoRepository {
                     ELSE
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
                 END as height,
-                p.thumbnail_width, p.thumbnail_height
+                p.day_date, p.sort_date
             FROM (SELECT * FROM unnest($1)) as ids(id)
             JOIN {photos} p ON p.id = ids.id
             LEFT JOIN exifs e ON p.id = e.image_id
-            ORDER BY COALESCE(p.date_taken, p.created_at) DESC
+            ORDER BY p.sort_date DESC
         "#
         );
 
@@ -349,8 +349,8 @@ impl PhotoRepository for PostgresPhotoRepository {
         let sql = format!(
             r#"
             SELECT
-                p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
-                p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
+                p.id, p.storage_id, p.path, p.name, p.format, p.hash, p.size,
+                p.created_at, p.updated_at, p.date_imported, p.date_taken,
                 p.metadata_extracted, p.is_raw,
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
@@ -364,8 +364,8 @@ impl PhotoRepository for PostgresPhotoRepository {
                     ELSE
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
                 END as height,
-                p.thumbnail_width,
-                p.thumbnail_height,
+                p.day_date,
+                p.sort_date,
                 e.gps_latitude as lat,
                 e.gps_longitude as lon
             FROM {photos} p
@@ -375,7 +375,7 @@ impl PhotoRepository for PostgresPhotoRepository {
                 AND e.gps_longitude IS NOT NULL
                 AND e.gps_latitude <> 0
                 AND e.gps_longitude <> 0
-            ORDER BY COALESCE(p.date_taken, p.created_at) DESC
+            ORDER BY p.sort_date DESC
             LIMIT $1 OFFSET $2
         "#
         );
@@ -408,7 +408,7 @@ impl PhotoRepository for PostgresPhotoRepository {
             .map_err(|e| DataError::Provider(e.to_string()))
     }
 
-    async fn get_tags_by_ids(&self, ids: &[i64], is_admin: bool) -> DataResult<Vec<Tag>> {
+    async fn get_tags_by_ids(&self, ids: &[Uuid], is_admin: bool) -> DataResult<Vec<Tag>> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -417,7 +417,7 @@ impl PhotoRepository for PostgresPhotoRepository {
             r#"
             SELECT t.id, t.name, t.visibility, t.created_at
             FROM tags t
-            WHERE t.id = ANY($1::bigint[])
+            WHERE t.id = ANY($1::uuid[])
               AND {vis}
             ORDER BY t.name ASC
         "#
@@ -476,7 +476,7 @@ impl PhotoRepository for PostgresPhotoRepository {
                 "INSERT INTO photo_tags (photo_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
             )
             .bind(photo_id)
-            .bind(tag_id as i64)
+            .bind(tag_id)
             .execute(&mut *tx)
             .await
             .map_err(|e| DataError::Provider(e.to_string()))?;
@@ -502,7 +502,7 @@ impl PhotoRepository for PostgresPhotoRepository {
     }
 
     async fn remove_photo_tag(&self, photo_id: Uuid, tag_name_or_id: &str) -> DataResult<bool> {
-        let done = if let Ok(tag_id) = tag_name_or_id.trim().parse::<i64>() {
+        let done = if let Ok(tag_id) = Uuid::parse_str(tag_name_or_id.trim()) {
             let result = sqlx::query("DELETE FROM photo_tags WHERE photo_id = $1 AND tag_id = $2")
                 .bind(photo_id)
                 .bind(tag_id)
@@ -593,9 +593,7 @@ impl PhotoRepository for PostgresPhotoRepository {
             let tag_name: String = row
                 .try_get("name")
                 .map_err(|e| DataError::Provider(e.to_string()))?;
-            map.entry(photo_id)
-                .or_insert_with(Vec::new)
-                .push(tag_name);
+            map.entry(photo_id).or_insert_with(Vec::new).push(tag_name);
         }
 
         Ok(map)
@@ -661,9 +659,8 @@ impl PhotoRepository for PostgresPhotoRepository {
                 SELECT COUNT(*)::bigint AS total FROM filtered_photos
             )
             SELECT
-                p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
-                p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                p.metadata_extracted, p.is_raw,
+                p.id, p.storage_id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
+                p.date_imported, p.date_taken, p.metadata_extracted, p.is_raw,
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
@@ -676,12 +673,12 @@ impl PhotoRepository for PostgresPhotoRepository {
                     ELSE
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
                 END as height,
-                p.thumbnail_width, p.thumbnail_height,
+                p.day_date, p.sort_date,
                 (SELECT total FROM filtered_count) AS _total_count
             FROM filtered_photos fp
-            JOIN photos p ON p.id = fp.id
+            JOIN {photos} p ON p.id = fp.id
             LEFT JOIN exifs e ON p.id = e.image_id
-            ORDER BY COALESCE(p.date_taken, p.created_at) DESC
+            ORDER BY p.sort_date DESC
             LIMIT $3 OFFSET $4
         "#
         );
@@ -724,9 +721,8 @@ impl PhotoRepository for PostgresPhotoRepository {
         let sql = format!(
             r#"
             SELECT
-                p.id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
-                p.date_imported, p.date_taken, p.thumbnail_path, p.thumbnail_optimized,
-                p.metadata_extracted, p.is_raw,
+                p.id, p.storage_id, p.path, p.name, p.format, p.hash, p.size, p.created_at, p.updated_at,
+                p.date_imported, p.date_taken, p.metadata_extracted, p.is_raw,
                 CASE
                     WHEN e.orientation IN (5, 6, 7, 8) THEN
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
@@ -739,10 +735,10 @@ impl PhotoRepository for PostgresPhotoRepository {
                     ELSE
                         COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
                 END as height,
-                p.thumbnail_width, p.thumbnail_height
+                p.day_date, p.sort_date
             FROM {photos} p
             LEFT JOIN exifs e ON p.id = e.image_id
-            ORDER BY COALESCE(p.date_taken, p.created_at) DESC
+            ORDER BY p.sort_date DESC
             LIMIT $1 OFFSET $2
         "#
         );
@@ -781,7 +777,7 @@ impl PhotoRepository for PostgresPhotoRepository {
                 "INSERT INTO album_tags (album_id, tag_id, created_at, created_by_user_id) VALUES ($1, $2, NOW(), $3) ON CONFLICT DO NOTHING",
             )
             .bind(album_id)
-            .bind(tag_id as i64)
+            .bind(tag_id)
             .bind(created_by_user_id)
             .execute(&mut *tx)
             .await

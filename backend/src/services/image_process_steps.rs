@@ -11,7 +11,7 @@ use crate::services::{PreviewExtractor, ThumbnailExtractor};
 
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use nimble_web::ServiceProvider;
 use nimble_web::data::repository::Repository;
 use std::path::{Path, PathBuf};
@@ -159,7 +159,11 @@ impl GenerateThumbnailStep {
 #[async_trait]
 impl ImageProcessStep for GenerateThumbnailStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        let thumbnail_root = context.payload().storage.normalized_path().join(".thumbnails");
+        let thumbnail_root = context
+            .payload()
+            .storage
+            .normalized_path()
+            .join(".thumbnails");
         let hash = context
             .get_by_alias::<String>(ImageProcessKeys::HASH)
             .ok_or_else(|| anyhow!("hash not found"))?;
@@ -212,7 +216,11 @@ impl GeneratePreviewStep {
 #[async_trait]
 impl ImageProcessStep for GeneratePreviewStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        let preview_root = context.payload().storage.normalized_path().join(".previews");
+        let preview_root = context
+            .payload()
+            .storage
+            .normalized_path()
+            .join(".previews");
         let hash = context
             .get_by_alias::<String>(ImageProcessKeys::HASH)
             .ok_or_else(|| anyhow!("hash not found"))?;
@@ -239,8 +247,7 @@ impl ImageProcessStep for GeneratePreviewStep {
     }
 }
 
-pub(super) struct CategorizeImageStep {
-}
+pub(super) struct CategorizeImageStep {}
 
 impl CategorizeImageStep {
     pub(super) fn new(_services: Arc<ServiceProvider>) -> Self {
@@ -320,10 +327,14 @@ impl ImageProcessStep for PersistMetadataStep {
             .and_then(|ext| ext.to_str())
             .unwrap_or("")
             .to_string();
+        let now = Utc::now();
+        let date_taken = exif.get_date_taken();
+        let sort_date = date_taken.unwrap_or(now);
+        let day_date: NaiveDate = sort_date.date_naive();
 
         let photo = Photo {
-            id: Some(Uuid::new_v4()),
-            storage_id: Some(context.payload().storage.id.to_string()),
+            id: Uuid::new_v4(),
+            storage_id: context.payload().storage.id,
             path: final_path.to_string_lossy().to_string(),
             name: final_path
                 .file_name()
@@ -338,20 +349,10 @@ impl ImageProcessStep for PersistMetadataStep {
                     .ok_or_else(|| anyhow!("hash not found in context"))?,
             ),
             size: Some(final_path.metadata()?.len() as i64),
-            created_at: Some(Utc::now()),
-            updated_at: Some(Utc::now()),
-            date_imported: Some(Utc::now()),
-            date_taken: exif.get_date_taken(),
-            thumbnail_path: Some(
-                context
-                    .get_by_alias::<PathBuf>(ImageProcessKeys::THUMBNAIL_PATH)
-                    .cloned()
-                    .ok_or_else(|| anyhow!("thumbnail path not found in context"))?
-                    .to_str()
-                    .ok_or_else(|| anyhow!("thumbnail path is not valid UTF-8"))?
-                    .to_string(),
-            ),
-            thumbnail_optimized: Some(true),
+            created_at: Some(now),
+            updated_at: Some(now),
+            date_imported: Some(now),
+            date_taken,
             metadata_extracted: Some(true),
             is_raw: Some(
                 ImageProcessKeys::RAW_EXTENSIONS
@@ -360,12 +361,8 @@ impl ImageProcessStep for PersistMetadataStep {
             ),
             width: exif.get_width(),
             height: exif.get_height(),
-            thumbnail_width: context
-                .get_by_alias::<u32>(ImageProcessKeys::THUMBNAIL_WIDTH)
-                .cloned(),
-            thumbnail_height: context
-                .get_by_alias::<u32>(ImageProcessKeys::THUMBNAIL_HEIGHT)
-                .cloned(),
+            day_date,
+            sort_date,
         };
 
         let saved_photo = self
@@ -376,9 +373,9 @@ impl ImageProcessStep for PersistMetadataStep {
         log::debug!("Photo metadata persisted with ID: {:?}", saved_photo.id);
 
         if let Some(mut metadata) = exif.clone().into() {
-            metadata.id = Some(Uuid::new_v4());
+            metadata.id = Uuid::new_v4();
             metadata.image_id = saved_photo.id;
-            metadata.hash = saved_photo.hash.clone();
+            metadata.hash = saved_photo.hash.clone().unwrap_or_default();
 
             let _ = self
                 .exif_repo

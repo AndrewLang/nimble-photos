@@ -13,8 +13,6 @@ impl ImageProcessKeys {
 
     pub const THUMBNAIL_FORMAT_EXTENSION: &'static str = "webp";
     pub const THUMBNAIL_PATH: &'static str = "thumbnail_path";
-    pub const THUMBNAIL_WIDTH: &'static str = "thumbnail_width";
-    pub const THUMBNAIL_HEIGHT: &'static str = "thumbnail_height";
     pub const PREVIEW_FORMAT_EXTENSION: &'static str = "jpg";
     pub const PREVIEW_PATH: &'static str = "preview_path";
 

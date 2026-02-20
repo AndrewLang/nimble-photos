@@ -294,7 +294,7 @@ impl HttpHandler for AlbumCommentsHandler {
                     return true;
                 }
                 if let Some(user_id) = current_user_id {
-                    return comment.user_id == Some(user_id);
+                    return comment.user_id == user_id;
                 }
                 false
             })
@@ -363,16 +363,16 @@ impl HttpHandler for CreateAlbumCommentHandler {
 
         let settings_repo = context.service::<Repository<UserSettings>>()?;
         let display_name = settings_repo
-            .get(&user_id.to_string())
+            .get(&user_id)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
             .map(|settings| settings.display_name)
             .unwrap_or_else(|| "Anonymous".to_string());
 
         let mut new_comment = AlbumComment::default();
-        new_comment.id = Some(Uuid::new_v4());
-        new_comment.album_id = Some(album_id);
-        new_comment.user_id = Some(user_id);
+        new_comment.id = Uuid::new_v4();
+        new_comment.album_id = album_id;
+        new_comment.user_id = user_id;
         new_comment.user_display_name = Some(display_name);
         new_comment.body = Some(trimmed.to_string());
         new_comment.created_at = Some(Utc::now());
@@ -425,7 +425,7 @@ impl HttpHandler for UpdateAlbumCommentVisibilityHandler {
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
             .ok_or_else(|| PipelineError::message("Comment not found"))?;
 
-        if comment.album_id != Some(album_id) {
+        if comment.album_id != album_id {
             return Err(PipelineError::message(
                 "Comment does not belong to the supplied album",
             ));
@@ -454,24 +454,21 @@ impl AlbumController {
         let mut refs = Vec::<TagRef>::new();
         for value in values {
             match value {
-                serde_json::Value::Number(num) => {
-                    let id = num
-                        .as_i64()
-                        .ok_or_else(|| PipelineError::message("invalid numeric tag id"))?;
-                    refs.push(TagRef::Id(id));
+                serde_json::Value::Number(_) => {
+                    return Err(PipelineError::message("tags must be UUID strings or names"));
                 }
                 serde_json::Value::String(text) => {
                     let trimmed = text.trim();
                     if trimmed.is_empty() {
                         continue;
                     }
-                    if let Ok(id) = trimmed.parse::<i64>() {
+                    if let Ok(id) = Uuid::parse_str(trimmed) {
                         refs.push(TagRef::Id(id));
                     } else {
                         refs.push(TagRef::Name(trimmed.to_string()));
                     }
                 }
-                _ => return Err(PipelineError::message("tags must be ids or names")),
+                _ => return Err(PipelineError::message("tags must be UUID strings or names")),
             }
         }
         Ok(refs)
@@ -508,10 +505,7 @@ impl AlbumController {
         photos
             .into_iter()
             .filter(|photo| {
-                let Some(photo_id) = photo.id.as_ref().copied() else {
-                    return true;
-                };
-                let tags = photo_tags.get(&photo_id);
+                let tags = photo_tags.get(&photo.id);
                 !tags
                     .map(|items| {
                         items
@@ -524,10 +518,7 @@ impl AlbumController {
     }
 
     fn collect_photo_ids(photos: &[crate::entities::photo::Photo]) -> Vec<Uuid> {
-        photos
-            .iter()
-            .filter_map(|photo| photo.id.as_ref().copied())
-            .collect()
+        photos.iter().map(|photo| photo.id).collect()
     }
 
     fn attach_tags_to_photos(
@@ -537,11 +528,7 @@ impl AlbumController {
         photos
             .into_iter()
             .map(|photo| {
-                let tags = photo
-                    .id
-                    .as_ref()
-                    .and_then(|id| photo_tags.get(id).cloned())
-                    .unwrap_or_default();
+                let tags = photo_tags.get(&photo.id).cloned().unwrap_or_default();
                 PhotoWithTags { photo, tags }
             })
             .collect()

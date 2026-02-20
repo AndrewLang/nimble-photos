@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use nimble_photos::models::property_map::PropertyMap;
-use nimble_photos::models::template::{TemplateContext, TemplateEngine};
 use nimble_photos::models::template::PropertyMapTemplateContext;
+use nimble_photos::models::template::{TemplateContext, TemplateEngine};
 use std::any::Any;
 
 struct TestTemplateContext {
@@ -68,10 +68,7 @@ fn template_patterns_render_expected_paths() {
         ),
         ("{year}/{fileName}", "2025/holiday.snapshot.jpg"),
         ("{date:%Y-%m}/{fileName}", "2025-01/holiday.snapshot.jpg"),
-        (
-            "{hash:0:2}/{hash:2:2}/{hash}",
-            "ab/cd/abcdef1234567890",
-        ),
+        ("{hash:0:2}/{hash:2:2}/{hash}", "ab/cd/abcdef1234567890"),
         (
             "{hash:0:2}/{hash:2:2}/{fileStem}-{hash:0:6}.{extension}",
             "ab/cd/holiday.snapshot-abcdef.jpg",

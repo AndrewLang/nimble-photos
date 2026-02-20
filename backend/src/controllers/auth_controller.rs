@@ -127,11 +127,11 @@ impl HttpHandler for MeHandler {
             .ok_or_else(|| PipelineError::message("user not found"))?;
 
         let settings = settings_repo
-            .get(&user_id.to_string())
+            .get(&user_id)
             .await
             .map_err(|_| PipelineError::message("data error"))?
             .unwrap_or(UserSettings {
-                user_id: user_id.to_string(),
+                user_id,
                 display_name: user.email.clone(),
                 avatar_url: None,
                 theme: "light".to_string(),

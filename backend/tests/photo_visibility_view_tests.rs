@@ -11,8 +11,9 @@ async fn setup_pool() -> Option<PgPool> {
 async fn ensure_tag_schema_and_view(pool: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
+        CREATE EXTENSION IF NOT EXISTS "pgcrypto";
         CREATE TABLE IF NOT EXISTS tags (
-            id BIGSERIAL PRIMARY KEY,
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             name TEXT NOT NULL,
             name_norm TEXT NOT NULL,
             visibility SMALLINT NOT NULL DEFAULT 0,
@@ -31,7 +32,7 @@ async fn ensure_tag_schema_and_view(pool: &PgPool) -> Result<(), sqlx::Error> {
         r#"
         CREATE TABLE IF NOT EXISTS photo_tags (
             photo_id UUID NOT NULL REFERENCES photos (id) ON DELETE CASCADE,
-            tag_id BIGINT NOT NULL REFERENCES tags (id) ON DELETE CASCADE,
+            tag_id UUID NOT NULL REFERENCES tags (id) ON DELETE CASCADE,
             PRIMARY KEY (photo_id, tag_id)
         )
         "#,
@@ -91,7 +92,7 @@ async fn photo_visibility_view_hides_and_unhides_with_admin_only_tag() {
         .expect("query visible before tag failed");
     assert_eq!(visible_before.len(), 1);
 
-    let tag_id: i64 = sqlx::query_scalar(
+    let tag_id: Uuid = sqlx::query_scalar(
         r#"
         INSERT INTO tags (name, name_norm, visibility, created_at)
         VALUES ($1, $2, 1, NOW())
@@ -105,14 +106,12 @@ async fn photo_visibility_view_hides_and_unhides_with_admin_only_tag() {
     .await
     .expect("upsert admin_only tag failed");
 
-    sqlx::query(
-        "INSERT INTO photo_tags (photo_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-    )
-    .bind(photo_id)
-    .bind(tag_id)
-    .execute(&pool)
-    .await
-    .expect("attach tag failed");
+    sqlx::query("INSERT INTO photo_tags (photo_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING")
+        .bind(photo_id)
+        .bind(tag_id)
+        .execute(&pool)
+        .await
+        .expect("attach tag failed");
 
     let visible_after = repo
         .get_by_ids(&[photo_id], false)

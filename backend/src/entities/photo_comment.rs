@@ -13,24 +13,35 @@ use {
     sqlx::{FromRow, Row},
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PhotoComment {
-    pub id: Option<Uuid>,
-    pub photo_id: Option<Uuid>,
-    pub user_id: Option<Uuid>,
+    pub id: Uuid,
+    pub photo_id: Uuid,
+    pub user_id: Uuid,
     pub user_display_name: Option<String>,
     pub body: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
+}
+
+impl Default for PhotoComment {
+    fn default() -> Self {
+        Self {
+            id: Uuid::nil(),
+            photo_id: Uuid::nil(),
+            user_id: Uuid::nil(),
+            user_display_name: None,
+            body: None,
+            created_at: None,
+        }
+    }
 }
 
 impl Entity for PhotoComment {
     type Id = Uuid;
 
     fn id(&self) -> &Self::Id {
-        self.id
-            .as_ref()
-            .expect("PhotoComment requires an id for Entity trait operations")
+        &self.id
     }
 
     fn name() -> &'static str {
@@ -39,8 +50,16 @@ impl Entity for PhotoComment {
 }
 
 impl HasOptionalUuidId for PhotoComment {
-    fn id_slot(&mut self) -> &mut Option<Uuid> {
-        &mut self.id
+    fn current_id(&self) -> Option<Uuid> {
+        if self.id == Uuid::nil() {
+            None
+        } else {
+            Some(self.id)
+        }
+    }
+
+    fn set_id(&mut self, id: Uuid) {
+        self.id = id;
     }
 }
 
@@ -81,9 +100,9 @@ impl PostgresEntity for PhotoComment {
 
     fn insert_values(&self) -> Vec<nimble_web::data::query::Value> {
         vec![
-            nimble_web::data::query::Value::Uuid(self.id.expect("id not set")),
-            PostgresValueBuilder::optional_uuid(self.photo_id),
-            PostgresValueBuilder::optional_uuid(self.user_id),
+            nimble_web::data::query::Value::Uuid(self.id),
+            nimble_web::data::query::Value::Uuid(self.photo_id),
+            nimble_web::data::query::Value::Uuid(self.user_id),
             PostgresValueBuilder::optional_string(&self.user_display_name),
             PostgresValueBuilder::optional_string(&self.body),
             PostgresValueBuilder::optional_datetime(&self.created_at),

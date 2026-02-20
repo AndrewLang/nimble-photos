@@ -6,7 +6,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PhotoCursor {
-    pub date_taken: DateTime<Utc>,
+    #[serde(alias = "date_taken", alias = "dateTaken")]
+    pub sort_date: DateTime<Utc>,
     pub id: Uuid,
 }
 

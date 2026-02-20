@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use crate::models::property_map::PropertyMap;
 use crate::models::template::PropertyMapTemplateContext;
@@ -74,7 +74,10 @@ impl TemplateCategorizer {
     fn move_file(source: &Path, destination: &Path) -> Result<()> {
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent).with_context(|| {
-                format!("failed to create destination directory {}", parent.display())
+                format!(
+                    "failed to create destination directory {}",
+                    parent.display()
+                )
             })?;
         }
 
@@ -105,7 +108,9 @@ impl ImageCategorizer for TemplateCategorizer {
         let working_dir = request
             .properties()
             .get_by_alias::<PathBuf>(ImageProcessKeys::WORKING_DIRECTORY)
-            .ok_or_else(|| anyhow!("working directory not found in properties for categorization"))?;
+            .ok_or_else(|| {
+                anyhow!("working directory not found in properties for categorization")
+            })?;
 
         let file_name = request
             .source_file()
@@ -141,9 +146,6 @@ impl ImageCategorizer for TemplateCategorizer {
 
         Self::move_file(request.source_file(), &final_path)?;
 
-        Ok(CategorizeResult {
-            final_path,
-            hash,
-        })
+        Ok(CategorizeResult { final_path, hash })
     }
 }

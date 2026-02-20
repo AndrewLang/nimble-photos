@@ -45,7 +45,7 @@
           }
         </div>
         } @else {
-        <div class="flex items-stretch justify-start overflow-hidden mb-[6px]" [style.height.px]="item.row.height">
+        <div class="flex items-stretch justify-start overflow-hidden mb-1.5" [style.height.px]="item.row.height">
           @for (photo of item.row.photos; track photo.id; let lastPhoto = $last) {
           <article (click)="isSelectionMode() ? togglePhotoSelection(photo, $event) : null"
             [routerLink]="!isSelectionMode() ? (albumId() ? ['/album', albumId(), 'photo', photo.id] : ['/photo', photo.id]) : null"
@@ -83,10 +83,10 @@
             </div>
 
             <div
-              class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-4 z-20">
+              class="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-4 z-20">
               <span
                 class="text-white text-[10px] font-bold leading-tight truncate drop-shadow-md mb-1 px-1 py-0.5 bg-black/20 rounded-xs self-start">
-                {{ photo.name }}
+                {{ photo.name }} - {{photo.width}}x{{photo.height}}
               </span>
             </div>
 
@@ -110,10 +110,9 @@
 
       @if (!isFetching() && loadedPhotosCount() >= totalPhotos() && totalPhotos() > 0) {
       <div class="flex justify-center py-20">
-        <div class="h-[1px] w-24 bg-linear-to-r from-transparent via-slate-800 to-transparent"></div>
+        <div class="h-px w-24 bg-linear-to-r from-transparent via-slate-800 to-transparent"></div>
       </div>
       }
     </div>
   </cdk-virtual-scroll-viewport>
 </div>
-

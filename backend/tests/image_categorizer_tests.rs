@@ -50,7 +50,9 @@ fn template_categorizer_supports_hash_shortcut() {
 
     let request = CategorizeRequest::new(&source, &properties);
     let categorizer = TemplateCategorizer::new("hash");
-    let result = categorizer.categorize(&request).expect("categorize should pass");
+    let result = categorizer
+        .categorize(&request)
+        .expect("categorize should pass");
 
     let expected = working_dir.join("ab").join("cd").join("incoming.jpg");
     assert_eq!(result.final_path, expected);
@@ -120,11 +122,8 @@ fn template_categorizer_requires_working_directory() {
         .insert::<Option<chrono::DateTime<Utc>>>(Some(Utc::now()))
         .alias(EXIF_DATE_TAKEN);
 
-    let result =
-        TemplateCategorizer::new("{year}/{fileName}").categorize(&CategorizeRequest::new(
-            &source,
-            &properties,
-        ));
+    let result = TemplateCategorizer::new("{year}/{fileName}")
+        .categorize(&CategorizeRequest::new(&source, &properties));
 
     assert!(result.is_err());
 }

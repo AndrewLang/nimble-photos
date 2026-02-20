@@ -1,5 +1,6 @@
 use nimble_photos::entities::StorageLocation;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 #[test]
 fn image_storage_location_normalizes_relative_path() {
@@ -7,7 +8,7 @@ fn image_storage_location_normalizes_relative_path() {
     let relative = PathBuf::from("storage-relative");
 
     let storage = StorageLocation {
-        id: "1".to_string(),
+        id: Uuid::new_v4(),
         label: "Test".to_string(),
         path: relative.to_string_lossy().to_string(),
         is_default: false,
@@ -16,7 +17,10 @@ fn image_storage_location_normalizes_relative_path() {
     };
 
     assert_eq!(storage.normalized_path(), cwd.join(relative));
-    assert_eq!(storage.category_template, "{year}/{date:%Y-%m-%d}/{fileName}");
+    assert_eq!(
+        storage.category_template,
+        "{year}/{date:%Y-%m-%d}/{fileName}"
+    );
 }
 
 #[test]
@@ -24,7 +28,7 @@ fn image_storage_location_keeps_absolute_path() {
     let absolute = std::env::temp_dir().join("nimble-storage-abs");
 
     let storage = StorageLocation {
-        id: "2".to_string(),
+        id: Uuid::new_v4(),
         label: "Temp".to_string(),
         path: absolute.to_string_lossy().to_string(),
         is_default: false,
@@ -33,5 +37,8 @@ fn image_storage_location_keeps_absolute_path() {
     };
 
     assert_eq!(storage.normalized_path(), absolute);
-    assert_eq!(storage.category_template, "{year}/{date:%Y-%m-%d}/{fileName}");
+    assert_eq!(
+        storage.category_template,
+        "{year}/{date:%Y-%m-%d}/{fileName}"
+    );
 }

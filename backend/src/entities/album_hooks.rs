@@ -24,8 +24,8 @@ impl EntityHooks<Album> for AlbumHooks {
             .resolve::<IdGenerationService>()
             .ok_or_else(|| HttpError::new(500, "IdGenerationService is not registered"))?;
 
-        if entity.id.is_none() {
-            entity.id = Some(generator.generate());
+        if entity.id.is_nil() {
+            entity.id = generator.generate();
         }
 
         if entity.create_date.is_none() {

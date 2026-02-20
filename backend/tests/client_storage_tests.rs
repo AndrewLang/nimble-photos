@@ -30,7 +30,10 @@ fn group_select_builds_expected_sql() {
             "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM')"
         )
     );
-    assert_eq!(camera.group_select(), ("p.camera_model AS folder", "p.camera_model"));
+    assert_eq!(
+        camera.group_select(),
+        ("p.camera_model AS folder", "p.camera_model")
+    );
     assert_eq!(rating.group_select(), ("p.rating AS folder", "p.rating"));
 }
 
@@ -66,7 +69,10 @@ fn parse_segment_value_validates_input() {
     let camera = BrowseDimensionSqlAdapter::new(BrowseDimension::Camera);
     let rating = BrowseDimensionSqlAdapter::new(BrowseDimension::Rating);
 
-    assert_eq!(year.parse_segment_value("2026").unwrap(), SqlParam::Int(2026));
+    assert_eq!(
+        year.parse_segment_value("2026").unwrap(),
+        SqlParam::Int(2026)
+    );
     assert_eq!(
         date.parse_segment_value("2026-01-25").unwrap(),
         SqlParam::String("2026-01-25".to_string())

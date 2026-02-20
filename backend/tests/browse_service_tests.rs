@@ -2,6 +2,7 @@ use nimble_photos::entities::photo_browse::BrowseOptions;
 use nimble_photos::services::BrowseService;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[test]
 fn browse_request_path_segments_split_correctly() {
@@ -13,7 +14,11 @@ fn browse_request_path_segments_split_correctly() {
 
     assert_eq!(
         request.path_segments().unwrap(),
-        vec!["2026".to_string(), "Nikon".to_string(), "2026-01-25".to_string()]
+        vec![
+            "2026".to_string(),
+            "Nikon".to_string(),
+            "2026-01-25".to_string()
+        ]
     );
 }
 
@@ -39,11 +44,15 @@ async fn browse_service_returns_error_for_invalid_depth() {
     let service = BrowseService::new(Arc::new(pool));
     let options = BrowseOptions::default();
     let segments = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    let storage_id = Uuid::new_v4();
 
     let result = service
-        .browse("storage-1", &segments, &options, 50, None)
+        .browse(&storage_id, &segments, &options, 50, None)
         .await;
 
     assert!(result.is_err());
-    assert_eq!(result.err().unwrap().to_string(), "invalid browse path depth");
+    assert_eq!(
+        result.err().unwrap().to_string(),
+        "invalid browse path depth"
+    );
 }

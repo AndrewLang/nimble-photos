@@ -531,7 +531,7 @@ impl HttpHandler for UpdateClientStorageSettingsHandler {
             }
 
             let record = ClientStorage {
-                id: ClientStorage::row_id(client.id, *storage_id),
+                id: Uuid::new_v4(),
                 client_id: client.id,
                 storage_id: *storage_id,
                 browse_options: BrowseOptions::default(),

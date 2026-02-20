@@ -272,46 +272,33 @@ impl PreviewHandler {
         photo: &Photo,
         hash: &str,
     ) -> PathBuf {
-        if let Some(storage_id) = photo.storage_id.as_ref() {
-            match Uuid::parse_str(storage_id) {
-                Ok(storage_uuid) => {
-                    if let Ok(storage_repo) = context.service::<Repository<StorageLocation>>() {
-                        match storage_repo.get(&storage_uuid).await {
-                            Ok(Some(storage)) => {
-                                return storage.normalized_path().join(".previews");
-                            }
-                            Ok(None) => {
-                                log::warn!(
-                                    "Storage {} not found while resolving preview for hash {}",
-                                    storage_id,
-                                    hash
-                                );
-                            }
-                            Err(err) => {
-                                log::warn!(
-                                    "Failed to load storage {} for preview hash {}: {:?}",
-                                    storage_id,
-                                    hash,
-                                    err
-                                );
-                            }
-                        }
-                    } else {
-                        log::warn!(
-                            "Storage repository unavailable while resolving preview for hash {}",
-                            hash
-                        );
-                    }
+        let storage_id = photo.storage_id;
+        if let Ok(storage_repo) = context.service::<Repository<StorageLocation>>() {
+            match storage_repo.get(&storage_id).await {
+                Ok(Some(storage)) => {
+                    return storage.normalized_path().join(".previews");
+                }
+                Ok(None) => {
+                    log::warn!(
+                        "Storage {} not found while resolving preview for hash {}",
+                        storage_id,
+                        hash
+                    );
                 }
                 Err(err) => {
                     log::warn!(
-                        "Invalid storage id {} on photo for hash {}: {:?}",
+                        "Failed to load storage {} for preview hash {}: {:?}",
                         storage_id,
                         hash,
                         err
                     );
                 }
             }
+        } else {
+            log::warn!(
+                "Storage repository unavailable while resolving preview for hash {}",
+                hash
+            );
         }
 
         self.default_preview_root()
@@ -544,8 +531,7 @@ impl HttpHandler for MapPhotosHandler {
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
         let hidden_tags = PhotoController::viewer_hidden_tags(context).await?;
-        let photos =
-            PhotoController::filter_photo_locs_for_viewer(photos, &hidden_tags, &tag_map);
+        let photos = PhotoController::filter_photo_locs_for_viewer(photos, &hidden_tags, &tag_map);
         let photos = PhotoController::attach_tags_to_locs(photos, &tag_map);
 
         let response = serde_json::json!({
@@ -607,13 +593,7 @@ impl HttpHandler for PhotosQueryHandler {
         }
 
         let mut result = repository
-            .filter_photos_by_tags(
-                &tags,
-                match_all,
-                is_admin,
-                page,
-                page_size,
-            )
+            .filter_photos_by_tags(&tags, match_all, is_admin, page, page_size)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
         let photo_ids = PhotoController::collect_photo_ids(&result.items);
@@ -716,16 +696,16 @@ impl HttpHandler for CreatePhotoCommentHandler {
 
         let settings_repo = context.service::<Repository<UserSettings>>()?;
         let display_name = settings_repo
-            .get(&user_id.to_string())
+            .get(&user_id)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
             .map(|settings| settings.display_name)
             .unwrap_or_else(|| "Anonymous".to_string());
 
         let mut new_comment = PhotoComment::default();
-        new_comment.id = Some(Uuid::new_v4());
-        new_comment.photo_id = Some(photo_id);
-        new_comment.user_id = Some(user_id);
+        new_comment.id = Uuid::new_v4();
+        new_comment.photo_id = photo_id;
+        new_comment.user_id = user_id;
         new_comment.user_display_name = Some(display_name);
         new_comment.body = Some(body.to_string());
         new_comment.created_at = Some(Utc::now());
@@ -916,24 +896,21 @@ impl PhotoController {
         let mut refs = Vec::<TagRef>::new();
         for value in values {
             match value {
-                serde_json::Value::Number(num) => {
-                    let id = num
-                        .as_i64()
-                        .ok_or_else(|| PipelineError::message("invalid numeric tag id"))?;
-                    refs.push(TagRef::Id(id));
+                serde_json::Value::Number(_) => {
+                    return Err(PipelineError::message("tags must be UUID strings or names"));
                 }
                 serde_json::Value::String(text) => {
                     let trimmed = text.trim();
                     if trimmed.is_empty() {
                         continue;
                     }
-                    if let Ok(id) = trimmed.parse::<i64>() {
+                    if let Ok(id) = Uuid::parse_str(trimmed) {
                         refs.push(TagRef::Id(id));
                     } else {
                         refs.push(TagRef::Name(trimmed.to_string()));
                     }
                 }
-                _ => return Err(PipelineError::message("tags must be ids or names")),
+                _ => return Err(PipelineError::message("tags must be UUID strings or names")),
             }
         }
         Ok(refs)
@@ -1051,10 +1028,7 @@ impl PhotoController {
         photos
             .into_iter()
             .filter(|photo| {
-                let Some(photo_id) = photo.id.as_ref().copied() else {
-                    return true;
-                };
-                let tags = photo_tags.get(&photo_id);
+                let tags = photo_tags.get(&photo.id);
                 !Self::photo_has_hidden_tag(tags, hidden_tags)
             })
             .collect()
@@ -1072,10 +1046,7 @@ impl PhotoController {
         photos
             .into_iter()
             .filter(|photo| {
-                let Some(photo_id) = photo.photo.id.as_ref().copied() else {
-                    return true;
-                };
-                let tags = photo_tags.get(&photo_id);
+                let tags = photo_tags.get(&photo.photo.id);
                 !Self::photo_has_hidden_tag(tags, hidden_tags)
             })
             .collect()
@@ -1091,17 +1062,11 @@ impl PhotoController {
     }
 
     fn collect_photo_ids(photos: &[Photo]) -> Vec<Uuid> {
-        photos
-            .iter()
-            .filter_map(|photo| photo.id.as_ref().copied())
-            .collect()
+        photos.iter().map(|photo| photo.id).collect()
     }
 
     fn collect_photo_loc_ids(photos: &[PhotoLoc]) -> Vec<Uuid> {
-        photos
-            .iter()
-            .filter_map(|photo| photo.photo.id.as_ref().copied())
-            .collect()
+        photos.iter().map(|photo| photo.photo.id).collect()
     }
 
     fn attach_tags_to_page(
@@ -1112,11 +1077,7 @@ impl PhotoController {
             .items
             .into_iter()
             .map(|photo| {
-                let tags = photo
-                    .id
-                    .as_ref()
-                    .and_then(|id| photo_tags.get(id).cloned())
-                    .unwrap_or_default();
+                let tags = photo_tags.get(&photo.id).cloned().unwrap_or_default();
                 PhotoWithTags { photo, tags }
             })
             .collect();
@@ -1130,11 +1091,9 @@ impl PhotoController {
         photos
             .into_iter()
             .map(|photo_loc| {
-                let tags = photo_loc
-                    .photo
-                    .id
-                    .as_ref()
-                    .and_then(|id| photo_tags.get(id).cloned())
+                let tags = photo_tags
+                    .get(&photo_loc.photo.id)
+                    .cloned()
                     .unwrap_or_default();
                 PhotoLocWithTags {
                     loc: photo_loc,

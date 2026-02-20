@@ -15,6 +15,9 @@ use uuid_id::EnsureUuidIdHooks;
 
 use crate::entities::album_hooks::AlbumHooks;
 use crate::repositories::photo::PhotoRepository;
+use anyhow::{Result, anyhow};
+#[cfg(feature = "postgres")]
+use nimble_web::data::postgres::PostgresEntity;
 
 pub use storage_location::StorageLocation;
 
@@ -28,8 +31,8 @@ pub mod permission;
 pub mod photo;
 pub mod photo_browse;
 pub mod photo_comment;
-pub mod photo_tag;
 pub mod photo_cursor;
+pub mod photo_tag;
 pub mod setting;
 pub mod storage_location;
 pub mod tag;
@@ -55,7 +58,7 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         EntityOperation::Get,
         EntityOperation::Update,
     ]);
-    builder.use_entity_with_hooks(EnsureUuidIdHooks::<Photo>::new(), EntityOperation::all());
+    builder.use_entity_with_operations::<Photo>(&EntityOperation::all());
     builder.use_entity_with_hooks_and_policy(
         AlbumHooks::new(),
         &[
@@ -215,59 +218,97 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder
 }
 
-pub async fn migrate_entities(app: &Application) {
+pub async fn migrate_entities(app: &Application) -> Result<()> {
     #[cfg(not(feature = "postgres"))]
     {
         let _ = app;
+        return Ok(());
     }
 
     #[cfg(feature = "postgres")]
     {
+        migrate_entity::<User>(app).await?;
+        migrate_entity::<Client>(app).await?;
+        migrate_entity::<ClientStorage>(app).await?;
+        migrate_entity::<StorageLocation>(app).await?;
+        migrate_entity::<UserSettings>(app).await?;
+        migrate_entity::<Photo>(app).await?;
+        migrate_entity::<Album>(app).await?;
+        migrate_entity::<ExifModel>(app).await?;
+        migrate_entity::<PhotoComment>(app).await?;
+        migrate_entity::<AlbumComment>(app).await?;
+        migrate_entity::<Setting>(app).await?;
+
         let pool = app
             .services()
             .resolve::<sqlx::PgPool>()
-            .expect("PgPool not found");
-
-        let _ = app.migrate_entity::<User>().await;
-        let _ = app.migrate_entity::<Client>().await;
-        let _ = app.migrate_entity::<ClientStorage>().await;
-        let _ = app.migrate_entity::<StorageLocation>().await;
-        let _ = app.migrate_entity::<UserSettings>().await;
-        let _ = app.migrate_entity::<Photo>().await;
-        let _ = app.migrate_entity::<Album>().await;
-        let _ = app.migrate_entity::<ExifModel>().await;
-        let _ = app.migrate_entity::<PhotoComment>().await;
-        let _ = app.migrate_entity::<AlbumComment>().await;
-        let _ = app.migrate_entity::<Setting>().await;
+            .ok_or_else(|| anyhow!("PgPool not found in service provider"))?;
 
         log::info!("Creating additional indices for performance...");
-        let sqls = [
-            "ALTER TABLE clientstorages ADD COLUMN IF NOT EXISTS id TEXT",
-            "UPDATE clientstorages SET id = client_id::text || ':' || storage_id::text WHERE id IS NULL OR id = ''",
-            "ALTER TABLE clientstorages DROP CONSTRAINT IF EXISTS clientstorages_pkey",
-            "ALTER TABLE clientstorages ADD CONSTRAINT clientstorages_pkey PRIMARY KEY (id)",
-            "CREATE UNIQUE INDEX IF NOT EXISTS ux_clientstorages_client_storage ON clientstorages (client_id, storage_id)",
-            "CREATE INDEX IF NOT EXISTS idx_photos_date_taken ON photos (date_taken)",
-            "CREATE INDEX IF NOT EXISTS idx_photos_created_at ON photos (created_at)",
-            "CREATE INDEX IF NOT EXISTS idx_photos_sort_date_v2 ON photos ((DATE(COALESCE(date_taken, created_at) AT TIME ZONE 'UTC')))",
-            "CREATE INDEX IF NOT EXISTS idx_exifs_image_id ON exifs (image_id)",
-            "CREATE INDEX IF NOT EXISTS idx_photo_comments_photo_id ON photo_comments (photo_id)",
-            "CREATE INDEX IF NOT EXISTS idx_album_comments_album_id ON album_comments (album_id)",
-            "CREATE TABLE IF NOT EXISTS tags (id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL, name_norm TEXT NOT NULL, visibility SMALLINT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), CONSTRAINT ck_tags_visibility CHECK (visibility IN (0, 1)))",
-            "CREATE UNIQUE INDEX IF NOT EXISTS ux_tags_name_norm ON tags (name_norm)",
-            "CREATE INDEX IF NOT EXISTS idx_tags_name ON tags (name)",
-            "CREATE TABLE IF NOT EXISTS photo_tags (photo_id UUID NOT NULL REFERENCES photos (id) ON DELETE CASCADE, tag_id BIGINT NOT NULL REFERENCES tags (id) ON DELETE CASCADE, PRIMARY KEY (photo_id, tag_id))",
-            "CREATE TABLE IF NOT EXISTS album_tags (album_id UUID NOT NULL REFERENCES albums (id) ON DELETE CASCADE, tag_id BIGINT NOT NULL REFERENCES tags (id) ON DELETE CASCADE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), created_by_user_id UUID NULL REFERENCES users (id) ON DELETE SET NULL, PRIMARY KEY (album_id, tag_id))",
-            "CREATE INDEX IF NOT EXISTS idx_photo_tags_photo ON photo_tags (photo_id)",
-            "CREATE INDEX IF NOT EXISTS idx_photo_tags_tag ON photo_tags (tag_id)",
-            "CREATE INDEX IF NOT EXISTS idx_album_tags_tag_id_album_id ON album_tags (tag_id, album_id)",
-            "CREATE OR REPLACE VIEW photos_public_visible AS SELECT p.* FROM photos p WHERE NOT EXISTS (SELECT 1 FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.photo_id = p.id AND t.visibility = 1)",
-        ];
-
-        for sql in sqls {
-            if let Err(e) = sqlx::query(sql).execute(&*pool).await {
-                log::error!("Failed to execute SQL {}: {}", sql, e);
-            }
-        }
+        ensure_supporting_schema(pool.as_ref()).await?;
+        return Ok(());
     }
+
+    #[allow(unreachable_code)]
+    Ok(())
+}
+
+#[cfg(feature = "postgres")]
+async fn migrate_entity<E>(app: &Application) -> Result<()>
+where
+    E: PostgresEntity,
+{
+    log::info!("Migrating entity [{}] ...", E::plural_name());
+    app.migrate_entity::<E>()
+        .await
+        .map_err(|err| anyhow!("Failed to migrate {}: {:?}", E::plural_name(), err))?;
+    Ok(())
+}
+
+#[cfg(feature = "postgres")]
+pub async fn ensure_supporting_schema(pool: &sqlx::PgPool) -> Result<()> {
+    let sqls = [
+        "CREATE EXTENSION IF NOT EXISTS \"pgcrypto\"",
+        "ALTER TABLE clientstorages ADD COLUMN IF NOT EXISTS id UUID",
+        r#"DO $$ BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'clientstorages'
+                    AND column_name = 'id'
+                    AND data_type <> 'uuid'
+                ) THEN
+                    EXECUTE 'ALTER TABLE clientstorages ALTER COLUMN id TYPE UUID USING gen_random_uuid()';
+                END IF;
+            END $$;"#,
+        "ALTER TABLE clientstorages ALTER COLUMN id SET DEFAULT gen_random_uuid()",
+        "UPDATE clientstorages SET id = gen_random_uuid() WHERE id IS NULL",
+        "ALTER TABLE clientstorages DROP CONSTRAINT IF EXISTS clientstorages_pkey",
+        "ALTER TABLE clientstorages ADD CONSTRAINT clientstorages_pkey PRIMARY KEY (id)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_clientstorages_client_storage ON clientstorages (client_id, storage_id)",
+        "CREATE INDEX IF NOT EXISTS idx_photos_day_taken ON photos (day_date DESC, date_taken DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_photos_hash ON photos(hash)",
+        "CREATE INDEX IF NOT EXISTS idx_photos_storage ON photos(storage_id)",
+        "CREATE INDEX IF NOT EXISTS idx_exifs_image_id ON exifs (image_id)",
+        "CREATE INDEX IF NOT EXISTS idx_photo_comments_photo_id ON photo_comments (photo_id)",
+        "CREATE INDEX IF NOT EXISTS idx_album_comments_album_id ON album_comments (album_id)",
+        "CREATE TABLE IF NOT EXISTS tags (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, name_norm TEXT NOT NULL, visibility SMALLINT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), CONSTRAINT ck_tags_visibility CHECK (visibility IN (0, 1)))",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_tags_name_norm ON tags (name_norm)",
+        "CREATE INDEX IF NOT EXISTS idx_tags_name ON tags (name)",
+        "CREATE TABLE IF NOT EXISTS photo_tags (photo_id UUID NOT NULL REFERENCES photos (id) ON DELETE CASCADE, tag_id UUID NOT NULL REFERENCES tags (id) ON DELETE CASCADE, PRIMARY KEY (photo_id, tag_id))",
+        "CREATE TABLE IF NOT EXISTS album_tags (album_id UUID NOT NULL REFERENCES albums (id) ON DELETE CASCADE, tag_id UUID NOT NULL REFERENCES tags (id) ON DELETE CASCADE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), created_by_user_id UUID NULL REFERENCES users (id) ON DELETE SET NULL, PRIMARY KEY (album_id, tag_id))",
+        "CREATE INDEX IF NOT EXISTS idx_photo_tags_photo ON photo_tags (photo_id)",
+        "CREATE INDEX IF NOT EXISTS idx_photo_tags_tag ON photo_tags (tag_id)",
+        "CREATE INDEX IF NOT EXISTS idx_album_tags_tag_id_album_id ON album_tags (tag_id, album_id)",
+        "CREATE OR REPLACE VIEW photos_public_visible AS SELECT p.* FROM photos p WHERE NOT EXISTS (SELECT 1 FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.photo_id = p.id AND t.visibility = 1)",
+    ];
+
+    for sql in sqls {
+        sqlx::query(sql)
+            .execute(pool)
+            .await
+            .map_err(|err| anyhow!("Failed to execute SQL '{}': {}", sql, err))?;
+    }
+
+    Ok(())
 }

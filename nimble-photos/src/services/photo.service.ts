@@ -298,6 +298,7 @@ export class PhotoService {
   private mapPhoto(dto: PhotoResponse): Photo {
     return {
       id: dto.id,
+      storageId: dto.storageId,
       path: dto.path,
       name: dto.name,
       tags: Array.isArray(dto.tags) ? dto.tags : undefined,
@@ -308,14 +309,12 @@ export class PhotoService {
       updatedAt: this.toDate(dto.updatedAt),
       dateImported: this.toDate(dto.dateImported),
       dateTaken: this.toDate(dto.dateTaken),
-      thumbnailPath: dto.thumbnailPath ?? undefined,
-      thumbnailOptimized: dto.thumbnailOptimized ?? undefined,
+      dayDate: this.toDate(dto.dayDate),
+      sortDate: this.toDate(dto.sortDate),
       metadataExtracted: dto.metadataExtracted ?? undefined,
       isRaw: dto.isRaw ?? undefined,
       width: dto.width ?? undefined,
       height: dto.height ?? undefined,
-      thumbnailWidth: dto.thumbnailWidth ?? undefined,
-      thumbnailHeight: dto.thumbnailHeight ?? undefined,
     };
   }
 
@@ -366,4 +365,3 @@ export class PhotoService {
     return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   }
 }
-

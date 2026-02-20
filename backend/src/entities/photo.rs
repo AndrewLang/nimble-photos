@@ -1,5 +1,4 @@
-use super::uuid_id::HasOptionalUuidId;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use nimble_web::Entity;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -29,8 +28,9 @@ pub struct PhotoViewModel {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Photo {
-    pub id: Option<Uuid>,
-    pub storage_id: Option<String>,
+    pub id: Uuid,
+    #[serde(alias = "storage_id")]
+    pub storage_id: Uuid,
     pub path: String,
     pub name: String,
     pub format: Option<String>,
@@ -44,39 +44,27 @@ pub struct Photo {
     pub date_imported: Option<DateTime<Utc>>,
     #[serde(alias = "date_taken")]
     pub date_taken: Option<DateTime<Utc>>,
-    #[serde(alias = "thumbnail_path")]
-    pub thumbnail_path: Option<String>,
-    #[serde(alias = "thumbnail_optimized")]
-    pub thumbnail_optimized: Option<bool>,
     #[serde(alias = "metadata_extracted")]
     pub metadata_extracted: Option<bool>,
     #[serde(alias = "is_raw")]
     pub is_raw: Option<bool>,
     pub width: Option<u32>,
     pub height: Option<u32>,
-    #[serde(alias = "thumbnail_width")]
-    pub thumbnail_width: Option<u32>,
-    #[serde(alias = "thumbnail_height")]
-    pub thumbnail_height: Option<u32>,
+    #[serde(alias = "day_date")]
+    pub day_date: NaiveDate,
+    #[serde(alias = "sort_date")]
+    pub sort_date: DateTime<Utc>,
 }
 
 impl Entity for Photo {
     type Id = Uuid;
 
     fn id(&self) -> &Self::Id {
-        self.id
-            .as_ref()
-            .expect("Photo entity requires an id for Entity trait operations")
+        &self.id
     }
 
     fn name() -> &'static str {
         "photo"
-    }
-}
-
-impl HasOptionalUuidId for Photo {
-    fn id_slot(&mut self) -> &mut Option<Uuid> {
-        &mut self.id
     }
 }
 
@@ -85,7 +73,7 @@ impl<'r> FromRow<'r, PgRow> for Photo {
     fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
         Ok(Self {
             id: row.try_get("id")?,
-            storage_id: PostgresExtensions::optional_string_allow_missing(row, "storage_id")?,
+            storage_id: row.try_get("storage_id")?,
             path: row.try_get("path")?,
             name: row.try_get("name")?,
             format: row.try_get("format")?,
@@ -95,14 +83,12 @@ impl<'r> FromRow<'r, PgRow> for Photo {
             updated_at: row.try_get("updated_at")?,
             date_imported: row.try_get("date_imported")?,
             date_taken: row.try_get("date_taken")?,
-            thumbnail_path: row.try_get("thumbnail_path")?,
-            thumbnail_optimized: row.try_get("thumbnail_optimized")?,
             metadata_extracted: row.try_get("metadata_extracted")?,
             is_raw: row.try_get("is_raw")?,
             width: PostgresExtensions::optional_i32_as_u32(row, "width")?,
             height: PostgresExtensions::optional_i32_as_u32(row, "height")?,
-            thumbnail_width: PostgresExtensions::optional_i32_as_u32(row, "thumbnail_width")?,
-            thumbnail_height: PostgresExtensions::optional_i32_as_u32(row, "thumbnail_height")?,
+            day_date: row.try_get("day_date")?,
+            sort_date: row.try_get("sort_date")?,
         })
     }
 }
@@ -130,22 +116,19 @@ impl PostgresEntity for Photo {
             "updated_at",
             "date_imported",
             "date_taken",
-            "thumbnail_path",
-            "thumbnail_optimized",
             "metadata_extracted",
             "is_raw",
             "width",
             "height",
-            "thumbnail_width",
-            "thumbnail_height",
+            "day_date",
+            "sort_date",
         ]
     }
 
     fn insert_values(&self) -> Vec<Value> {
-        let id = self.id.as_ref().expect("id not set for Photo insert");
         vec![
-            Value::Uuid(*id),
-            PostgresValueBuilder::optional_string(&self.storage_id),
+            Value::Uuid(self.id),
+            Value::Uuid(self.storage_id),
             Value::String(self.path.clone()),
             Value::String(self.name.clone()),
             PostgresValueBuilder::optional_string(&self.format),
@@ -155,14 +138,12 @@ impl PostgresEntity for Photo {
             PostgresValueBuilder::optional_datetime(&self.updated_at),
             PostgresValueBuilder::optional_datetime(&self.date_imported),
             PostgresValueBuilder::optional_datetime(&self.date_taken),
-            PostgresValueBuilder::optional_string(&self.thumbnail_path),
-            PostgresValueBuilder::optional_bool(self.thumbnail_optimized),
             PostgresValueBuilder::optional_bool(self.metadata_extracted),
             PostgresValueBuilder::optional_bool(self.is_raw),
             PostgresValueBuilder::optional_u32(self.width),
             PostgresValueBuilder::optional_u32(self.height),
-            PostgresValueBuilder::optional_u32(self.thumbnail_width),
-            PostgresValueBuilder::optional_u32(self.thumbnail_height),
+            Value::String(self.day_date.to_string()),
+            Value::DateTime(self.sort_date.clone()),
         ]
     }
 
@@ -178,20 +159,18 @@ impl PostgresEntity for Photo {
             "updated_at",
             "date_imported",
             "date_taken",
-            "thumbnail_path",
-            "thumbnail_optimized",
             "metadata_extracted",
             "is_raw",
             "width",
             "height",
-            "thumbnail_width",
-            "thumbnail_height",
+            "day_date",
+            "sort_date",
         ]
     }
 
     fn update_values(&self) -> Vec<Value> {
         vec![
-            PostgresValueBuilder::optional_string(&self.storage_id),
+            Value::Uuid(self.storage_id),
             Value::String(self.path.clone()),
             Value::String(self.name.clone()),
             PostgresValueBuilder::optional_string(&self.format),
@@ -201,21 +180,19 @@ impl PostgresEntity for Photo {
             PostgresValueBuilder::optional_datetime(&self.updated_at),
             PostgresValueBuilder::optional_datetime(&self.date_imported),
             PostgresValueBuilder::optional_datetime(&self.date_taken),
-            PostgresValueBuilder::optional_string(&self.thumbnail_path),
-            PostgresValueBuilder::optional_bool(self.thumbnail_optimized),
             PostgresValueBuilder::optional_bool(self.metadata_extracted),
             PostgresValueBuilder::optional_bool(self.is_raw),
             PostgresValueBuilder::optional_u32(self.width),
             PostgresValueBuilder::optional_u32(self.height),
-            PostgresValueBuilder::optional_u32(self.thumbnail_width),
-            PostgresValueBuilder::optional_u32(self.thumbnail_height),
+            Value::String(self.day_date.to_string()),
+            Value::DateTime(self.sort_date.clone()),
         ]
     }
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
             ColumnDef::new("id", ColumnType::Uuid).primary_key(),
-            ColumnDef::new("storage_id", ColumnType::Text),
+            ColumnDef::new("storage_id", ColumnType::Uuid).not_null(),
             ColumnDef::new("path", ColumnType::Text).not_null(),
             ColumnDef::new("name", ColumnType::Text).not_null(),
             ColumnDef::new("format", ColumnType::Text),
@@ -225,14 +202,12 @@ impl PostgresEntity for Photo {
             ColumnDef::new("updated_at", ColumnType::Timestamp),
             ColumnDef::new("date_imported", ColumnType::Timestamp),
             ColumnDef::new("date_taken", ColumnType::Timestamp),
-            ColumnDef::new("thumbnail_path", ColumnType::Text),
-            ColumnDef::new("thumbnail_optimized", ColumnType::Boolean),
             ColumnDef::new("metadata_extracted", ColumnType::Boolean),
             ColumnDef::new("is_raw", ColumnType::Boolean),
             ColumnDef::new("width", ColumnType::Integer),
             ColumnDef::new("height", ColumnType::Integer),
-            ColumnDef::new("thumbnail_width", ColumnType::Integer),
-            ColumnDef::new("thumbnail_height", ColumnType::Integer),
+            ColumnDef::new("day_date", ColumnType::Custom("DATE")).not_null(),
+            ColumnDef::new("sort_date", ColumnType::Timestamp).not_null(),
         ]
     }
 }

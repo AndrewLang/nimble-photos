@@ -44,10 +44,12 @@ impl BrowseDimensionSqlAdapter {
                     param_index
                 )
             }
-            BrowseDimension::Date => format!(
-                "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD') = ${}",
-                param_index
-            ),
+            BrowseDimension::Date => {
+                format!(
+                    "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD') = ${}",
+                    param_index
+                )
+            }
             BrowseDimension::Month => {
                 format!(
                     "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM') = ${}",

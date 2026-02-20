@@ -101,7 +101,7 @@ impl AuthService {
         })?;
 
         let settings = UserSettings {
-            user_id: user_id.to_string(),
+            user_id,
             display_name: display_name_value,
             avatar_url: None,
             theme: "light".to_string(),
