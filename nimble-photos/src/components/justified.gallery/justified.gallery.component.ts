@@ -147,7 +147,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     });
 
     private currentPage = 1;
-    private readonly pageSize = 1000;
+    private readonly pageSize = 200;
     private hasMore = true;
     private isRestoring = false;
     private lastSelectedIndex: number | null = null;
@@ -212,7 +212,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
         this.photoService.getTimeline(this.currentPage, this.pageSize)
             .pipe(first())
             .subscribe(groups => {
-                console.log(`Timeline ${this.currentPage} loaded with ${groups.length} groups`, groups);
+                // console.log(`Timeline ${this.currentPage} loaded with ${groups.length} groups`, groups);
                 if (groups.length < this.pageSize) {
                     this.hasMore = false;
                 }
@@ -250,11 +250,11 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
         }
 
         this.isFetching.set(true);
-        this.performJumpRecursive(offset, yearLabel);
-    }
 
-    private performJumpRecursive(offset: number, yearLabel?: string) {
-        this.photoService.getTimeline(this.currentPage, this.pageSize)
+        const startPage = this.currentPage;
+        const targetPage = Math.floor(offset / this.pageSize) + 1;
+
+        this.photoService.getTimelineRange(startPage, targetPage, this.pageSize)
             .pipe(first())
             .subscribe(groups => {
                 if (!groups || groups.length === 0) {
@@ -263,25 +263,17 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
                     return;
                 }
 
-                if (groups.length < this.pageSize) {
+                if (groups.length < (targetPage - startPage + 1) * this.pageSize) {
                     this.hasMore = false;
                 }
 
                 this._timeline.update(current => [...current, ...groups]);
-                this.currentPage++;
+                this.currentPage = targetPage + 1;
                 this.totalPhotos.set(this._timeline().reduce((acc, g) => acc + g.photos.total, 0));
                 this.timelineLoaded.emit(this._timeline());
 
-                const currentGroupsCount = this._timeline().length;
-                if (offset < currentGroupsCount) {
-                    this.isFetching.set(false);
-                    this.scrollByYearLabel(yearLabel);
-                } else if (this.hasMore) {
-                    this.performJumpRecursive(offset, yearLabel);
-                } else {
-                    this.isFetching.set(false);
-                    this.scrollByYearLabel(yearLabel);
-                }
+                this.isFetching.set(false);
+                this.scrollByYearLabel(yearLabel);
             });
     }
 

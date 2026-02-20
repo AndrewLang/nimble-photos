@@ -4,7 +4,6 @@ use crate::entities::tag::Tag;
 use async_trait::async_trait;
 use nimble_web::data::paging::Page;
 use nimble_web::data::provider::{DataError, DataResult};
-use serde_json;
 use sqlx::FromRow;
 use sqlx::PgPool;
 use std::collections::{BTreeMap, HashMap};
@@ -200,16 +199,19 @@ impl PhotoRepository for PostgresPhotoRepository {
                     count(*) AS total_count,
                     json_agg(
                         json_build_object(
-                            'id', p.id,
-                            'hash', p.hash,
-                            'width', p.width,
-                            'height', p.height,
-                            'name', p.name
+                            'id', dp.id,
+                            'hash', dp.hash,
+                            'width', dp.width,
+                            'height', dp.height,
+                            'name', dp.name
                         )
-                        ORDER BY p.sort_date DESC
                     ) AS photos_json
-                FROM {photos} p
-                WHERE p.day_date = td.day_date
+                FROM (
+                    SELECT p.id, p.hash, p.width, p.height, p.name
+                    FROM {photos} p
+                    WHERE p.day_date = td.day_date
+                    ORDER BY p.sort_date DESC
+                ) dp
             ) p_agg ON true
             ORDER BY td.day_date DESC;
         "#
@@ -231,17 +233,17 @@ impl PhotoRepository for PostgresPhotoRepository {
             let total_count: i64 = row
                 .try_get("total_count")
                 .map_err(|e| DataError::Provider(e.to_string()))?;
-            let photos_json: serde_json::Value = row
-                .try_get("photos_json")
-                .map_err(|e| DataError::Provider(e.to_string()))?;
 
-            let photos: Vec<PhotoViewModel> = serde_json::from_value(photos_json)
+            // Optimize deserialization by grabbing it directly as sqlx::types::Json,
+            // falling back to serde_json::Value if Json is not available
+            let photos_json: sqlx::types::Json<Vec<PhotoViewModel>> = row
+                .try_get("photos_json")
                 .map_err(|e| DataError::Provider(format!("Failed to deserialize photos: {}", e)))?;
 
             let count = total_count as u64;
             timeline.push(TimelineGroup {
                 title: day,
-                photos: Page::new(photos, count, 1, count as u32),
+                photos: Page::new(photos_json.0, count, 1, count as u32),
             });
         }
 

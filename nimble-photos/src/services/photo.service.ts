@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
-import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, tap, forkJoin } from 'rxjs';
 
 import { AlbumModel } from '../models/album.model';
 import { PagedAlbumsModel } from '../models/paged.albums.model';
@@ -189,6 +189,42 @@ export class PhotoService {
         }),
         catchError(() => of([]))
       );
+  }
+
+  getTimelineRange(startPage: number, endPage: number, pageSize: number = 10): Observable<GroupedPhotos[]> {
+    console.log(`getTimelineRange(${startPage}, ${endPage}, ${pageSize})`);
+    if (startPage > endPage) {
+      return of([]);
+    }
+
+    const requests = [];
+    for (let p = startPage; p <= endPage; p++) {
+      requests.push(
+        this.http.get<{ title: string; photos: PagedModel<PhotoResponse> }[]>(`${this.apiBase}/photos/timeline/${p}/${pageSize}`)
+      );
+    }
+
+    return forkJoin(requests).pipe(
+      map(results => {
+        const allGroups: GroupedPhotos[] = [];
+        for (const groups of results) {
+          allGroups.push(...groups.map((g) => ({
+            title: g.title,
+            photos: this.mapPhotoPage(g.photos),
+          })));
+        }
+        return allGroups;
+      }),
+      tap(allGroups => {
+        if (this.timelineCache) {
+          this.timelineCache.push(...allGroups);
+        }
+        if (this.timelinePhotoIds) {
+          this.timelinePhotoIds.push(...allGroups.flatMap(g => g.photos.items.map(p => p.id)));
+        }
+      }),
+      catchError(() => of([]))
+    );
   }
 
   getTimelineYears(): Observable<string[]> {
