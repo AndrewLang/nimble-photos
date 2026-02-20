@@ -4,9 +4,9 @@ import { AdminGuard } from './guards/admin.guard';
 export const routes: Routes = [
     { path: '', loadComponent: () => import('../components/grouped.gallery/grouped.gallery').then(m => m.GroupedGalleryComponent) },
     { path: 'photo/:id', loadComponent: () => import('../components/photo.detail/photo.detail.component').then(m => m.PhotoDetailComponent) },
-    { path: 'album/:id', loadComponent: () => import('../components/album.detail/album.detail.component').then(m => m.AlbumDetailComponent) },
+    { path: 'albums/:id', loadComponent: () => import('../components/album.detail/album.detail.component').then(m => m.AlbumDetailComponent) },
     { path: 'albums', loadComponent: () => import('../components/albums/albums.component').then(m => m.AlbumsComponent) },
-    { path: 'album/:albumId/photo/:id', loadComponent: () => import('../components/photo.detail/photo.detail.component').then(m => m.PhotoDetailComponent) },
+    { path: 'albums/:albumId/photo/:id', loadComponent: () => import('../components/photo.detail/photo.detail.component').then(m => m.PhotoDetailComponent) },
     { path: 'login', loadComponent: () => import('../components/auth/login.component').then(m => m.LoginComponent) },
     { path: 'register', loadComponent: () => import('../components/auth/register.component').then(m => m.RegisterComponent) },
     { path: 'forgot-password', loadComponent: () => import('../components/auth/forgot.password.component').then(m => m.ForgotPasswordComponent) },

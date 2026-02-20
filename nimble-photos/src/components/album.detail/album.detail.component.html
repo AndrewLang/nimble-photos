@@ -2,63 +2,62 @@
 <div class="flex justify-center py-40 flex-1">
     <span class="animate-pulse text-indigo-400 font-medium">Opening album...</span>
 </div>
-} @else if (album(); as a) {
+} @else if (album(); as album) {
 <section class="shrink-0 px-6 pt-10 pb-6 space-y-4">
     <div class="flex items-center justify-between">
         <div class="flex items-center gap-6 text-sm text-slate-400">
-            <span>Created: {{ a.createDate ? (a.createDate | date:'longDate') : 'n/a' }}</span>
-            <span>Images: {{ a.imageCount ?? 'n/a' }}</span>
+            <span>Created: {{ album.createDate ? (album.createDate | date:'longDate') : 'n/a' }}</span>
+            <span>Images: {{ album.imageCount ?? 'n/a' }}</span>
         </div>
 
         @if (isAdmin()) {
         @if (isEditMode()) {
         <div class="flex items-center gap-3">
             <button (click)="removeSelectedPhotos()" [disabled]="selectedCount() === 0"
-                class="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold uppercase tracking-widest rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                class="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs uppercase rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
                 Remove Selected ({{ selectedCount() }})
             </button>
             <button (click)="toggleEditMode()"
-                class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-widest rounded-full transition-all duration-300">
+                class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs uppercase rounded-full transition-all duration-300">
                 Done
             </button>
         </div>
         } @else {
         <div class="flex items-center gap-3">
             <button (click)="toggleEditMode()"
-                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest rounded-full transition-all duration-300">
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs uppercase rounded-full transition-all duration-300">
                 Edit Photos
             </button>
             <button (click)="deleteAlbum()" [disabled]="isDeleting()"
-                class="px-4 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white text-xs font-bold uppercase tracking-widest rounded-full transition-all duration-300 disabled:opacity-50">
+                class="px-4 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white text-xs uppercase rounded-full transition-all duration-300 disabled:opacity-50">
                 {{ isDeleting() ? 'Deleting...' : 'Delete Album' }}
             </button>
         </div>
         }
         }
     </div>
-    <h1 class="text-4xl font-bold text-white">{{ a.name }}</h1>
+    <h1 class="text-4xl font-bold text-white">{{ album.name }}</h1>
     <p class="text-lg text-slate-200 leading-relaxed max-w-4xl">
-        {{ a.description || 'This album has no description yet.' }}
+        {{ album.description || 'This album has no description yet.' }}
     </p>
 </section>
 
 <div class="flex-1 flex flex-col overflow-y-auto px-6 pb-6 space-y-10">
-    <mtx-gallery [initialPhotos]="albumPhotos()" [autoFetch]="true" [albumId]="a.id" [showHeader]="false"
-        paddingTop="20px" [selectionEnabled]="isEditMode()"></mtx-gallery>
+    <mtx-gallery [initialPhotos]="albumPhotos()" [autoFetch]="true" [albumId]="album.id" [showHeader]="false"
+        paddingTop="20px" [selectionEnabled]="isEditMode()">
+    </mtx-gallery>
 
 
     <section class="bg-slate-900/50 border border-white/10 rounded-xl p-4 md:p-6 space-y-5">
         <div class="flex items-center justify-between gap-4">
             <div>
-                <p class="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">Comments</p>
-                <p class="text-2xl font-semibold text-white">
-                    {{ albumCommentsList.length }} comment{{ albumCommentsList.length === 1 ? '' : 's' }}
-                </p>
+                <p class="text-xs font-bold uppercase text-slate-500">Comments ({{ albumCommentsList.length }})</p>
             </div>
+
             @if (allowComments() && isAuthenticated()) {
             <button type="button" (click)="toggleCommentEditor()"
                 class="px-3 py-1 text-[10px] font-semibold uppercase rounded-full border border-white/20 bg-indigo-600 text-white transition duration-200 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500">
-                {{ commentEditorVisible() ? 'Hide editor' : 'Add comment' }}
+                {{ commentEditorVisible() ? 'cancel' : 'Add comment' }}
             </button>
             }
         </div>
@@ -132,6 +131,6 @@
 } @else {
 <div class="flex flex-col items-center justify-center py-40 text-slate-500 flex-1">
     <p>Album not found.</p>
-    <a routerLink="/" class="text-indigo-400 font-bold mt-4">Return to albums</a>
+    <a routerLink="/albums" class="text-indigo-400 font-bold mt-4">Return to albums</a>
 </div>
 }

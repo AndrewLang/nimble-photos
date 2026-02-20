@@ -12,7 +12,7 @@ import { SettingsService } from '../../services/settings.service';
 import { GalleryComponent } from '../gallery/gallery.component';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
 
-const MAX_COMMENT_LENGTH = 1024;
+const MAX_COMMENT_LENGTH = 2018;
 
 @Component({
     selector: 'mtx-album-detail',
