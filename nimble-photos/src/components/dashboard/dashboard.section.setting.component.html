@@ -16,7 +16,7 @@
 }
 
 @if (!store.loading() && !store.error()) {
-<div class="max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+<div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
 
     <header
         class="mb-10 p-8 rounded-2xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent">
@@ -38,9 +38,7 @@
         </div>
 
         <div class="mt-6 space-y-4">
-            <mtx-logo-editor
-                [logoPath]="getLogoPath()"
-                (logoChanged)="onLogoChanged($event)">
+            <mtx-logo-editor [logoPath]="getLogoPath()" (logoChanged)="onLogoChanged($event)">
             </mtx-logo-editor>
         </div>
     </div>
@@ -146,4 +144,3 @@
     </div>
 </div>
 }
-

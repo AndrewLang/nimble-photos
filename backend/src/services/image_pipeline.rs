@@ -83,8 +83,8 @@ impl ImageProcessPipeline {
         let runner = context.get_service::<BackgroundTaskRunner>();
 
         let steps: Vec<Arc<dyn ImageProcessStep>> = vec![
-            Arc::new(ExtractExifStep::new(context.services.clone())),
             Arc::new(ComputeHashStep::new(context.services.clone())),
+            Arc::new(ExtractExifStep::new(context.services.clone())),
             Arc::new(GenerateThumbnailStep::new(context.services.clone())),
             Arc::new(GeneratePreviewStep::new(context.services.clone())),
             Arc::new(CategorizeImageStep::new(context.services.clone())),
@@ -137,6 +137,13 @@ impl ImageProcessPipeline {
         let mut context = ImageProcessContext::new(request, self.services.clone());
         for step in &self.steps {
             step.execute(&mut context).await?;
+            if !context.can_continue() {
+                log::debug!(
+                    "Stopping image process pipeline for {} because can_continue is false",
+                    context.source_path().display()
+                );
+                break;
+            }
         }
         Ok(())
     }

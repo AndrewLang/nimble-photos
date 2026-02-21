@@ -12,6 +12,7 @@ pub struct ImageProcessContext {
     source_path: PathBuf,
     properties: PropertyMap,
     services: Arc<ServiceProvider>,
+    can_continue: bool,
 }
 
 impl ImageProcessContext {
@@ -23,6 +24,7 @@ impl ImageProcessContext {
             source_path,
             properties: PropertyMap::new(),
             services,
+            can_continue: true,
         }
     }
 
@@ -56,5 +58,17 @@ impl ImageProcessContext {
 
     pub fn properties(&self) -> &PropertyMap {
         &self.properties
+    }
+
+    pub fn can_continue(&self) -> bool {
+        self.can_continue
+    }
+
+    pub fn set_can_continue(&mut self, value: bool) {
+        self.can_continue = value;
+    }
+
+    pub fn stop_pipeline(&mut self) {
+        self.can_continue = false;
     }
 }

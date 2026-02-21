@@ -1,5 +1,6 @@
-<div class="max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <header class="mb-8 p-8 rounded-2xl border border-white/5 bg-linear-to-r from-sky-500/10 via-slate-900/40 to-transparent">
+<div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <header
+        class="mb-8 p-8 rounded-2xl border border-white/5 bg-linear-to-r from-sky-500/10 via-slate-900/40 to-transparent">
         <h1 class="text-3xl font-bold tracking-tight text-white mb-2">Client Manage</h1>
         <p class="text-slate-400 text-sm max-w-2xl leading-relaxed">
             Review registered clients and approve or revoke access.
@@ -19,22 +20,28 @@
     } @else {
     <div class="space-y-3">
         @for (client of clients(); track client.id) {
-        <div class="flex flex-col gap-4 rounded-xl border border-white/10 bg-slate-900/60 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div
+            class="flex flex-col gap-4 rounded-xl border border-white/10 bg-slate-900/60 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div class="space-y-1">
                 <p class="text-sm font-semibold text-white">{{ client.name }}</p>
                 <p class="text-xs text-slate-400">Client ID: {{ client.id }}</p>
                 <div class="flex gap-2 text-[10px] uppercase tracking-wider">
-                    <span class="rounded-full px-2 py-1" [class.bg-emerald-500/20]="client.isApproved" [class.text-emerald-300]="client.isApproved" [class.bg-amber-500/20]="!client.isApproved" [class.text-amber-300]="!client.isApproved">
+                    <span class="rounded-full px-2 py-1" [class.bg-emerald-500/20]="client.isApproved"
+                        [class.text-emerald-300]="client.isApproved" [class.bg-amber-500/20]="!client.isApproved"
+                        [class.text-amber-300]="!client.isApproved">
                         {{ client.isApproved ? 'Approved' : 'Pending' }}
                     </span>
-                    <span class="rounded-full px-2 py-1" [class.bg-emerald-500/20]="client.isActive" [class.text-emerald-300]="client.isActive" [class.bg-rose-500/20]="!client.isActive" [class.text-rose-300]="!client.isActive">
+                    <span class="rounded-full px-2 py-1" [class.bg-emerald-500/20]="client.isActive"
+                        [class.text-emerald-300]="client.isActive" [class.bg-rose-500/20]="!client.isActive"
+                        [class.text-rose-300]="!client.isActive">
                         {{ client.isActive ? 'Active' : 'Revoked' }}
                     </span>
                 </div>
             </div>
 
             <div class="flex gap-2">
-                <button type="button" (click)="approve(client.id)" [disabled]="isPending(client.id) || client.isApproved"
+                <button type="button" (click)="approve(client.id)"
+                    [disabled]="isPending(client.id) || client.isApproved"
                     class="rounded-full border border-emerald-500/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-emerald-300 disabled:opacity-40">
                     Approve
                 </button>

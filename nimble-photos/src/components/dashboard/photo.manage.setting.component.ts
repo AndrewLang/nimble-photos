@@ -8,12 +8,13 @@ import { DialogService } from '../../services/dialog.service';
 import { PhotoService } from '../../services/photo.service';
 import { StorageService } from '../../services/storage.service';
 import { StorageSelectorComponent } from '../storage/storage.selector.component';
+import { SvgComponent } from "../svg/svg.component";
 import { ActionSelectorComponent } from './action.selector.component';
 
 @Component({
     selector: 'mtx-photo-manage-setting',
-    imports: [RouterModule, ActionSelectorComponent],
     templateUrl: './photo.manage.setting.component.html',
+    imports: [RouterModule, ActionSelectorComponent, SvgComponent],
 })
 export class PhotoManageSettingComponent implements OnInit {
     private readonly settingsService = inject(DashboardSettingsService);

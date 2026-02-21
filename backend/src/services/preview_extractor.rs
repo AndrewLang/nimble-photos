@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use super::image_process_constants::{PREVIEW_FORMAT_EXTENSION, RAW_EXTENSIONS};
 
-const PREVIEW_MAX_BORDER: u32 = 2048;
+const PREVIEW_MAX_BORDER: u32 = 1920;
 
 #[derive(Clone, Debug)]
 pub struct PreviewExtractor {

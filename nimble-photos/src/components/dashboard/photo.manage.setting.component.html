@@ -1,4 +1,4 @@
-<div class="max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+<div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
     <header
         class="mb-10 p-8 rounded-2xl border border-white/5 bg-linear-to-r from-indigo-500/10 via-slate-900/40 to-transparent">
         <h1 class="text-3xl font-bold tracking-tight text-white mb-2">{{ title() }}</h1>
@@ -152,6 +152,7 @@
             Uploads are disabled until a storage location is selected.
         </div>
         }
+
         @if (canUpload() && !hasEnoughSpace() && selectedFiles().length) {
         <div class="mt-4 rounded-lg border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-xs text-rose-300">
             Selected files ({{ formatBytes(totalSelectedBytes()) }}) exceed available storage space.
@@ -182,13 +183,13 @@
                 @for (file of selectedFiles(); track file.name + file.size) {
                 <div
                     class="flex items-center justify-between gap-4 rounded-lg border border-white/5 bg-slate-950/40 px-4 py-2">
-                    <div>
-                        <p class="text-sm text-white truncate max-w-[12rem] sm:max-w-[20rem]">{{ file.name }}</p>
+                    <div class="flex items-center gap-2">
+                        <p class="text-sm text-white truncate max-w-48 sm:max-w-[20rem]">{{ file.name }}</p>
                         <p class="text-[10px] uppercase tracking-widest text-slate-500">{{ formatBytes(file.size) }}</p>
                     </div>
                     <button type="button" (click)="removeFile(file)"
-                        class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:bg-white/10">
-                        Remove
+                        class="rounded-full border border-white/10 bg-white/5 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:bg-white/10">
+                        <mtx-svg name="trash" class="w-3 h-3" />
                     </button>
                 </div>
                 }

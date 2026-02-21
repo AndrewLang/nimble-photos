@@ -1,6 +1,7 @@
 use super::image_process_context::ImageProcessContext;
 use super::image_process_step::ImageProcessStep;
 use crate::entities::{exif::ExifModel, photo::Photo};
+use crate::repositories::photo_repo::PhotoRepositoryExtensions;
 use crate::services::exif_service::ExifService;
 use crate::services::hash_service::HashService;
 use crate::services::image_categorizer::{
@@ -82,13 +83,20 @@ impl ImageProcessStep for ExtractExifStep {
             .context("exif extraction task join error")?;
 
         let date_taken = Self::parse_exif_datetime(&exif);
+        let width = exif.get_width();
+        let height = exif.get_height();
         context.insert::<ExifModel>(ImageProcessKeys::EXIF_METADATA, exif);
         context.insert::<Option<DateTime<Utc>>>(ImageProcessKeys::EXIF_DATE_TAKEN, date_taken);
         context.insert::<PathBuf>(
             ImageProcessKeys::WORKING_DIRECTORY,
             context.payload().working_directory(),
         );
-        log::debug!("EXIF extraction complete, date taken: {:?}", date_taken);
+        log::debug!(
+            "EXIF extraction complete, date taken: {:?}, width: {}, height: {}",
+            date_taken,
+            width.unwrap_or(0),
+            height.unwrap_or(0)
+        );
         log::debug!(
             "Working directory: {}",
             context.payload().working_directory().display()
@@ -100,14 +108,17 @@ impl ImageProcessStep for ExtractExifStep {
 pub(super) struct ComputeHashStep {
     services: Arc<ServiceProvider>,
     hash_service: Arc<HashService>,
+    photo_repo: Arc<Repository<Photo>>,
 }
 
 impl ComputeHashStep {
     pub(super) fn new(services: Arc<ServiceProvider>) -> Self {
         let hash_service = services.get::<HashService>();
+        let photo_repo = services.get::<Repository<Photo>>();
         Self {
             services,
             hash_service,
+            photo_repo,
         }
     }
 }
@@ -126,6 +137,16 @@ impl ImageProcessStep for ComputeHashStep {
             .await
             .context("hash compute join error")?
             .context("hash compute failed")?;
+
+        if self.photo_repo.find_by_hash(&hash).await?.is_some() {
+            log::info!(
+                "Photo with hash {} already exists. Stopping pipeline for {}",
+                hash,
+                context.source_path().display()
+            );
+            context.set_can_continue(false);
+            return Ok(());
+        }
 
         context.insert::<String>(ImageProcessKeys::HASH, hash.clone());
         log::debug!("Hash computation complete, hash: {}", hash);
@@ -322,13 +343,20 @@ impl ImageProcessStep for PersistMetadataStep {
         let exif = context
             .get_by_alias::<ExifModel>(ImageProcessKeys::EXIF_METADATA)
             .ok_or_else(|| anyhow!("exif metadata not found in context"))?;
+        let hash = context
+            .get_by_alias::<String>(ImageProcessKeys::HASH)
+            .cloned()
+            .ok_or_else(|| anyhow!("hash not found in context"))?;
         let extension = final_path
             .extension()
             .and_then(|ext| ext.to_str())
             .unwrap_or("")
             .to_string();
         let now = Utc::now();
-        let date_taken = exif.get_date_taken();
+        let date_taken = context
+            .get_by_alias::<Option<DateTime<Utc>>>(ImageProcessKeys::EXIF_DATE_TAKEN)
+            .and_then(|value| *value)
+            .or_else(|| exif.get_date_taken());
         let sort_date = date_taken.unwrap_or(now);
         let day_date: NaiveDate = sort_date.date_naive();
 
@@ -342,12 +370,7 @@ impl ImageProcessStep for PersistMetadataStep {
                 .ok_or_else(|| anyhow!("invalid file name"))?
                 .to_string(),
             format: Some(extension.clone()),
-            hash: Some(
-                context
-                    .get_by_alias::<String>(ImageProcessKeys::HASH)
-                    .cloned()
-                    .ok_or_else(|| anyhow!("hash not found in context"))?,
-            ),
+            hash: Some(hash.clone()),
             size: Some(final_path.metadata()?.len() as i64),
             created_at: Some(now),
             updated_at: Some(now),
@@ -372,17 +395,16 @@ impl ImageProcessStep for PersistMetadataStep {
             .map_err(|err| anyhow!("failed to insert photo: {:?}", err))?;
         log::debug!("Photo metadata persisted with ID: {:?}", saved_photo.id);
 
-        if let Some(mut metadata) = exif.clone().into() {
-            metadata.id = Uuid::new_v4();
-            metadata.image_id = saved_photo.id;
-            metadata.hash = saved_photo.hash.clone().unwrap_or_default();
+        let mut metadata = exif.clone();
+        metadata.id = Uuid::new_v4();
+        metadata.image_id = saved_photo.id;
+        metadata.hash = hash;
 
-            let _ = self
-                .exif_repo
-                .insert(metadata)
-                .await
-                .map_err(|err| anyhow!("failed to insert exif metadata: {:?}", err))?;
-        }
+        let _ = self
+            .exif_repo
+            .insert(metadata)
+            .await
+            .map_err(|err| anyhow!("failed to insert exif metadata: {:?}", err))?;
 
         log::debug!(
             "Processed image {} into storage {}",

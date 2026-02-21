@@ -142,7 +142,7 @@ impl PostgresEntity for Photo {
             PostgresValueBuilder::optional_bool(self.is_raw),
             PostgresValueBuilder::optional_u32(self.width),
             PostgresValueBuilder::optional_u32(self.height),
-            Value::String(self.day_date.to_string()),
+            Value::Date(self.day_date),
             Value::DateTime(self.sort_date.clone()),
         ]
     }
@@ -184,7 +184,7 @@ impl PostgresEntity for Photo {
             PostgresValueBuilder::optional_bool(self.is_raw),
             PostgresValueBuilder::optional_u32(self.width),
             PostgresValueBuilder::optional_u32(self.height),
-            Value::String(self.day_date.to_string()),
+            Value::Date(self.day_date),
             Value::DateTime(self.sort_date.clone()),
         ]
     }
