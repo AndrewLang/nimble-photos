@@ -1,12 +1,12 @@
 use crate::entities::exif::ExifModel;
 use crate::services::image_process_constants::ImageProcessKeys;
 
-use exif::{Reader, Tag};
+use exif::{Reader as ExifReader, Tag, Value};
 use once_cell::sync::Lazy;
 use quickraw::{Export, Input};
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufRead, BufReader, Cursor, Seek};
+use std::collections::HashSet;
+use std::io::Cursor;
 use std::path::Path;
 
 #[derive(Debug)]
@@ -19,13 +19,14 @@ impl ExifService {
 
     pub fn extract_from_path<P: AsRef<Path>>(&self, path: P) -> ExifModel {
         let path_ref = path.as_ref();
-        let file = match File::open(path_ref) {
-            Ok(file) => file,
-            Err(_) => return ExifModel::default(),
-        };
 
-        let mut reader = BufReader::new(file);
-        let mut metadata = self.extract_from_reader(&mut reader);
+        let mut reader = ExifReader::new();
+        let bytes = std::fs::read(&path).unwrap_or_default();
+        let mut metadata = self.extract_from_reader(&mut reader, &bytes);
+
+        for (key, value) in metadata.clone() {
+            log::info!("EXIF: {} = {}", key, value);
+        }
 
         if self.is_raw(path_ref) {
             let raw_metadata = self.extract_raw_metadata(path_ref);
@@ -36,26 +37,48 @@ impl ExifService {
         model
     }
 
-    pub fn extract_from_bytes(&self, bytes: &[u8]) -> ExifModel {
-        let mut reader = Cursor::new(bytes);
-        let fields = self.extract_from_reader(&mut reader);
-        let model = self.build_exif(&fields);
+    fn extract_from_reader(&self, reader: &ExifReader, bytes: &[u8]) -> HashMap<String, String> {
+        let mut metadata = HashMap::new();
+        let mut cursor = Cursor::new(bytes);
 
-        model
-    }
+        let exclude_tags = self.get_excluded_tags();
+        let tag_name_map = self.get_tag_name_map();
 
-    fn extract_from_reader<R: BufRead + Seek>(&self, reader: &mut R) -> HashMap<String, String> {
-        let exif = match Reader::new().read_from_container(reader) {
-            Ok(exif) => exif,
-            Err(_) => return HashMap::new(),
-        };
+        if let Ok(exif_data) = reader.read_from_container(&mut cursor) {
+            for field in exif_data.fields() {
+                let mut tag_name = field.tag.to_string();
+                if exclude_tags.contains(tag_name.as_str()) {
+                    continue;
+                }
+                tag_name = tag_name_map
+                    .get(tag_name.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or(tag_name);
 
-        exif.fields()
-            .map(|field| (field.tag.to_string(), field.display_value().to_string()))
-            .collect()
+                let value = if Self::is_enum_tag(field.tag) {
+                    match &field.value {
+                        Value::Byte(v) if !v.is_empty() => v[0].to_string(),
+                        Value::Short(v) if !v.is_empty() => v[0].to_string(),
+                        Value::Long(v) if !v.is_empty() => v[0].to_string(),
+                        _ => self.exif_value_to_string(field.tag, &field.value),
+                    }
+                } else {
+                    self.exif_value_to_string(field.tag, &field.value)
+                };
+                metadata.insert(tag_name, value);
+            }
+        }
+        metadata
     }
 
     fn build_exif(&self, fields: &HashMap<String, String>) -> ExifModel {
+        let orientation = self.u16_from_field(fields, Tag::Orientation.to_string());
+        let image_width = self.u32_from_field(fields, Tag::ImageWidth.to_string());
+        let image_length = self.u32_from_field(fields, Tag::ImageLength.to_string());
+
+        let (image_width, image_length) =
+            self.normalize_dimensions(image_width, image_length, orientation);
+
         ExifModel {
             make: self.text_from_field(fields, Tag::Make.to_string()),
             model: self.text_from_field(fields, Tag::Model.to_string()),
@@ -70,11 +93,11 @@ impl ExifService {
             brightness_value: self.f32_from_field(fields, Tag::BrightnessValue.to_string()),
             shutter_speed_value: self.f32_from_field(fields, Tag::ShutterSpeedValue.to_string()),
             focal_length: self.f32_from_field(fields, Tag::FocalLength.to_string()),
-            image_width: self.u32_from_field(fields, Tag::ImageWidth.to_string()),
-            image_length: self.u32_from_field(fields, Tag::ImageLength.to_string()),
+            image_width: image_width,
+            image_length: image_length,
             pixel_x_dimension: self.u32_from_field(fields, Tag::PixelXDimension.to_string()),
             pixel_y_dimension: self.u32_from_field(fields, Tag::PixelYDimension.to_string()),
-            orientation: self.u16_from_field(fields, Tag::Orientation.to_string()),
+            orientation: orientation,
             datetime: self.text_from_field(fields, Tag::DateTime.to_string()),
             datetime_original: self.text_from_field(fields, Tag::DateTimeOriginal.to_string()),
             datetime_digitized: self.text_from_field(fields, Tag::DateTimeDigitized.to_string()),
@@ -286,6 +309,60 @@ impl ExifService {
         map
     }
 
+    fn exif_value_to_string(&self, tag: Tag, value: &Value) -> String {
+        match value {
+            Value::Ascii(vec) => vec
+                .iter()
+                .map(|v| String::from_utf8_lossy(v).trim().to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+                .trim()
+                .to_string(),
+
+            Value::Undefined(bytes, _) => {
+                // Handle special cases
+                if tag == Tag::UserComment {
+                    let content = if bytes.starts_with(b"ASCII\0\0\0") && bytes.len() > 8 {
+                        &bytes[8..]
+                    } else {
+                        bytes
+                    };
+
+                    let text = String::from_utf8_lossy(content);
+                    text.trim_matches(char::from(0)).trim().to_string()
+                } else if tag == Tag::MakerNote {
+                    format!("<MakerNote: {} bytes>", bytes.len())
+                } else if tag == Tag::SceneType {
+                    // SceneType: 0 = undefined, 1 = directly photographed
+                    match bytes.first() {
+                        Some(0) => "Not defined".to_string(),
+                        Some(1) => "Directly photographed image".to_string(),
+                        Some(v) => format!("Binary({:#04x})", v),
+                        None => String::new(),
+                    }
+                } else {
+                    // Generic binary cleanup: remove control chars
+                    let s = String::from_utf8_lossy(bytes).trim().to_string();
+                    if s.chars().any(|c| c.is_control()) {
+                        format!("Binary({:?})", bytes)
+                    } else {
+                        s
+                    }
+                }
+            }
+
+            _ => {
+                let text = value.display_as(tag).to_string();
+                Self::clean_exif_text(&text)
+            }
+        }
+    }
+
+    fn clean_exif_text(s: &str) -> String {
+        let cleaned: String = s.chars().filter(|c| !c.is_control()).collect();
+        cleaned.trim().to_string()
+    }
+
     fn extract_raw_metadata<P: AsRef<Path>>(&self, path: P) -> HashMap<String, String> {
         let mut metadata = HashMap::new();
         let bytes = std::fs::read(&path).unwrap_or_default();
@@ -302,8 +379,67 @@ impl ExifService {
             Err(e) => Err(e),
         };
         for (key, value) in exif.unwrap_or_default() {
+            log::info!("Extracted RAW EXIF: {} = {}", key, value);
             metadata.insert(key, value);
         }
         metadata
+    }
+
+    fn get_tag_name_map(&self) -> &'static HashMap<&'static str, &'static str> {
+        static TAG_MAP: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+            HashMap::from([
+                ("Tag(Tiff, 254)", "NewSubfileType"),
+                ("Tag(Tiff, 330)", "SubIFDs"),
+                ("Tag(Tiff, 36867)", "DateTimeOriginal"),
+                ("Tag(Tiff, 37398)", "SubjectDistanceRange"),
+            ])
+        });
+        &TAG_MAP
+    }
+
+    fn get_excluded_tags(&self) -> &'static HashSet<&'static str> {
+        static EXCLUDED: Lazy<HashSet<&'static str>> =
+            Lazy::new(|| HashSet::from(["Tag(Tiff, 700)", "MakerNote"]));
+        &EXCLUDED
+    }
+
+    fn normalize_dimensions(
+        &self,
+        width: Option<u32>,
+        height: Option<u32>,
+        orientation: Option<u16>,
+    ) -> (Option<u32>, Option<u32>) {
+        let orientation = orientation.unwrap_or(1);
+
+        if matches!(orientation, 5 | 6 | 7 | 8) {
+            (height, width)
+        } else {
+            (width, height)
+        }
+    }
+
+    fn is_enum_tag(tag: Tag) -> bool {
+        matches!(
+            tag,
+            Tag::ExposureProgram
+                | Tag::WhiteBalance
+                | Tag::MeteringMode
+                | Tag::LightSource
+                | Tag::Flash
+                | Tag::Contrast
+                | Tag::Saturation
+                | Tag::Sharpness
+                | Tag::SceneCaptureType
+                | Tag::GainControl
+                | Tag::CustomRendered
+                | Tag::SubjectDistanceRange
+                | Tag::Compression
+                | Tag::Orientation
+                | Tag::ColorSpace
+                | Tag::BitsPerSample
+                | Tag::ExposureMode
+                | Tag::SceneType
+                | Tag::SensitivityType
+        )
     }
 }

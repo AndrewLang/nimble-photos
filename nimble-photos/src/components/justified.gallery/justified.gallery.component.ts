@@ -58,7 +58,6 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
             return;
         }
 
-        // In auto-fetch mode, avoid wiping loaded/cache data with the default empty input.
         if ((value?.length ?? 0) > 0) {
             this._timeline.set(value);
         }
@@ -220,6 +219,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
         this.photoService.getTimeline(this.currentPage, this.pageSize)
             .pipe(first())
             .subscribe(groups => {
+                console.log('Fetched page', this.currentPage, groups);
                 if (groups.length < this.pageSize) {
                     this.hasMore = false;
                 }
