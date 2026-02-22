@@ -3,14 +3,14 @@
 mod controllers;
 mod dtos;
 mod entities;
-mod middleware;
+mod middlewares;
 mod models;
 mod repositories;
 mod services;
 
 use controllers::register_controllers;
 use entities::{migrate_entities, register_entities};
-use middleware::PublicAccessMiddleware;
+use middlewares::public_middleware::PublicAccessMiddleware;
 use nimble_web::AppBuilder;
 use nimble_web::app::application::AppError;
 use nimble_web::middleware::cors::CorsMiddleware;

@@ -128,8 +128,8 @@ impl HttpHandler for MeHandler {
             .ok_or_else(|| PipelineError::message("identity not found"))?;
 
         let subject = identity.identity().subject().to_string();
-        let user_id =
-            Uuid::parse_str(&subject).map_err(|_| PipelineError::message("invalid identity"))?;
+        let user_id = Uuid::parse_str(&subject)
+            .map_err(|_| PipelineError::message("Invalid identity: user ID is not valid for me"))?;
 
         let user_repo = context.service::<Repository<User>>()?;
         let settings_repo = context.service::<Repository<UserSettings>>()?;

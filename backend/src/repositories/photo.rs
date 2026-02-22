@@ -200,7 +200,7 @@ impl PhotoRepository for PostgresPhotoRepository {
                     json_agg(
                         json_build_object(
                             'id', dp.id,
-                            'hash', dp.hash,
+                            'hash', COALESCE(dp.hash, ''),
                             'width', dp.width,
                             'height', dp.height,
                             'name', dp.name

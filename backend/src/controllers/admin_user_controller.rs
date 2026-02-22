@@ -88,11 +88,12 @@ fn is_admin(context: &HttpContext) -> bool {
 fn current_user_id(context: &HttpContext) -> Result<Uuid, PipelineError> {
     let subject = context
         .get::<IdentityContext>()
-        .ok_or_else(|| PipelineError::message("identity not found"))?
+        .ok_or_else(|| PipelineError::message("Identity not found"))?
         .identity()
         .subject()
         .to_string();
-    Uuid::parse_str(&subject).map_err(|_| PipelineError::message("invalid identity"))
+    Uuid::parse_str(&subject)
+        .map_err(|_| PipelineError::message("Invalid identity: user ID is not valid"))
 }
 
 fn contains_admin_role(roles: &[String]) -> bool {

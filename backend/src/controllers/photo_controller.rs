@@ -43,7 +43,17 @@ pub struct PhotoController;
 impl Controller for PhotoController {
     fn routes() -> Vec<EndpointRoute> {
         vec![
+            EndpointRoute::get(
+                "/api/photos/thumbnail/{storage_id}/{hash}",
+                ThumbnailByStorageHandler,
+            )
+            .build(),
             EndpointRoute::get("/api/photos/thumbnail/{hash}", ThumbnailHandler).build(),
+            EndpointRoute::get(
+                "/api/photos/preview/{storage_id}/{hash}",
+                PreviewByStorageHandler,
+            )
+            .build(),
             EndpointRoute::get("/api/photos/preview/{hash}", PreviewHandler).build(),
             EndpointRoute::get("/api/photos/haspreview/{hash}", HasPreviewHandler).build(),
             EndpointRoute::get("/api/photos/timeline/{page}/{pageSize}", TimelineHandler).build(),
@@ -171,41 +181,45 @@ impl HttpHandler for UploadPhotosHandler {
 }
 
 struct ThumbnailHandler;
+struct ThumbnailByStorageHandler;
+
+#[async_trait]
+impl HttpHandler for ThumbnailByStorageHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let storage_id = context.route_uuid("storage_id")?;
+        let hash = context.hash()?;
+
+        log::debug!("Serving thumbnail for storage {} hash {}", storage_id, hash);
+
+        let thumbnail_root = context.get_thumbnail_root_by_storage(storage_id).await?;
+
+        let webp_path = thumbnail_root
+            .join(&hash[0..2])
+            .join(&hash[2..4])
+            .join(format!("{hash}.webp"));
+
+        let (resolved_path, content_type) = if webp_path.exists() {
+            (webp_path, "image/webp")
+        } else {
+            return Err(PipelineError::message("thumbnail not found"));
+        };
+
+        Ok(ResponseValue::new(
+            FileResponse::from_path(resolved_path)
+                .with_content_type(content_type)
+                .with_header("Cache-Control", "public, max-age=31536000, immutable"),
+        ))
+    }
+}
 
 #[async_trait]
 impl HttpHandler for ThumbnailHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let hash = context
-            .route()
-            .and_then(|route| route.params().get("hash"))
-            .ok_or_else(|| PipelineError::message("hash parameter missing"))?;
+        let hash = context.hash()?;
 
         log::debug!("Serving thumbnail for hash: {}", hash);
-        if hash.len() < 4 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err(PipelineError::message("invalid thumbnail hash"));
-        }
 
-        let mut thumbnail_roots = Vec::<PathBuf>::new();
-        if let Ok(storage_repo) = context.service::<Repository<StorageLocation>>() {
-            if let Ok(page) = storage_repo.query(Query::<StorageLocation>::new()).await {
-                for location in page.items {
-                    let path = Path::new(&location.path).join(".thumbnails");
-                    if !thumbnail_roots.contains(&path) {
-                        thumbnail_roots.push(path);
-                    }
-                }
-            }
-        }
-
-        let config = context.config();
-        let legacy_base = config
-            .get("thumbnail.base.path")
-            .or_else(|| config.get("thumbnail.basepath"))
-            .unwrap_or("./.thumbnails");
-        let legacy_path = Path::new(legacy_base).to_path_buf();
-        if !thumbnail_roots.contains(&legacy_path) {
-            thumbnail_roots.push(legacy_path);
-        }
+        let thumbnail_roots = context.get_thumbnail_roots().await?;
 
         let mut resolved: Option<(PathBuf, &'static str)> = None;
         for root in &thumbnail_roots {
@@ -246,6 +260,7 @@ impl HttpHandler for ThumbnailHandler {
 }
 
 struct PreviewHandler;
+struct PreviewByStorageHandler;
 
 impl PreviewHandler {
     async fn build_preview(
@@ -299,6 +314,93 @@ impl PreviewHandler {
         }
 
         Ok(None)
+    }
+}
+
+#[async_trait]
+impl HttpHandler for PreviewByStorageHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let storage_id = context.route_uuid("storage_id")?;
+        let hash = context.hash()?;
+
+        log::debug!("Serving preview for storage {} hash {}", storage_id, hash);
+
+        let preview_path = context
+            .get_preview_path_by_storage(storage_id, &hash)
+            .await?;
+        if preview_path.exists() {
+            return Ok(ResponseValue::new(
+                FileResponse::from_path(preview_path)
+                    .with_content_type("image/jpeg")
+                    .with_header("Cache-Control", "public, max-age=31536000, immutable"),
+            ));
+        }
+
+        let mut query = Query::<Photo>::new();
+        query.filters.push(Filter {
+            field: "storage_id".to_string(),
+            operator: FilterOperator::Eq,
+            value: Value::Uuid(storage_id),
+        });
+        query.filters.push(Filter {
+            field: "hash".to_string(),
+            operator: FilterOperator::Eq,
+            value: Value::String(hash.clone()),
+        });
+
+        let photo = context
+            .service::<Repository<Photo>>()?
+            .query(query)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
+            .items
+            .into_iter()
+            .next()
+            .ok_or_else(|| PipelineError::message("preview not found"))?;
+
+        let source_path = PathBuf::from(&photo.path);
+        if !source_path.exists() {
+            return Err(PipelineError::message("preview source not found"));
+        }
+
+        let output_path = context
+            .get_preview_path_by_storage(storage_id, &hash)
+            .await?;
+        let extractor = context.service::<PreviewExtractor>()?;
+        let output_path_clone = output_path.clone();
+        let source_path_clone = source_path.clone();
+        let enqueue_at = Instant::now();
+
+        let generated = task::spawn_blocking(move || {
+            let started_at = Instant::now();
+            let queue_wait = started_at.duration_since(enqueue_at);
+            let extract_started = Instant::now();
+            let result = extractor.extract_to(source_path_clone, &output_path_clone);
+            let extract_elapsed = extract_started.elapsed();
+
+            (result, queue_wait, extract_elapsed)
+        })
+        .await
+        .ok()
+        .and_then(|(result, queue_wait, extract_elapsed)| {
+            log::debug!(
+                "Preview (storage-specific) blocking task timing for hash {}: queue_wait={:?}, extract={:?}",
+                hash,
+                queue_wait,
+                extract_elapsed
+            );
+            result.ok()
+        });
+
+        let resolved_path = generated
+            .filter(|path| path.exists())
+            .ok_or_else(|| PipelineError::message("preview not found"))?;
+
+        Ok(ResponseValue::new(
+            FileResponse::from_path(resolved_path)
+                .with_content_type("image/jpeg")
+                .with_header("Cache-Control", "public, max-age=31536000, immutable"),
+        ))
     }
 }
 
@@ -647,9 +749,10 @@ impl HttpHandler for CreatePhotoCommentHandler {
 
         let identity = context
             .get::<IdentityContext>()
-            .ok_or_else(|| PipelineError::message("identity not found"))?;
-        let user_id = Uuid::parse_str(identity.identity().subject())
-            .map_err(|_| PipelineError::message("invalid identity"))?;
+            .ok_or_else(|| PipelineError::message("Identity not found"))?;
+        let user_id = Uuid::parse_str(identity.identity().subject()).map_err(|_| {
+            PipelineError::message("Invalid identity: user ID is not valid, photo comment")
+        })?;
         let settings = context.service::<SettingService>()?;
         let can_comment = settings
             .can_create_comments(identity.identity().claims().roles())
@@ -757,7 +860,11 @@ impl HttpHandler for ReplacePhotoTagsHandler {
         let current_user_id = context
             .get::<IdentityContext>()
             .and_then(|ctx| Uuid::parse_str(ctx.identity().subject()).ok())
-            .ok_or_else(|| PipelineError::message("invalid identity"))?;
+            .ok_or_else(|| {
+                PipelineError::message(
+                    "Invalid identity: user ID is not valid, replacing photo tags",
+                )
+            })?;
 
         let repository = context.service::<Box<dyn PhotoRepository>>()?;
         repository
@@ -817,7 +924,11 @@ impl HttpHandler for UpdatePhotoTagsHandler {
         let current_user_id = context
             .get::<IdentityContext>()
             .and_then(|ctx| Uuid::parse_str(ctx.identity().subject()).ok())
-            .ok_or_else(|| PipelineError::message("invalid identity"))?;
+            .ok_or_else(|| {
+                PipelineError::message(
+                    "Invalid identity: user ID is not valid, updating photo tags",
+                )
+            })?;
         let repository = context.service::<Box<dyn PhotoRepository>>()?;
 
         let mut updated = 0u32;

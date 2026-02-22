@@ -1,4 +1,3 @@
-use crate::services::SettingService;
 use async_trait::async_trait;
 use nimble_web::http::context::HttpContext;
 use nimble_web::identity::context::IdentityContext;
@@ -6,6 +5,9 @@ use nimble_web::pipeline::middleware::Middleware;
 use nimble_web::pipeline::next::Next;
 use nimble_web::pipeline::pipeline::PipelineError;
 use std::collections::HashSet;
+
+use crate::controllers::httpcontext_extensions::HttpContextExtensions;
+use crate::services::SettingService;
 
 pub struct PublicAccessMiddleware;
 
@@ -23,19 +25,28 @@ impl Middleware for PublicAccessMiddleware {
         let path = context.request().path();
 
         if path.starts_with(PHOTOS_PREFIX) {
+            let method = context.request().method();
+            if method == "GET"
+                && (path.starts_with("/api/photos/thumbnail/")
+                    || path.starts_with("/api/photos/preview/"))
+            {
+                return next.run(context).await;
+            }
+
             let settings = context.service::<SettingService>()?;
             let authenticated = context
                 .get::<IdentityContext>()
                 .map(|ctx| ctx.is_authenticated())
                 .unwrap_or(false);
-            let method = context.request().method();
+            let api_key_present = context.extract_api_key().is_ok();
 
             if method == "GET" {
                 if !path.starts_with("/api/photos/thumbnail/")
                     && !path.starts_with("/api/photos/preview/")
                 {
                     let site_public = settings.is_site_public().await?;
-                    if !site_public && !authenticated {
+                    if !site_public && !authenticated && !api_key_present {
+                        log::debug!("Unauthenticated {} denied.", path);
                         context.response_mut().set_status(401);
                         return Ok(());
                     }

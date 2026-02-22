@@ -375,11 +375,6 @@ struct BrowseStorageHandler;
 #[get("/api/storage/{storageId}/browse")]
 impl HttpHandler for BrowseStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        // if let Err(err) = context.require(Permission::BrowsePhotos) {
-        //     context.response_mut().set_status(403);
-        //     return Err(err);
-        // }
-
         let storage_id = context.route_storage_id()?;
         let request = context.parse_browse_request()?;
         let path_segments = request.path_segments().map_err(|_| {
@@ -397,7 +392,7 @@ impl HttpHandler for BrowseStorageHandler {
                 PipelineError::message("storage not found")
             })?;
 
-        let client_id = context.current_client_id()?;
+        let client_id = context.current_client_id().await?;
         let browse_options = context
             .load_client_storage_settings(client_id, storage.id)
             .await?;

@@ -29,9 +29,9 @@ pub trait HttpContextExtensions {
     fn extract_api_key(&self) -> Result<String, PipelineError>;
     fn parse_browse_request(&self) -> Result<BrowseRequest, PipelineError>;
     fn route_storage_id(&self) -> Result<Uuid, PipelineError>;
-    fn current_client_id(&self) -> Result<Uuid, PipelineError>;
     fn hash(&self) -> Result<String, PipelineError>;
     fn default_preview_root(&self) -> PathBuf;
+    async fn current_client_id(&self) -> Result<Uuid, PipelineError>;
     async fn is_preview_exists(&self, hash: &str) -> bool;
     async fn load_client_storage_settings(
         &self,
@@ -41,6 +41,17 @@ pub trait HttpContextExtensions {
     async fn validate_api_key(&mut self, api_key: &str) -> Result<Client, PipelineError>;
     async fn get_preview_root(&self, hash: &str) -> Result<PathBuf, PipelineError>;
     async fn get_preview_path(&self, hash: &str) -> Result<PathBuf, PipelineError>;
+    async fn get_preview_root_by_storage(&self, storage_id: Uuid) -> Result<PathBuf, PipelineError>;
+    async fn get_preview_path_by_storage(
+        &self,
+        storage_id: Uuid,
+        hash: &str,
+    ) -> Result<PathBuf, PipelineError>;
+    async fn get_thumbnail_root_by_storage(
+        &self,
+        storage_id: Uuid,
+    ) -> Result<PathBuf, PipelineError>;
+    async fn get_thumbnail_roots(&self) -> Result<Vec<PathBuf>, PipelineError>;
 }
 
 #[async_trait]
@@ -123,15 +134,26 @@ impl HttpContextExtensions for HttpContext {
         Uuid::parse_str(&raw).map_err(|_| PipelineError::message("invalid storageId"))
     }
 
-    fn current_client_id(&self) -> Result<Uuid, PipelineError> {
-        let subject = self
-            .get::<IdentityContext>()
-            .ok_or_else(|| PipelineError::message("identity not found"))?
-            .identity()
-            .subject()
-            .to_string();
+    async fn current_client_id(&self) -> Result<Uuid, PipelineError> {
+        if let Some(identity) = self.get::<IdentityContext>() {
+            let subject = identity.identity().subject().to_string();
+            if let Ok(id) = Uuid::parse_str(&subject) {
+                return Ok(id);
+            }
+        }
 
-        Uuid::parse_str(&subject).map_err(|_| PipelineError::message("invalid identity"))
+        let api_key = self.extract_api_key()?;
+
+        let repository = self.service::<Repository<Client>>()?;
+        let client = repository
+            .get_by("api_key_hash", Value::String(api_key.clone()))
+            .await
+            .map_err(|_| PipelineError::message("failed to query client by api key"))?;
+
+        match client {
+            Some(client) if client.is_active && client.is_approved => Ok(client.id),
+            _ => Err(PipelineError::message("Invalid api key")),
+        }
     }
 
     fn hash(&self) -> Result<String, PipelineError> {
@@ -198,7 +220,8 @@ impl HttpContextExtensions for HttpContext {
             .identity()
             .subject()
             .to_string();
-        Uuid::parse_str(&subject).map_err(|_| PipelineError::message("invalid identity"))
+        Uuid::parse_str(&subject)
+            .map_err(|_| PipelineError::message("Invalid identity: user ID is not valid"))
     }
 
     fn extract_api_key(&self) -> Result<String, PipelineError> {
@@ -217,21 +240,20 @@ impl HttpContextExtensions for HttpContext {
 
     async fn validate_api_key(&mut self, api_key: &str) -> Result<Client, PipelineError> {
         let client_repo = self.service::<Repository<Client>>()?;
-        let clients = client_repo
-            .query(Query::<Client>::new())
+        let client = client_repo
+            .get_by("api_key_hash", Value::String(api_key.to_string()))
             .await
-            .map_err(|_| PipelineError::message("failed to query clients"))?
-            .items;
-
-        let client = clients.into_iter().find(|client| {
-            client.is_active && client.is_approved && api_key == client.api_key_hash
-        });
+            .map_err(|_| PipelineError::message("failed to query client by api key"))?;
 
         match client {
-            Some(client) => Ok(client),
+            Some(client) if client.is_active && client.is_approved => Ok(client),
             None => {
                 self.response_mut().set_status(401);
-                Err(PipelineError::message("invalid api key"))
+                Err(PipelineError::message("Invalid api key"))
+            }
+            Some(_) => {
+                self.response_mut().set_status(401);
+                Err(PipelineError::message("Client is not active or approved"))
             }
         }
     }
@@ -324,6 +346,67 @@ impl HttpContextExtensions for HttpContext {
             .join(&hash[0..2])
             .join(&hash[2..4])
             .join(format!("{hash}.jpg")))
+    }
+
+    async fn get_preview_root_by_storage(&self, storage_id: Uuid) -> Result<PathBuf, PipelineError> {
+        let storage_repo = self.service::<Repository<StorageLocation>>()?;
+        let storage = storage_repo
+            .get(&storage_id)
+            .await
+            .map_err(|_| PipelineError::message("failed to load storage location"))?
+            .ok_or_else(|| PipelineError::message("storage location not found"))?;
+        Ok(storage.normalized_path().join(".previews"))
+    }
+
+    async fn get_preview_path_by_storage(
+        &self,
+        storage_id: Uuid,
+        hash: &str,
+    ) -> Result<PathBuf, PipelineError> {
+        let preview_root = self.get_preview_root_by_storage(storage_id).await?;
+        Ok(preview_root
+            .join(&hash[0..2])
+            .join(&hash[2..4])
+            .join(format!("{hash}.jpg")))
+    }
+
+    async fn get_thumbnail_root_by_storage(
+        &self,
+        storage_id: Uuid,
+    ) -> Result<PathBuf, PipelineError> {
+        let storage_repo = self.service::<Repository<StorageLocation>>()?;
+        let storage = storage_repo
+            .get(&storage_id)
+            .await
+            .map_err(|_| PipelineError::message("failed to load storage location"))?
+            .ok_or_else(|| PipelineError::message("storage location not found"))?;
+        Ok(storage.normalized_path().join(".thumbnails"))
+    }
+
+    async fn get_thumbnail_roots(&self) -> Result<Vec<PathBuf>, PipelineError> {
+        let mut roots = Vec::<PathBuf>::new();
+        if let Ok(storage_repo) = self.service::<Repository<StorageLocation>>() {
+            if let Ok(page) = storage_repo.query(Query::<StorageLocation>::new()).await {
+                for location in page.items {
+                    let path = location.normalized_path().join(".thumbnails");
+                    if !roots.contains(&path) {
+                        roots.push(path);
+                    }
+                }
+            }
+        }
+
+        let config = self.config();
+        let legacy_base = config
+            .get("thumbnail.base.path")
+            .or_else(|| config.get("thumbnail.basepath"))
+            .unwrap_or("./.thumbnails");
+        let legacy_path = Path::new(legacy_base).to_path_buf();
+        if !roots.contains(&legacy_path) {
+            roots.push(legacy_path);
+        }
+
+        Ok(roots)
     }
 
     async fn is_preview_exists(&self, hash: &str) -> bool {

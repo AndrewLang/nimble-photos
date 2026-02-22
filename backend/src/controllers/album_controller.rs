@@ -227,7 +227,7 @@ impl HttpHandler for ReplaceAlbumTagsHandler {
         let current_user_id = context
             .get::<IdentityContext>()
             .and_then(|ctx| Uuid::parse_str(ctx.identity().subject()).ok())
-            .ok_or_else(|| PipelineError::message("invalid identity"))?;
+            .ok_or_else(|| PipelineError::message("Invalid identity: user ID is not valid"))?;
 
         let repository = context.service::<Box<dyn PhotoRepository>>()?;
         repository
@@ -349,9 +349,9 @@ impl HttpHandler for CreateAlbumCommentHandler {
 
         let identity = context
             .get::<IdentityContext>()
-            .ok_or_else(|| PipelineError::message("identity not found"))?;
+            .ok_or_else(|| PipelineError::message("Identity not found"))?;
         let user_id = Uuid::parse_str(identity.identity().subject())
-            .map_err(|_| PipelineError::message("invalid identity"))?;
+            .map_err(|_| PipelineError::message("Invalid identity"))?;
         let settings = context.service::<SettingService>()?;
         let can_comment = settings
             .can_create_comments(identity.identity().claims().roles())
