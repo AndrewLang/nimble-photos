@@ -11,6 +11,7 @@ mod services;
 use controllers::register_controllers;
 use entities::{migrate_entities, register_entities};
 use middlewares::public_middleware::PublicAccessMiddleware;
+use middlewares::static_file_middleware::StaticFileMiddleware;
 use nimble_web::AppBuilder;
 use nimble_web::app::application::AppError;
 use nimble_web::middleware::cors::CorsMiddleware;
@@ -25,11 +26,12 @@ async fn main() -> std::result::Result<(), AppError> {
     builder
         .use_config("web.config.json")
         .use_env()
-        .use_address_env("Nimble_Photo_Url")
+        .use_address_env_or("Nimble_Photo_Url", "0.0.0.0:5151")
         .use_postgres()
         .use_middleware(CorsMiddleware::default())
         .use_authentication()
-        .use_middleware(PublicAccessMiddleware::new());
+        .use_middleware(PublicAccessMiddleware::new())
+        .use_middleware(StaticFileMiddleware::default());
 
     register_services(&mut builder);
     register_controllers(&mut builder);
