@@ -1,6 +1,6 @@
 # Nimble Photos
 
-Nimble Photos is a self-hosted photo management application with an Angular frontend and a Rust backend.  
+Nimble Photos is a self-hosted photo management application with an Angular frontend and a Rust backend.
 It is designed for personal or small-team use, with a focus on fast browsing, album organization, and secure access control.
 
 ## Features
@@ -13,7 +13,9 @@ It is designed for personal or small-team use, with a focus on fast browsing, al
 - PostgreSQL-backed data storage
 - Single-service hosting for frontend and backend (backend serves built frontend files)
 
-## How To Deploy
+## Docker Modes
+
+### Deploy (uses prebuilt image)
 
 ### 1. Configure environment
 
@@ -23,13 +25,14 @@ Copy `.env.example` to `.env` and update values as needed:
 - `APP_DATA_DIR`: host folder for app data used by Nimble Photos
 - `APP_PORT`: host port for Nimble Photos (default `5151`)
 - `POSTGRES_PORT`: host port for PostgreSQL (default `5438`)
+- `APP_IMAGE`: deploy image tag (default `nimble-photos:latest`)
 
 ### 2. Build and start services
 
 From the repository root:
 
 ```bash
-docker compose up --build -d
+docker compose -f docker-compose.deploy.yml up -d
 ```
 
 This starts:
@@ -44,3 +47,23 @@ Open:
 `http://localhost:5151`
 
 If you changed `APP_PORT`, use that port instead.
+
+### Local Build (builds Dockerfile)
+
+```bash
+docker compose up --build -d
+```
+
+### Dev DB only (separate from deploy image)
+
+```bash
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
+
+docker compose --env-file .env.dev -f docker-compose.dev.yml down
+
+```
+
+
+```deploy
+docker compose -f docker-compose.deploy.yml up -d
+```

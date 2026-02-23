@@ -45,7 +45,7 @@ export class DashboardSectionSettingComponent implements OnInit {
     }
 
     getVisibleSettings(): DashboardSetting[] {
-        return this.getSectionSettings().filter(setting => setting.key !== 'site.logo');
+        return this.getSectionSettings().filter(setting => setting.key !== 'site.logo' && setting.key !== 'site.initialized');
     }
 
     showLogoEditor(): boolean {

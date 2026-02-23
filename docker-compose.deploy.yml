@@ -21,9 +21,7 @@ services:
 
   app:
     container_name: nimble-photos-app
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${APP_IMAGE:-nimble-photos:latest}
     depends_on:
       postgres:
         condition: service_healthy
