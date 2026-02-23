@@ -493,16 +493,16 @@ impl ExifService {
 
     fn print_exif(&self, map: &HashMap<String, String>) {
         if map.is_empty() {
-            log::info!("EXIF metadata is empty");
+            log::trace!("EXIF metadata is empty");
             return;
         }
 
         let mut entries: Vec<(&String, &String)> = map.iter().collect();
         entries.sort_by(|(left_key, _), (right_key, _)| left_key.cmp(right_key));
 
-        log::info!("EXIF metadata ({} entries):", entries.len());
+        log::trace!("EXIF metadata ({} entries):", entries.len());
         for (key, value) in entries {
-            log::info!("\t{}: {}", key, value);
+            log::trace!("\t{}: {}", key, value);
         }
     }
 }
