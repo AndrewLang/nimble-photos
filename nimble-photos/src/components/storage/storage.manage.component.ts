@@ -38,14 +38,14 @@ export class StorageManageComponent {
         label: ['', [Validators.required, Validators.minLength(2)]],
         diskMount: ['', [Validators.required]],
         folderName: ['Nimble Photos', [Validators.required, Validators.minLength(2)]],
-        categoryTemplate: ['hash', [Validators.required]],
+        categoryTemplate: ['date', [Validators.required]],
     });
 
     readonly editForm = this.fb.nonNullable.group({
         label: ['', [Validators.required, Validators.minLength(2)]],
         diskMount: ['', [Validators.required]],
         folderName: ['', [Validators.required, Validators.minLength(2)]],
-        categoryTemplate: ['hash', [Validators.required]],
+        categoryTemplate: ['date', [Validators.required]],
     });
 
     readonly selectedDisk = computed(() => {
@@ -91,8 +91,8 @@ export class StorageManageComponent {
     readonly formatBytes = Formatter.formatBytes;
     readonly formatAvailablePercent = Formatter.formatAvailablePercent;
     readonly categoryTemplates: readonly NamedValue<string>[] = [
-        { value: 'hash', name: 'Hash' },
         { value: 'date', name: 'Date' },
+        { value: 'hash', name: 'Hash' },
     ];
     readonly diskLabel = (option: NamedValue<unknown>): string => {
         const disk = (option as DiskOption).disk;
@@ -141,7 +141,7 @@ export class StorageManageComponent {
             label: '',
             diskMount: this.disks()[0]?.mountPoint ?? '',
             folderName: 'Nimble Photos',
-            categoryTemplate: 'hash',
+            categoryTemplate: 'date',
         });
         if (this.disks().length === 1) {
             this.selectedDiskMount.set(this.disks()[0].mountPoint);
@@ -161,7 +161,7 @@ export class StorageManageComponent {
         const path = this.buildPath(diskMount, folderName);
 
         this.storageService
-            .createLocation({ label: label.trim(), path, categoryTemplate })
+            .createLocation({ label: label.trim(), mountPoint: diskMount, path: folderName, categoryTemplate })
             .pipe(finalize(() => this.saving.set(false)))
             .subscribe({
                 next: (location) => {
@@ -191,7 +191,7 @@ export class StorageManageComponent {
             label: location.label,
             diskMount,
             folderName,
-            categoryTemplate: location.categoryTemplate || 'hash',
+            categoryTemplate: location.categoryTemplate || 'date',
         });
         this.editSelectedDiskMount.set(diskMount);
         this.showCreateForm.set(false);

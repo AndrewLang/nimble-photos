@@ -21,10 +21,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/src/app/backend/target/release/nimble-photos /usr/local/bin/nimble-photos
+COPY --from=builder /usr/src/app/backend/www /app/www
 
 WORKDIR /app
 
 ENV RUST_LOG=info
-EXPOSE 8080
+EXPOSE 5151
 
 CMD ["/usr/local/bin/nimble-photos"]

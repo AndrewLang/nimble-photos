@@ -201,7 +201,8 @@ impl HttpHandler for ThumbnailByStorageHandler {
         let (resolved_path, content_type) = if webp_path.exists() {
             (webp_path, "image/webp")
         } else {
-            return Err(PipelineError::message("thumbnail not found"));
+            let message = format!("Thumbnail not found for hash: {}", hash);
+            return Err(PipelineError::message(&message));
         };
 
         Ok(ResponseValue::new(

@@ -4,7 +4,6 @@ use nimble_web::pipeline::middleware::Middleware;
 use nimble_web::pipeline::next::Next;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::{FileResponse, IntoResponse};
-use std::default;
 use std::path::{Component, Path, PathBuf};
 
 pub struct StaticFileMiddleware {
@@ -14,6 +13,25 @@ pub struct StaticFileMiddleware {
 impl StaticFileMiddleware {
     pub fn new<P: Into<PathBuf>>(root: P) -> Self {
         Self { root: root.into() }
+    }
+
+    fn resolve_default_root() -> PathBuf {
+        let mut candidates = vec![PathBuf::from("www"), PathBuf::from("backend/www")];
+
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                candidates.push(parent.join("www"));
+            }
+        }
+
+        for candidate in candidates {
+            if candidate.join("index.html").exists() {
+                log::info!("Using static root: {}", candidate.display());
+                return candidate;
+            }
+        }
+
+        PathBuf::from("www")
     }
 
     fn normalize_request_path(path: &str) -> Option<PathBuf> {
@@ -42,7 +60,7 @@ impl StaticFileMiddleware {
 
 impl Default for StaticFileMiddleware {
     fn default() -> Self {
-        Self::new("www")
+        Self::new(Self::resolve_default_root())
     }
 }
 

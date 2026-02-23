@@ -144,6 +144,7 @@ pub struct DiskInfo {
 #[serde(rename_all = "camelCase")]
 pub struct CreateStoragePayload {
     pub label: String,
+    pub mount_point: String,
     pub path: String,
     pub is_default: Option<bool>,
     pub category_template: Option<String>,

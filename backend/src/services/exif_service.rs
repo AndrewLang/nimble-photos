@@ -24,10 +24,6 @@ impl ExifService {
         let bytes = std::fs::read(&path).unwrap_or_default();
         let mut metadata = self.extract_from_reader(&mut reader, &bytes);
 
-        for (key, value) in metadata.clone() {
-            log::info!("EXIF: {} = {}", key, value);
-        }
-
         if self.is_raw(path_ref) {
             let raw_metadata = self.extract_raw_metadata(path_ref);
             metadata.extend(raw_metadata);
@@ -379,7 +375,6 @@ impl ExifService {
             Err(e) => Err(e),
         };
         for (key, value) in exif.unwrap_or_default() {
-            log::info!("Extracted RAW EXIF: {} = {}", key, value);
             metadata.insert(key, value);
         }
         metadata

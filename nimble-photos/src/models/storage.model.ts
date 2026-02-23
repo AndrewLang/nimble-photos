@@ -17,6 +17,7 @@ export interface StorageLocation {
 
 export interface CreateStorageLocationRequest {
     label: string;
+    mountPoint: string;
     path: string;
     isDefault?: boolean;
     categoryTemplate?: string;
@@ -25,6 +26,7 @@ export interface CreateStorageLocationRequest {
 export interface UpdateStorageLocationRequest {
     label?: string;
     path?: string;
+    mountPoint?: string;
     isDefault?: boolean;
     categoryTemplate?: string;
 }

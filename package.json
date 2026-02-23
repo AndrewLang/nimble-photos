@@ -2,6 +2,7 @@
   "name": "nimble-photos-root",
   "private": true,
   "scripts": {
-    "start": "cargo run --manifest-path backend/Cargo.toml"
+    "start": "npm --prefix nimble-photos run start",
+    "build": "npm --prefix nimble-photos run build"
   }
 }

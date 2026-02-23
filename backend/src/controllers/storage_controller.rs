@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use std::collections::HashSet;
+use std::fs;
 use std::path::Path;
 use uuid::Uuid;
 
@@ -90,23 +91,28 @@ impl HttpHandler for CreateStorageHandler {
             .map_err(|err| PipelineError::message(err.message()))?;
 
         let label_value = payload.label.trim().should_not_empty("Storage label")?;
+        let mount_point = payload.mount_point.trim().should_not_empty("Mount point")?;
         let path_value = payload.path.trim().should_not_empty("Storage path")?;
+        let full_path = Path::new(mount_point).join(path_value);
+        let full_path_value = full_path.to_string_lossy().to_string();
 
-        if !Path::new(path_value).exists() {
+        if !full_path.exists() {
             log::warn!(
                 "Storage path does not exist: {}, will create it.",
                 path_value
             );
-            std::fs::create_dir_all(path_value).map_err(|err| {
+
+            fs::create_dir_all(&full_path).map_err(|err| {
                 PipelineError::message(&format!(
                     "Failed to create storage path '{}': {}",
-                    path_value, err
+                    full_path.display(),
+                    err
                 ))
             })?;
         }
 
         let repository = context.service::<Repository<StorageLocation>>()?;
-        if repository.exists_by_path(path_value).await? {
+        if repository.exists_by_path(&full_path_value).await? {
             return Err(PipelineError::message("Storage path already registered"));
         }
 
@@ -122,7 +128,7 @@ impl HttpHandler for CreateStorageHandler {
         let new_location = StorageLocation {
             id: Uuid::new_v4(),
             label: label_value.to_string(),
-            path: path_value.to_string(),
+            path: full_path_value,
             is_default,
             created_at: Utc::now().to_rfc3339(),
             category_template: payload
