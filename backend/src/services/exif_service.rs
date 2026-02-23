@@ -1,4 +1,5 @@
 use crate::entities::exif::ExifModel;
+use crate::models::exif_tool::ExifTool;
 use crate::services::image_process_constants::ImageProcessKeys;
 
 use exif::{Reader as ExifReader, Tag, Value};
@@ -8,13 +9,18 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Cursor;
 use std::path::Path;
+use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct ExifService;
+pub struct ExifService {
+    exif_tool: Arc<ExifTool>,
+}
 
 impl ExifService {
     pub fn new() -> Self {
-        Self
+        Self {
+            exif_tool: Arc::new(ExifTool::new()),
+        }
     }
 
     pub fn extract_from_path<P: AsRef<Path>>(&self, path: P) -> ExifModel {
@@ -27,6 +33,30 @@ impl ExifService {
         if self.is_raw(path_ref) {
             let raw_metadata = self.extract_raw_metadata(path_ref);
             metadata.extend(raw_metadata);
+        }
+
+        log::info!(
+            "Dimension: {:?}x{:?}",
+            self.u32_from_field(&metadata, Tag::ImageWidth.to_string()),
+            self.u32_from_field(&metadata, Tag::ImageLength.to_string())
+        );
+
+        if !self.is_valid(&metadata) {
+            log::info!("EXIF is not valid, fallback to Exif tool");
+            let source = path_ref.to_string_lossy();
+            match self.exif_tool.read_exif(source.as_ref()) {
+                Ok(exiftool_metadata) => {
+                    self.print_exif(&exiftool_metadata);
+                    metadata = exiftool_metadata;
+                }
+                Err(err) => {
+                    log::warn!(
+                        "Failed to extract EXIF via ExifTool for {}: {}",
+                        source,
+                        err
+                    );
+                }
+            }
         }
 
         let model = self.build_exif(&metadata);
@@ -436,5 +466,43 @@ impl ExifService {
                 | Tag::SceneType
                 | Tag::SensitivityType
         )
+    }
+
+    fn is_valid(&self, fields: &HashMap<String, String>) -> bool {
+        let has_primary_dimensions = self
+            .u32_from_field(fields, Tag::ImageWidth.to_string())
+            .filter(|value| *value > 0)
+            .is_some()
+            && self
+                .u32_from_field(fields, Tag::ImageLength.to_string())
+                .filter(|value| *value > 0)
+                .is_some();
+
+        if has_primary_dimensions {
+            return true;
+        }
+
+        self.u32_from_field(fields, Tag::PixelXDimension.to_string())
+            .filter(|value| *value > 0)
+            .is_some()
+            && self
+                .u32_from_field(fields, Tag::PixelYDimension.to_string())
+                .filter(|value| *value > 0)
+                .is_some()
+    }
+
+    fn print_exif(&self, map: &HashMap<String, String>) {
+        if map.is_empty() {
+            log::info!("EXIF metadata is empty");
+            return;
+        }
+
+        let mut entries: Vec<(&String, &String)> = map.iter().collect();
+        entries.sort_by(|(left_key, _), (right_key, _)| left_key.cmp(right_key));
+
+        log::info!("EXIF metadata ({} entries):", entries.len());
+        for (key, value) in entries {
+            log::info!("\t{}: {}", key, value);
+        }
     }
 }

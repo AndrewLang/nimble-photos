@@ -63,6 +63,12 @@ docker compose --env-file .env.dev -f docker-compose.dev.yml down
 
 ```
 
+Clean db
+```Sql
+DELETE FROM public.photos;
+DELETE FROM public.exifs;
+```
+
 
 ```deploy
 docker compose -f docker-compose.deploy.yml up -d
