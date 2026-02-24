@@ -64,6 +64,9 @@ impl Controller for PhotoController {
             EndpointRoute::post("/api/photos", UploadPhotosHandler)
                 .with_policy(Policy::Authenticated)
                 .build(),
+            EndpointRoute::delete("/api/photos", DeletePhotosHandler)
+                .with_policy(Policy::Authenticated)
+                .build(),
             EndpointRoute::get("/api/photos", PhotosQueryHandler).build(),
             EndpointRoute::get("/api/photos/{id}/metadata", PhotoMetadataHandler).build(),
             EndpointRoute::get("/api/photos/{id}/tags", PhotoTagListHandler).build(),
@@ -177,6 +180,79 @@ impl HttpHandler for UploadPhotosHandler {
         };
 
         Ok(ResponseValue::json(response))
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeletePhotosPayload {
+    photo_ids: Vec<String>,
+}
+
+struct DeletePhotosHandler;
+
+#[async_trait]
+impl HttpHandler for DeletePhotosHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload = context
+            .read_json::<DeletePhotosPayload>()
+            .map_err(|e| PipelineError::message(e.message()))?;
+
+        if payload.photo_ids.is_empty() {
+            return Err(PipelineError::message("photoIds cannot be empty"));
+        }
+
+        let photo_repo = context.service::<Repository<Photo>>()?;
+        let exif_repo = context.service::<Repository<ExifModel>>()?;
+
+        let mut deleted = 0u32;
+        let mut files_deleted = 0u32;
+
+        for raw_photo_id in payload.photo_ids {
+            let photo_id = Uuid::parse_str(raw_photo_id.trim())
+                .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
+
+            let Some(photo) = photo_repo
+                .get(&photo_id)
+                .await
+                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
+            else {
+                continue;
+            };
+
+            files_deleted += PhotoController::remove_photo_files(context, &photo).await;
+
+            let mut exif_query = Query::<ExifModel>::new();
+            exif_query.filters.push(Filter {
+                field: "image_id".to_string(),
+                operator: FilterOperator::Eq,
+                value: Value::Uuid(photo.id),
+            });
+            let exif_rows = exif_repo
+                .query(exif_query)
+                .await
+                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
+                .items;
+
+            for exif in exif_rows {
+                let _ = exif_repo
+                    .delete(&exif.id)
+                    .await
+                    .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+            }
+
+            let removed = photo_repo
+                .delete(&photo.id)
+                .await
+                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+            if removed {
+                deleted += 1;
+            }
+        }
+
+        Ok(ResponseValue::new(Json(
+            serde_json::json!({ "deleted": deleted, "filesDeleted": files_deleted }),
+        )))
     }
 }
 
@@ -1043,6 +1119,70 @@ impl PhotoController {
                     }
                 }
                 Ok(collected)
+            }
+        }
+    }
+
+    async fn remove_photo_files(context: &HttpContext, photo: &Photo) -> u32 {
+        let mut deleted = Self::remove_file_if_exists(Path::new(&photo.path));
+
+        let Some(hash) = photo.hash.as_deref().map(str::trim).filter(|value| !value.is_empty())
+        else {
+            return deleted;
+        };
+
+        if hash.len() < 4 {
+            return deleted;
+        }
+
+        match context.get_preview_root_by_storage(photo.storage_id).await {
+            Ok(preview_root) => {
+                deleted += Self::remove_hashed_file(&preview_root, hash, "jpg");
+            }
+            Err(err) => {
+                log::warn!(
+                    "Failed to resolve preview root for photo {}: {}",
+                    photo.id,
+                    err
+                );
+            }
+        }
+
+        match context.get_thumbnail_root_by_storage(photo.storage_id).await {
+            Ok(thumbnail_root) => {
+                deleted += Self::remove_hashed_file(&thumbnail_root, hash, "webp");
+                deleted += Self::remove_hashed_file(&thumbnail_root, hash, "jpg");
+            }
+            Err(err) => {
+                log::warn!(
+                    "Failed to resolve thumbnail root for photo {}: {}",
+                    photo.id,
+                    err
+                );
+            }
+        }
+
+        deleted
+    }
+
+    fn remove_hashed_file(root: &Path, hash: &str, extension: &str) -> u32 {
+        let path = root
+            .join(&hash[0..2])
+            .join(&hash[2..4])
+            .join(format!("{hash}.{extension}"));
+        Self::remove_file_if_exists(&path)
+    }
+
+    fn remove_file_if_exists(path: &Path) -> u32 {
+        if !path.exists() {
+            return 0;
+        }
+
+        match std::fs::remove_file(path) {
+            Ok(_) => 1,
+            Err(err) => {
+                log::warn!("Failed to delete file {}: {:?}", path.display(), err);
+                0
             }
         }
     }

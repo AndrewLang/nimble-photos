@@ -158,6 +158,18 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     private hasMore = true;
     private isRestoring = false;
     private lastSelectedIndex: number | null = null;
+    private lastTimelineRefreshTick = this.photoService.timelineRefreshTick();
+    private readonly timelineRefreshEffect = effect(() => {
+        const tick = this.photoService.timelineRefreshTick();
+        if (tick === this.lastTimelineRefreshTick) {
+            return;
+        }
+        this.lastTimelineRefreshTick = tick;
+
+        if (this.autoFetch()) {
+            this.reloadTimeline();
+        }
+    });
 
     ngOnInit() {
         if (!this.autoFetch()) {
@@ -245,6 +257,15 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
                     });
                 }
             });
+    }
+
+    private reloadTimeline() {
+        this.currentPage = 1;
+        this.hasMore = true;
+        this.isRestoring = false;
+        this._timeline.set([]);
+        this.totalPhotos.set(0);
+        this.fetchNextPage();
     }
 
     jumpToGroupOffset(offset: number, yearLabel?: string) {

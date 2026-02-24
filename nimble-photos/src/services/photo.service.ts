@@ -16,6 +16,7 @@ export class PhotoService {
   readonly apiBase = API_BASE_URL;
   private timelinePhotoIds: string[] | null = null;
   public timelineCache: GroupedPhotos[] | null = null;
+  readonly timelineRefreshTick = signal(0);
 
   lastGalleryScrollIndex = 0;
   readonly isScrolled = signal(false);
@@ -26,6 +27,13 @@ export class PhotoService {
     return this.http
       .get<PagedModel<PhotoResponse>>(`${this.apiBase}/photos/${page}/${pageSize}`)
       .pipe(map((response) => this.mapPhotoPage(response)));
+  }
+
+  requestTimelineRefresh(): void {
+    this.timelineCache = null;
+    this.timelinePhotoIds = null;
+    this.lastGalleryScrollIndex = 0;
+    this.timelineRefreshTick.update(value => value + 1);
   }
 
   uploadPhotos(files: File[], storageId?: string): Observable<void> {
@@ -102,6 +110,16 @@ export class PhotoService {
     return this.http.put<{ updated: number }>(`${this.apiBase}/photos/tags`, {
       photoIds,
       tags
+    });
+  }
+
+  deletePhotos(photoIds: string[]): Observable<{ deleted: number }> {
+    if (!photoIds.length) {
+      return of({ deleted: 0 });
+    }
+
+    return this.http.delete<{ deleted: number }>(`${this.apiBase}/photos`, {
+      body: { photoIds }
     });
   }
 

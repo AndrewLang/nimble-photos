@@ -11,6 +11,7 @@ import { SelectionService } from '../../services/selection.service';
 import { SettingsService } from '../../services/settings.service';
 import { AlbumEditorComponent } from '../album/album.editor.component';
 import { AlbumSelectorComponent } from '../album/album.selector.component';
+import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
 import { SvgComponent } from '../svg/svg.component';
 import { TagEditorComponent } from '../tag/tag.editor.component';
 
@@ -63,6 +64,13 @@ export class HeaderComponent implements OnInit {
       description: 'Add tags to the selected photos',
       icon: 'tag',
       action: () => this.tagPhotos()
+    },
+    {
+      id: 'deletePhotos',
+      name: 'Delete Photos',
+      description: 'Delete the selected photos',
+      icon: 'trash',
+      action: () => this.deletePhotos()
     },
     {
       id: 'downloadPhotos',
@@ -275,6 +283,41 @@ export class HeaderComponent implements OnInit {
           alert('Failed to update photo tags.');
         }
       });
+    });
+  }
+
+  async deletePhotos() {
+    const photos = this.selectionService.selectedPhotos();
+    if (photos.length === 0) {
+      return;
+    }
+
+    const dialogRef = this.dialogService.open(ConfirmDialogComponent, {
+      title: 'Delete Photos',
+      data: {
+        message: `Are you sure you want to delete ${photos.length} selected photo${photos.length === 1 ? '' : 's'}? This action cannot be undone.`,
+        type: 'danger'
+      },
+      actions: [
+        { label: 'Cancel', value: false, style: 'ghost' },
+        { label: 'Delete', value: true, style: 'danger' }
+      ]
+    });
+
+    const confirmed = await dialogRef.afterClosed();
+    if (!confirmed) {
+      return;
+    }
+
+    this.photoService.deletePhotos(photos.map(photo => photo.id)).subscribe({
+      next: () => {
+        this.selectionService.clearSelection();
+        this.photoService.requestTimelineRefresh();
+      },
+      error: (err) => {
+        console.error('Failed to delete photos', err);
+        alert('Failed to delete photos.');
+      }
     });
   }
 
