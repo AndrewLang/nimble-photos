@@ -1,6 +1,6 @@
 ﻿import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, first, map, of } from 'rxjs';
 
 import { DashboardSetting } from '../models/dashboard.settings.model';
 import { SettingNames } from '../models/setting.names';
@@ -20,6 +20,22 @@ export class SettingsService {
 
     getSettingByName(key: string): Observable<DashboardSetting> {
         return this.http.get<DashboardSetting>(`${this.apiBase}/dashboard/settings/${key}`);
+    }
+
+    getSetting<T>(
+        name: string,
+        apply: (value: T) => void
+    ): void {
+        this.getSettingByName(name)
+            .pipe(
+                first(),
+                catchError(() => of(null))
+            )
+            .subscribe(setting => {
+                if (setting?.value != null) {
+                    apply(setting.value as T);
+                }
+            });
     }
 
     updateSetting(key: string, value: unknown): Observable<DashboardSetting> {

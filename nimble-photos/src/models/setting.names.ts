@@ -6,4 +6,5 @@ export class SettingNames {
     static readonly SiteTagline = 'site.tagline';
     static readonly SitePublic = 'site.public';
     static readonly SiteAllowRegistration = 'site.allowRegistration';
+    static readonly SiteInitialized = 'site.initialized';
 }

@@ -22,57 +22,22 @@
         </a>
     </div>
 
-    @if (hasSelection()) {
-    <div
-        class="absolute left-1/2 -translate-x-1/2 z-60 bg-transparent text-white px-2 py-2 rounded-full flex items-center gap-2 animate-in fade-in zoom-in-95 duration-300">
-        <div class="flex items-center gap-2 pl-3 pr-2 border-r border-white/20">
-            <button (click)="clearSelection()" class="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-                title="Clear Selection">
-                <mtx-svg name="closeSolid"></mtx-svg>
-            </button>
-            <span class="text-xs font-bold uppercase tracking-widest whitespace-nowrap">
-                {{ selectionService.selectedCount() }}
-                <span class="hidden md:inline">selected</span></span>
-        </div>
-
-        <div class="flex items-center gap-2 pr-1">
-            @for(command of selectionCommands(); track command.id) {
-            <button (click)="command.action()" [title]="command.description"
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[0.5rem] md:text-xs uppercase text-slate-100 hover:bg-white/20 transition-all cursor-pointer">
-                <mtx-svg [name]="command.icon"></mtx-svg>
-                <span class="hidden xl:inline whitespace-nowrap">{{ command.name }}</span>
-            </button>
-            }
-        </div>
-    </div>
-    }
+    <mtx-header-actions></mtx-header-actions>
 
     <div class="hidden md:flex items-center gap-3 pl-4">
-        @if (authService.isAuthenticated()) {
-        <a routerLink="/" routerLinkActive="text-white" #rlaTimeline="routerLinkActive"
-            [routerLinkActiveOptions]="{exact: true}"
-            class="text-xs font-bold uppercase text-slate-400 hover:text-white transition-all cursor-pointer text-decoration-none relative group py-2">
-            Timeline
-            <div class="absolute -bottom-0.5 left-0 h-0.5 bg-indigo-500 transition-all duration-300"
-                [class.w-full]="rlaTimeline.isActive" [class.w-0]="!rlaTimeline.isActive"
-                [class.group-hover:w-full]="true"></div>
-        </a>
-        <a routerLink="/albums" routerLinkActive="text-white" #rlaAlbums="routerLinkActive"
-            class="text-xs font-bold uppercase text-slate-400 hover:text-white transition-all cursor-pointer text-decoration-none relative group py-2">
-            Albums
-            <div class="absolute -bottom-0.5 left-0 h-0.5 bg-indigo-500 transition-all duration-300"
-                [class.w-full]="rlaAlbums.isActive" [class.w-0]="!rlaAlbums.isActive" [class.group-hover:w-full]="true">
-            </div>
-        </a>
-        <a routerLink="/map" routerLinkActive="text-white" #rlaMap="routerLinkActive"
-            class="text-xs font-bold uppercase text-slate-400 hover:text-white transition-all cursor-pointer text-decoration-none relative group py-2">
-            Map
-            <div class="absolute -bottom-0.5 left-0 h-0.5 bg-indigo-500 transition-all duration-300"
-                [class.w-full]="rlaMap.isActive" [class.w-0]="!rlaMap.isActive" [class.group-hover:w-full]="true"></div>
-        </a>
-
+        <div class="flex items-center gap-3">
+            @for(nav of mainNavs(); track nav.id) {
+            <a [routerLink]="nav.route" routerLinkActive="text-white" #rlaTimeline="routerLinkActive"
+                [routerLinkActiveOptions]="{exact: true}"
+                class="text-xs font-bold uppercase text-slate-400 hover:text-white transition-all cursor-pointer text-decoration-none relative group py-2">
+                {{ nav.label }}
+                <div class="absolute -bottom-0.5 left-0 h-0.5 bg-indigo-500 transition-all duration-300"
+                    [class.w-full]="rlaTimeline.isActive" [class.w-0]="!rlaTimeline.isActive"
+                    [class.group-hover:w-full]="true"></div>
+            </a>
+            }
+        </div>
         <div class="h-6 w-px bg-white/10 mx-2"></div>
-        }
 
         <div class="relative" #userMenuRoot>
             <button (click)="toggleUserMenu()"
@@ -82,44 +47,27 @@
 
             @if (isUserMenuOpen()) {
             <div
-                class="absolute right-0 mt-3 w-48 origin-top-right rounded-lg border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-70 backdrop-blur-xl bg-slate-900/90">
+                class="absolute right-0 mt-3 w-64 origin-top-right rounded-lg border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-5000 backdrop-blur-xl bg-slate-900/90">
                 <div class="py-1">
-                    @if (authService.isAuthenticated()) {
+                    @if ( isAuthenticated()) {
                     <div class="px-4 py-3 border-b border-white/5">
                         <p class="text-[0.6rem] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Signed in as
                         </p>
-                        <p class="text-xs font-semibold text-white truncate">{{ authService.currentUser()?.displayName
+                        <p class="text-xs font-semibold text-white truncate">{{ currentUser()?.displayName
                             }}</p>
-                        <p class="text-[0.5rem] text-slate-400 truncate mt-1">{{ authService.currentUser()?.email }}
+                        <p class="text-[0.5rem] text-slate-400 truncate mt-1">{{currentUser()?.email }}
                         </p>
                     </div>
-                    @if (authService.canAccessDashboard()) {
-                    <a routerLink="/dashboard" (click)="closeUserMenu()"
-                        class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-white transition-colors text-decoration-none">
-                        Dashboard
-                    </a>
-                    <div class="h-px w-full bg-white/5 px-4"></div>
                     }
-                    <button (click)="logout()"
-                        class="w-full text-left block px-4 py-3 text-xs font-bold uppercase tracking-widest text-red-400 hover:bg-white/5 hover:text-red-300 transition-colors cursor-pointer border-none bg-transparent">
-                        Sign Out
-                    </button>
-                    } @else {
-                    <a routerLink="/login" (click)="closeMenu()"
-                        class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-white transition-colors text-decoration-none">
-                        Sign In
+
+                    @for(nav of userMenuNavs(); track nav.id) {
+                    <a [routerLink]="nav.route" (click)="nav.action?.(); "
+                        class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-300 hover:bg-white/5 hover:text-white transition-colors text-decoration-none cursor-pointer">
+                        {{ nav.label }}
                     </a>
-                    @if (allowRegistration()) {
-                    <div class="h-px w-full bg-white/5 px-4"></div>
-                    <a routerLink="/register" (click)="closeMenu()"
-                        class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-400 hover:bg-white/5 hover:text-white transition-colors text-decoration-none">
-                        Register
-                    </a>
-                    }
                     }
                 </div>
             </div>
-
             }
         </div>
     </div>
@@ -135,29 +83,24 @@
 
 @if (isMenuOpen()) {
 <div
-    class="fixed inset-0 z-40 bg-slate-950/95 backdrop-blur-xl pt-24 px-6 md:hidden flex flex-col gap-6 animate-in fade-in slide-in-from-top-5 duration-200">
-    @if (authService.isAuthenticated()) {
+    class="fixed inset-0 z-4000 min-w-48 bg-slate-950/95 backdrop-blur-xl pt-12 px-6 md:hidden flex flex-col gap-6 animate-in fade-in slide-in-from-top-5 duration-200">
+    @if (isAuthenticated()) {
     <nav class="flex flex-col gap-4">
-        <a routerLink="/" (click)="closeMenu()" routerLinkActive="text-white border-l-2 border-indigo-500 pl-4"
-            class="text-xl font-medium text-slate-300 hover:text-white transition-colors py-2 block">
-            Timeline
+        @for(nav of mainNavs(); track nav.id) {
+        <a [routerLink]="nav.route" (click)="closeMenu()"
+            routerLinkActive="text-white border-l-2 border-indigo-500 pl-4"
+            class="text-xl font-medium text-slate-300 hover:text-white transition-colors py-1 block">
+            {{ nav.label }}
         </a>
-        <a routerLink="/albums" (click)="closeMenu()" routerLinkActive="text-white border-l-2 border-indigo-500 pl-4"
-            class="text-xl font-medium text-slate-300 hover:text-white transition-colors py-2 block">
-            Albums
-        </a>
-        <a routerLink="/map" (click)="closeMenu()" routerLinkActive="text-white border-l-2 border-indigo-500 pl-4"
-            class="text-xl font-medium text-slate-300 hover:text-white transition-colors py-2 block">
-            Map
-        </a>
+        }
     </nav>
 
     <div class="h-px w-full bg-white/10 my-2"></div>
     }
 
     <div class="flex flex-col gap-4">
-        @if (authService.isAuthenticated()) {
-        @if (authService.canAccessDashboard()) {
+        @if (isAuthenticated()) {
+        @if (canAccessDashboard()) {
         <a routerLink="/dashboard" (click)="closeMenu()"
             class="text-center bg-indigo-600 hover:bg-indigo-500 text-white font-bold uppercase tracking-widest py-3 rounded-lg shadow-lg shadow-indigo-600/20 text-sm">
             Dashboard
