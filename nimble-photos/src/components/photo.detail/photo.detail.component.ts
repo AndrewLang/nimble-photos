@@ -87,73 +87,8 @@ export class PhotoDetailComponent implements OnInit {
         }
     }
 
-    private fetchPhoto(id: string): void {
-        this.loading.set(true);
-        this.previewLoading.set(false);
-        this.previewReady.set(false);
-        this.previewSrc.set(null);
-
-        this.photoService.getPhotoById(id).pipe(first()).subscribe(result => {
-            this.photo.set(result);
-            if (result) {
-                this.fetchAdjacents(result.id);
-                this.loadPhotoMetadata(result.id);
-                this.loadComments(result.id);
-                this.loadPreview(result);
-            }
-            this.loading.set(false);
-        });
-    }
-
-    private loadPreview(photo: Photo): void {
-        const previewBasePath = this.photoService.getPreviewPath(photo);
-        if (!photo.hash || previewBasePath === photo.path) {
-            this.previewReady.set(false);
-            this.previewLoading.set(false);
-            this.previewSrc.set(null);
-            return;
-        }
-
-        const seq = ++this.previewRequestSeq;
-        this.previewLoading.set(true);
-        this.previewReady.set(false);
-
-        const previewRequestPath = `${previewBasePath}?v=${Date.now()}`;
-        const image = new Image();
-        image.onload = () => {
-            if (seq !== this.previewRequestSeq) {
-                return;
-            }
-            this.previewSrc.set(previewRequestPath);
-            this.previewReady.set(true);
-            this.previewLoading.set(false);
-        };
-        image.onerror = () => {
-            if (seq !== this.previewRequestSeq) {
-                return;
-            }
-            this.previewReady.set(false);
-            this.previewLoading.set(false);
-            this.previewSrc.set(null);
-        };
-        image.src = previewRequestPath;
-    }
-
-    private fetchAdjacents(id: string): void {
-        this.photoService.getAdjacentPhotos(id, this.albumId || undefined)
-            .pipe(first())
-            .subscribe(adj => this.adjacents.set(adj));
-    }
-
-    private loadPhotoMetadata(photoId: string): void {
-        this.photoService.getPhotoMetadata(photoId)
-            .pipe(first())
-            .subscribe(metadata => {
-                this.photo.update(current =>
-                    current ? { ...current, metadata: metadata ?? undefined } : current
-                );
-                this.metadataExpanded.set(false);
-            });
+    goHome() {
+        this.router.navigateByUrl('/');
     }
 
     handleCommentInput(event: Event): void {
@@ -216,29 +151,6 @@ export class PhotoDetailComponent implements OnInit {
     close(): void {
         const target = this.returnUrl ?? this.buildDefaultReturnUrl(this.albumId);
         this.router.navigateByUrl(target);
-    }
-
-    private buildDefaultReturnUrl(albumId: string | null): string {
-        return albumId ? `/album/${albumId}` : '/';
-    }
-
-    private loadComments(photoId: string): void {
-        this.commentsLoading.set(true);
-        this.commentsError.set(null);
-        this.photoService.getPhotoComments(photoId)
-            .pipe(first())
-            .subscribe({
-                next: (comments: PhotoComment[]) => {
-                    this.comments.set(comments);
-                    this.metadataExpanded.set(comments.length === 0);
-                    this.commentsLoading.set(false);
-                },
-                error: () => {
-                    this.comments.set([]);
-                    this.commentsLoading.set(false);
-                    this.commentsError.set('Failed to load comments.');
-                }
-            });
     }
 
     formatCommentDate(value?: string): string {
@@ -342,6 +254,98 @@ export class PhotoDetailComponent implements OnInit {
         ].filter(section => section.fields.length > 0);
 
         return sections;
+    }
+
+    private buildDefaultReturnUrl(albumId: string | null): string {
+        return albumId ? `/album/${albumId}` : '/';
+    }
+
+    private loadComments(photoId: string): void {
+        this.commentsLoading.set(true);
+        this.commentsError.set(null);
+        this.photoService.getPhotoComments(photoId)
+            .pipe(first())
+            .subscribe({
+                next: (comments: PhotoComment[]) => {
+                    this.comments.set(comments);
+                    this.metadataExpanded.set(comments.length === 0);
+                    this.commentsLoading.set(false);
+                },
+                error: () => {
+                    this.comments.set([]);
+                    this.commentsLoading.set(false);
+                    this.commentsError.set('Failed to load comments.');
+                }
+            });
+    }
+
+    private fetchPhoto(id: string): void {
+        this.loading.set(true);
+        this.previewLoading.set(false);
+        this.previewReady.set(false);
+        this.previewSrc.set(null);
+
+        this.photoService.getPhotoById(id).pipe(first()).subscribe(result => {
+            this.photo.set(result);
+            if (result) {
+                this.fetchAdjacents(result.id);
+                this.loadPhotoMetadata(result.id);
+                this.loadComments(result.id);
+                this.loadPreview(result);
+            }
+            this.loading.set(false);
+        });
+    }
+
+    private loadPreview(photo: Photo): void {
+        const previewBasePath = this.photoService.getPreviewPath(photo);
+        if (!photo.hash || previewBasePath === photo.path) {
+            this.previewReady.set(false);
+            this.previewLoading.set(false);
+            this.previewSrc.set(null);
+            return;
+        }
+
+        const seq = ++this.previewRequestSeq;
+        this.previewLoading.set(true);
+        this.previewReady.set(false);
+
+        const previewRequestPath = `${previewBasePath}?v=${Date.now()}`;
+        const image = new Image();
+        image.onload = () => {
+            if (seq !== this.previewRequestSeq) {
+                return;
+            }
+            this.previewSrc.set(previewRequestPath);
+            this.previewReady.set(true);
+            this.previewLoading.set(false);
+        };
+        image.onerror = () => {
+            if (seq !== this.previewRequestSeq) {
+                return;
+            }
+            this.previewReady.set(false);
+            this.previewLoading.set(false);
+            this.previewSrc.set(null);
+        };
+        image.src = previewRequestPath;
+    }
+
+    private fetchAdjacents(id: string): void {
+        this.photoService.getAdjacentPhotos(id, this.albumId || undefined)
+            .pipe(first())
+            .subscribe(adj => this.adjacents.set(adj));
+    }
+
+    private loadPhotoMetadata(photoId: string): void {
+        this.photoService.getPhotoMetadata(photoId)
+            .pipe(first())
+            .subscribe(metadata => {
+                this.photo.update(current =>
+                    current ? { ...current, metadata: metadata ?? undefined } : current
+                );
+                this.metadataExpanded.set(false);
+            });
     }
 
     private buildMetadataField(record: Record<string, unknown>, key: string): { label: string; value: string } | null {
