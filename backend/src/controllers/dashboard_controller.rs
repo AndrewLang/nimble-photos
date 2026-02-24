@@ -160,7 +160,7 @@ impl HttpHandler for UploadLogoHandler {
         let path = folder.join(&filename);
         fs::write(&path, bytes).map_err(|_| PipelineError::message("Failed to save logo"))?;
 
-        let logo_url = format!("/assets/logo/{}", filename);
+        let logo_url = format!("/api/assets/logo/{}", filename);
         let service = context.service::<SettingService>()?;
         if !DashboardController::can_update_setting(context, &service, "site.logo").await? {
             context.response_mut().set_status(403);
