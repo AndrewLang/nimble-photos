@@ -56,6 +56,15 @@ docker compose up --build -d
 
 ### Dev DB only (separate from deploy image)
 
+Build image
+
+```docker
+docker buildx build --platform linux/amd64,linux/arm64 -t 192.168.7.1:8961/nimble-photos:latest --push .
+
+// for Mac
+docker buildx build --platform linux/arm64 -t 192.168.7.1:8961/nimble-photos:latest --push .
+```
+
 ```bash
 docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
 
@@ -72,4 +81,8 @@ DELETE FROM public.exifs;
 
 ```deploy
 docker compose -f docker-compose.deploy.yml up -d
+
+docker compose up -d
+
+docker compose -p nimble up -d
 ```

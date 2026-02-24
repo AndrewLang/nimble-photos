@@ -8,7 +8,7 @@ RUN npm ci
 COPY nimble-photos/ ./
 RUN npm run build
 
-FROM rust:latest AS backend-builder
+FROM rust:bookworm AS backend-builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libssl-dev libpq-dev ca-certificates cmake make g++ nasm \
@@ -29,6 +29,7 @@ WORKDIR /app
 COPY --from=backend-builder /src/backend/target/release/nimble-photos /usr/local/bin/nimble-photos
 COPY --from=backend-builder /src/backend/src/web.config.json /usr/local/bin/web.config.json
 COPY --from=frontend-builder /src/backend/www /app/www
+COPY --from=backend-builder /src/backend/bins /src/backend/bins
 
 ENV RUST_LOG=info
 EXPOSE 5151
