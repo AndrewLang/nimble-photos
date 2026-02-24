@@ -4,6 +4,7 @@ import { Component, computed, ElementRef, HostListener, inject, OnInit, signal, 
 import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { catchError, first, of } from 'rxjs';
+import { SettingNames } from '../../models/setting.names';
 import { AuthService } from '../../services/auth.service';
 import { DialogService } from '../../services/dialog.service';
 import { PhotoService } from '../../services/photo.service';
@@ -323,7 +324,7 @@ export class HeaderComponent implements OnInit {
 
   private loadSiteSettings(): void {
     this.settingsService
-      .getSettingByName('site.title')
+      .getSettingByName(SettingNames.SiteTitle)
       .pipe(
         first(),
         catchError(() => of(null))
@@ -336,7 +337,7 @@ export class HeaderComponent implements OnInit {
       });
 
     this.settingsService
-      .getSettingByName('site.tagline')
+      .getSettingByName(SettingNames.SiteTagline)
       .pipe(
         first(),
         catchError(() => of(null))
@@ -348,7 +349,7 @@ export class HeaderComponent implements OnInit {
       });
 
     this.settingsService
-      .getSettingByName('site.allowRegistration')
+      .getSettingByName(SettingNames.SiteAllowRegistration)
       .pipe(
         first(),
         catchError(() => of(null))

@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
+import { SettingNames } from '../../../models/setting.names';
 import { SettingsService } from '../../../services/settings.service';
 import { LogoEditorComponent } from '../../shared/logo-editor/logo.editor.component';
 
@@ -36,11 +37,11 @@ export class GeneralStepComponent {
         this.error.set(null);
 
         forkJoin({
-            title: this.settingsService.getSettingByName('site.title'),
-            tagline: this.settingsService.getSettingByName('site.tagline'),
-            logo: this.settingsService.getSettingByName('site.logo'),
-            isPublic: this.settingsService.getSettingByName('site.public'),
-            allowRegistration: this.settingsService.getSettingByName('site.allowRegistration'),
+            title: this.settingsService.getSettingByName(SettingNames.SiteTitle),
+            tagline: this.settingsService.getSettingByName(SettingNames.SiteTagline),
+            logo: this.settingsService.getSettingByName(SettingNames.SiteLogo),
+            isPublic: this.settingsService.getSettingByName(SettingNames.SitePublic),
+            allowRegistration: this.settingsService.getSettingByName(SettingNames.SiteAllowRegistration),
         }).subscribe({
             next: (settings) => {
                 this.settingsForm.patchValue({
@@ -72,11 +73,11 @@ export class GeneralStepComponent {
         const { title, tagline, logo, isPublic, allowRegistration } = this.settingsForm.getRawValue();
 
         forkJoin([
-            this.settingsService.updateSetting('site.title', title.trim()),
-            this.settingsService.updateSetting('site.tagline', tagline.trim()),
-            this.settingsService.updateSetting('site.logo', logo.trim()),
-            this.settingsService.updateSetting('site.public', isPublic),
-            this.settingsService.updateSetting('site.allowRegistration', allowRegistration),
+            this.settingsService.updateSetting(SettingNames.SiteTitle, title.trim()),
+            this.settingsService.updateSetting(SettingNames.SiteTagline, tagline.trim()),
+            this.settingsService.updateSetting(SettingNames.SiteLogo, logo.trim()),
+            this.settingsService.updateSetting(SettingNames.SitePublic, isPublic),
+            this.settingsService.updateSetting(SettingNames.SiteAllowRegistration, allowRegistration),
         ]).subscribe({
             next: () => {
                 this.saving.set(false);

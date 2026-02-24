@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import { DashboardSetting } from '../models/dashboard.settings.model';
+import { SettingNames } from '../models/setting.names';
 import { API_BASE_URL } from './api.config';
 
 @Injectable({
@@ -26,13 +27,13 @@ export class SettingsService {
     }
 
     uploadLogo(dataUrl: string): Observable<DashboardSetting> {
-        return this.http.post<DashboardSetting>(`${this.apiBase}/dashboard/settings/site.logo/upload`, {
+        return this.http.post<DashboardSetting>(`${this.apiBase}/dashboard/settings/${SettingNames.SiteLogo}/upload`, {
             dataUrl,
         });
     }
 
     getLogoUrl(): Observable<string | null> {
-        return this.getSettingByName('site.logo').pipe(
+        return this.getSettingByName(SettingNames.SiteLogo).pipe(
             map((setting) => {
                 const raw = typeof setting?.value === 'string' ? setting.value : '';
                 const value = this.buildLogoUrl(raw);

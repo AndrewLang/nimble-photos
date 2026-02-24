@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { DashboardSetting, DashboardSystemSection } from '../../models/dashboard.settings.model';
+import { SettingNames } from '../../models/setting.names';
 import { DashboardSettingsService } from '../../services/dashboard.setting.service';
 import { LogoEditorComponent } from '../shared/logo-editor/logo.editor.component';
 import { SvgComponent } from '../svg/svg.component';
@@ -14,7 +15,7 @@ import { SvgComponent } from '../svg/svg.component';
 export class DashboardSectionSettingComponent implements OnInit {
     readonly section = input.required<DashboardSystemSection>();
     readonly store = inject(DashboardSettingsService);
-    readonly logoSetting = computed(() => this.store.getSettingByName('site.logo'));
+    readonly logoSetting = computed(() => this.store.getSettingByName(SettingNames.SiteLogo));
 
     ngOnInit(): void {
         this.store.ensureLoaded();
@@ -45,7 +46,7 @@ export class DashboardSectionSettingComponent implements OnInit {
     }
 
     getVisibleSettings(): DashboardSetting[] {
-        return this.getSectionSettings().filter(setting => setting.key !== 'site.logo' && setting.key !== 'site.initialized');
+        return this.getSectionSettings().filter(setting => setting.key !== SettingNames.SiteLogo && setting.key !== SettingNames.SiteInitialized);
     }
 
     showLogoEditor(): boolean {

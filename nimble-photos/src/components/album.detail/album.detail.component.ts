@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { catchError, first, of } from 'rxjs';
 import { PagedModel } from '../../models/paged.response.model';
 import { Album, AlbumComment, Photo } from '../../models/photo';
+import { SettingNames } from '../../models/setting.names';
 import { AuthService } from '../../services/auth.service';
 import { DialogService } from '../../services/dialog.service';
 import { PhotoService } from '../../services/photo.service';
@@ -67,7 +68,7 @@ export class AlbumDetailComponent implements OnInit {
             }
         });
 
-        this.settingsService.getSettingByName('site.allowComments')
+        this.settingsService.getSettingByName(SettingNames.SiteAllowComments)
             .pipe(
                 first(),
                 catchError(() => of(null))
