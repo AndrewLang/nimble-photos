@@ -1,8 +1,8 @@
 <div class="relative">
     <button type="button" (click)="toggle()" [disabled]="isDisabled()"
-        class="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-white transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] disabled:opacity-50">
+        class="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-left text-sm text-slate-400 transition-all focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.08] disabled:opacity-50">
         <span>{{ selectedLabel() }}</span>
-        <mtx-svg name="chevronDownSolid" [svgClass]="'h-3 w-3 text-white'" />
+        <mtx-svg name="chevronDownSolid" [svgClass]="'h-3 w-3 text-slate-400'" />
     </button>
 
     @if (open()) {
@@ -13,7 +13,7 @@
         @for (option of options(); track $index) {
         <button type="button" (click)="select(option)"
             class="flex w-full items-center justify-between px-4 py-3 text-left text-xs hover:bg-white/5"
-            [class.text-white]="isSelected(option)" [class.text-slate-300]="!isSelected(option)">
+            [class.text-slate-400]="isSelected(option)" [class.text-slate-400]="!isSelected(option)">
             <span>{{ getOptionLabel(option) }}</span>
             @if (getOptionDescription(option).length) {
             <span class="text-slate-500">{{ getOptionDescription(option) }}</span>

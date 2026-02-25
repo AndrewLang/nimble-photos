@@ -1,240 +1,98 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize } from 'rxjs';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 
-import { Formatter } from '../../models/formatters';
-import { NamedValue } from '../../models/namedvalue';
+import { FormatAvailablePercentPipe } from '../../directives/format.available.percent.pipe';
+import { FormatSizePipe } from '../../directives/format.size.pipe';
+import { AsyncLoader } from '../../models/resource.loader';
 import { StorageDiskInfo, StorageLocation } from '../../models/storage.model';
 import { DialogService } from '../../services/dialog.service';
 import { StorageService } from '../../services/storage.service';
-import { DropdownComponent } from '../dropdown/dropdown.component';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
-
-type DiskOption = NamedValue<string> & { disk: StorageDiskInfo };
+import { SvgComponent } from "../svg/svg.component";
+import { StorageEditorComponent } from './storage.editor.component';
 
 @Component({
     selector: 'mtx-storage-manage',
-    imports: [ReactiveFormsModule, DropdownComponent],
+    imports: [StorageEditorComponent, FormatSizePipe, FormatAvailablePercentPipe, SvgComponent],
     templateUrl: './storage.manage.component.html',
 })
 export class StorageManageComponent {
     readonly showHeading = input(true);
 
-    private readonly fb = inject(FormBuilder);
     private readonly storageService = inject(StorageService);
     private readonly dialogService = inject(DialogService);
 
-    readonly disks = signal<StorageDiskInfo[]>([]);
-    readonly locations = signal<StorageLocation[]>([]);
-    readonly loading = signal(true);
-    readonly saving = signal(false);
-    readonly error = signal<string | null>(null);
-    readonly showCreateForm = signal(false);
-    readonly selectedDiskMount = signal('');
-    readonly editingId = signal<string | null>(null);
-    readonly editSelectedDiskMount = signal('');
+    readonly disksLoader = new AsyncLoader<StorageDiskInfo[]>([]);
+    readonly storageLoader = new AsyncLoader<StorageLocation[]>([]);
 
-    readonly storageForm = this.fb.nonNullable.group({
-        label: ['', [Validators.required, Validators.minLength(2)]],
-        diskMount: ['', [Validators.required]],
-        folderName: ['Nimble Photos', [Validators.required, Validators.minLength(2)]],
-        categoryTemplate: ['date', [Validators.required]],
-    });
+    readonly disks = computed(() => this.disksLoader.value() ?? []);
+    readonly storages = computed(() => this.storageLoader.value() ?? []);
+    readonly isLoading = computed(() => this.disksLoader.loading() || this.storageLoader.loading());
 
-    readonly editForm = this.fb.nonNullable.group({
-        label: ['', [Validators.required, Validators.minLength(2)]],
-        diskMount: ['', [Validators.required]],
-        folderName: ['', [Validators.required, Validators.minLength(2)]],
-        categoryTemplate: ['date', [Validators.required]],
-    });
-
-    readonly selectedDisk = computed(() => {
-        const mount = this.selectedDiskMount();
-        if (!mount) {
-            return null;
-        }
-        return this.disks().find(disk => disk.mountPoint === mount) || null;
-    });
-
-    readonly selectedDiskLabel = computed(() => {
-        const disk = this.selectedDisk();
-        return disk ? `${disk.name} (${disk.mountPoint})` : '';
-    });
-
-    readonly editingLocation = computed(() => {
-        const id = this.editingId();
-        if (!id) {
-            return null;
-        }
-        return this.locations().find(location => location.id === id) || null;
-    });
-
-    readonly editSelectedDisk = computed(() => {
-        const mount = this.editSelectedDiskMount();
-        if (!mount) {
-            return null;
-        }
-        return this.disks().find(disk => disk.mountPoint === mount) || null;
-    });
-
-    readonly editSelectedDiskLabel = computed(() => {
-        const disk = this.editSelectedDisk();
-        return disk ? `${disk.name} (${disk.mountPoint})` : '';
-    });
-    readonly diskOptions = computed<DiskOption[]>(() =>
-        this.disks().map((disk) => ({
-            name: disk.name,
-            value: disk.mountPoint,
-            disk,
-        })),
+    readonly actionError = signal<string | null>(null);
+    readonly error = computed(() =>
+        this.actionError() ?? this.disksLoader.error() ?? this.storageLoader.error() ?? null,
     );
-    readonly formatBytes = Formatter.formatBytes;
-    readonly formatAvailablePercent = Formatter.formatAvailablePercent;
-    readonly categoryTemplates: readonly NamedValue<string>[] = [
-        { value: 'date', name: 'Date' },
-        { value: 'hash', name: 'Hash' },
-    ];
-    readonly diskLabel = (option: NamedValue<unknown>): string => {
-        const disk = (option as DiskOption).disk;
-        return `${disk.name} (${disk.mountPoint})`;
-    };
-    readonly diskCapacity = (option: NamedValue<unknown>): string => {
-        const disk = (option as DiskOption).disk;
-        return `${this.formatBytes(disk.availableBytes)} free / ${this.formatBytes(disk.totalBytes)} total`;
-    };
-    constructor() {
-        this.loadData();
-    }
 
-    loadData(): void {
-        this.loading.set(true);
-        this.error.set(null);
+    readonly editingStorage = signal<StorageLocation | null>(null);
 
-        this.storageService.getDisks().subscribe({
-            next: (disks) => {
-                this.disks.set(disks);
-                if (disks.length === 1) {
-                    this.storageForm.get('diskMount')?.setValue(disks[0].mountPoint);
-                    this.selectedDiskMount.set(disks[0].mountPoint);
-                }
-            },
-        });
+    private readonly loadEffect = effect(() => {
+        this.disksLoader.load(
+            () => this.storageService.getDisks(),
+            (disks) => { },
+            'Failed to load disks.',
+        );
+        this.storageLoader.load(
+            () => this.storageService.getStorages(),
+            (storages) => { },
+            'Failed to load storage locations.',
+        );
+    });
 
-        this.storageService
-            .getLocations()
-            .pipe(finalize(() => this.loading.set(false)))
-            .subscribe({
-                next: (locations) => this.locations.set(locations),
-                error: (err) => {
-                    this.error.set(err.error?.message || 'Failed to load storage locations.');
-                },
-            });
-    }
-
-    openCreate(): void {
-        this.showCreateForm.set(true);
-    }
-
-    cancelCreate(): void {
-        this.showCreateForm.set(false);
-        this.storageForm.reset({
+    createStorage(): void {
+        const storage: StorageLocation = {
+            id: '',
             label: '',
-            diskMount: this.disks()[0]?.mountPoint ?? '',
-            folderName: 'Nimble Photos',
+            path: 'Nimble',
+            isDefault: false,
+            createdAt: new Date().toISOString(),
             categoryTemplate: 'date',
-        });
-        if (this.disks().length === 1) {
-            this.selectedDiskMount.set(this.disks()[0].mountPoint);
+        }
+        this.actionError.set(null);
+        this.editingStorage.set(storage);
+    }
+
+    onEditorCancelled(): void {
+        this.editingStorage.set(null);
+    }
+
+    onLocationCreated(location: StorageLocation): void {
+        this.actionError.set(null);
+        const current = this.storages();
+        this.storageLoader.set([...current, location]);
+        if (location.isDefault) {
+            this.storageLoader.set(
+                this.storages().map((entry) =>
+                    entry.id === location.id ? entry : { ...entry, isDefault: false },
+                ),
+            );
         }
     }
 
-    createLocation(): void {
-        if (this.storageForm.invalid || this.saving()) {
-            this.storageForm.markAllAsTouched();
-            return;
-        }
+    onLocationsUpdated(locations: StorageLocation[]): void {
+        this.actionError.set(null);
+        this.storageLoader.set(locations);
+    }
 
-        this.saving.set(true);
-        this.error.set(null);
-
-        const { label, diskMount, folderName, categoryTemplate } = this.storageForm.getRawValue();
-        const path = this.buildPath(diskMount, folderName);
-
-        this.storageService
-            .createLocation({ label: label.trim(), mountPoint: diskMount, path: folderName, categoryTemplate })
-            .pipe(finalize(() => this.saving.set(false)))
-            .subscribe({
-                next: (location) => {
-                    this.locations.update((current) => [...current, location]);
-                    if (location.isDefault) {
-                        this.locations.update((current) =>
-                            current.map((entry) =>
-                                entry.id === location.id
-                                    ? entry
-                                    : { ...entry, isDefault: false },
-                            ),
-                        );
-                    }
-                    this.cancelCreate();
-                },
-                error: (err) => {
-                    this.error.set(err.error?.message || 'Failed to add storage location.');
-                },
-            });
+    onEditorError(message: string): void {
+        this.actionError.set(message);
     }
 
     startEdit(location: StorageLocation): void {
-        const diskMount = this.resolveDiskMount(location.path);
-        const folderName = this.extractFolderName(location.path, diskMount);
-        this.editingId.set(location.id);
-        this.editForm.reset({
-            label: location.label,
-            diskMount,
-            folderName,
-            categoryTemplate: location.categoryTemplate || 'date',
-        });
-        this.editSelectedDiskMount.set(diskMount);
-        this.showCreateForm.set(false);
-    }
-
-    cancelEdit(): void {
-        this.editingId.set(null);
-    }
-
-    saveEdit(location: StorageLocation): void {
-        if (this.editForm.invalid || this.saving()) {
-            this.editForm.markAllAsTouched();
-            return;
-        }
-
-        this.saving.set(true);
-        this.error.set(null);
-
-        const { label, diskMount, folderName, categoryTemplate } = this.editForm.getRawValue();
-        const path = this.buildPath(diskMount, folderName);
-
-        this.storageService
-            .updateLocation(location.id, {
-                label: label.trim(),
-                path: path.trim(),
-                categoryTemplate,
-            })
-            .pipe(finalize(() => this.saving.set(false)))
-            .subscribe({
-                next: (locations) => {
-                    this.locations.set(locations);
-                    this.cancelEdit();
-                },
-                error: (err) => {
-                    this.error.set(err.error?.message || 'Failed to update storage.');
-                },
-            });
+        this.actionError.set(null);
+        this.editingStorage.set(location);
     }
 
     deleteLocation(location: StorageLocation): void {
-        if (this.saving()) {
-            return;
-        }
         const dialogRef = this.dialogService.open(ConfirmDialogComponent, {
             title: 'Remove Storage',
             data: {
@@ -251,65 +109,25 @@ export class StorageManageComponent {
             if (!confirmed) {
                 return;
             }
-            this.saving.set(true);
             this.storageService
-                .deleteLocation(location.id)
-                .pipe(finalize(() => this.saving.set(false)))
+                .deleteStorage(location.id)
                 .subscribe({
-                    next: (locations) => this.locations.set(locations),
+                    next: (locations) => this.storageLoader.set(locations),
                     error: (err) => {
-                        this.error.set(err.error?.message || 'Failed to remove storage.');
+                        this.actionError.set(err.error?.message || 'Failed to remove storage.');
                     },
                 });
         });
     }
 
     setDefault(location: StorageLocation): void {
-        if (this.saving()) {
-            return;
-        }
-        this.saving.set(true);
         this.storageService
             .setDefault(location.id)
-            .pipe(finalize(() => this.saving.set(false)))
             .subscribe({
-                next: (locations) => this.locations.set(locations),
+                next: (locations) => this.storageLoader.set(locations),
                 error: (err) => {
-                    this.error.set(err.error?.message || 'Failed to update default storage.');
+                    this.actionError.set(err.error?.message || 'Failed to update default storage.');
                 },
             });
-    }
-
-    onCreateDiskMountChange(value: unknown): void {
-        this.selectedDiskMount.set(String(value ?? ''));
-    }
-
-    onEditDiskMountChange(value: unknown): void {
-        this.editSelectedDiskMount.set(String(value ?? ''));
-    }
-
-    private buildPath(mountPoint: string, folderName: string): string {
-        const trimmedFolder = folderName.trim().replace(/^[/\\]+/, '');
-        if (!trimmedFolder) {
-            return mountPoint;
-        }
-        const separator = mountPoint.endsWith('\\') || mountPoint.endsWith('/') ? '' : '\\';
-        return `${mountPoint}${separator}${trimmedFolder}`;
-    }
-
-    private resolveDiskMount(path: string): string {
-        const pathLower = path.toLowerCase();
-        const match = this.disks()
-            .filter(disk => pathLower.startsWith(disk.mountPoint.toLowerCase()))
-            .sort((a, b) => b.mountPoint.length - a.mountPoint.length)[0];
-        return match?.mountPoint ?? '';
-    }
-
-    private extractFolderName(path: string, mountPoint: string): string {
-        if (!mountPoint) {
-            return path.replace(/^[/\\]+/, '');
-        }
-        const remainder = path.slice(mountPoint.length);
-        return remainder.replace(/^[/\\]+/, '');
     }
 }

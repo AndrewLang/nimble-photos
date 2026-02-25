@@ -156,7 +156,7 @@ export class PhotoUploadComponent implements OnInit {
 
     private loadStorages(): void {
         this.storages.load(() =>
-            this.storageService.getLocations(),
+            this.storageService.getStorages(),
             (storages) => {
                 const defaultStorage = storages.find(x => x.isDefault) ?? null;
                 if (defaultStorage && !this.selectedStorage()) {

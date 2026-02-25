@@ -1,10 +1,10 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { StorageService } from '../../services/storage.service';
-import { StorageLocation } from '../../models/storage.model';
-import { SvgComponent } from '../svg/svg.component';
 import { Formatter } from '../../models/formatters';
+import { StorageLocation } from '../../models/storage.model';
+import { StorageService } from '../../services/storage.service';
+import { SvgComponent } from '../svg/svg.component';
 
 @Component({
     selector: 'mtx-storage-selector',
@@ -43,7 +43,7 @@ export class StorageSelectorComponent implements OnInit {
 
     private fetchLocations(): void {
         this.loading.set(true);
-        this.storageService.getLocations().subscribe({
+        this.storageService.getStorages().subscribe({
             next: (locations) => {
                 this.locations.set(locations);
                 const defaultLocation = locations.find(location => location.isDefault) ?? null;
