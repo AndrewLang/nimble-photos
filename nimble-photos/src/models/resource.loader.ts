@@ -2,7 +2,7 @@ import { computed, signal } from '@angular/core';
 import { EMPTY, Observable, Subscription } from 'rxjs';
 import { catchError, finalize, first } from 'rxjs/operators';
 
-export class ResourceLoader<T> {
+export class AsyncLoader<T> {
 
     readonly value = signal<T | null>(null);
     readonly loading = signal(false);
@@ -19,7 +19,9 @@ export class ResourceLoader<T> {
         }
     }
 
-    load(factory: () => Observable<T>, errorMsg = 'Failed to load'): void {
+    load(factory: () => Observable<T>,
+        afterLoad?: (result: T) => void,
+        errorMsg = 'Failed to load'): void {
         this.currentSub?.unsubscribe();
 
         this.loading.set(true);
@@ -35,6 +37,7 @@ export class ResourceLoader<T> {
             finalize(() => this.loading.set(false))
         ).subscribe(result => {
             this.value.set(result);
+            afterLoad?.(result);
         });
     }
 

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, input, OnInit, signal } from '@angular/core';
 import { catchError, first, of } from 'rxjs';
 import { PhotoComment } from '../../models/photo';
-import { ResourceLoader } from '../../models/resource.loader';
+import { AsyncLoader } from '../../models/resource.loader';
 import { SettingNames } from '../../models/setting.names';
 import { AuthService } from '../../services/auth.service';
 import { PhotoService } from '../../services/photo.service';
@@ -32,7 +32,7 @@ export class PhotoCommentComponent implements OnInit {
     readonly allowComments = signal(false);
     readonly errorMessage = signal<string | null>(null);
     readonly isAuthenticated = computed(() => this.authService.isAuthenticated());
-    readonly comments = new ResourceLoader<PhotoComment[]>();
+    readonly comments = new AsyncLoader<PhotoComment[]>();
 
     private readonly photoIdEffect = effect(() => {
         const id = this.photoId();
@@ -111,6 +111,7 @@ export class PhotoCommentComponent implements OnInit {
     private loadComments(photoId: string): void {
         this.comments.load(() =>
             this.photoService.getPhotoComments(photoId),
+            () => this.isLoading.set(false),
             'Failed to load comments.'
         );
     }

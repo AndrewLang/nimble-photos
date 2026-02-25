@@ -2,7 +2,7 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
-import { DashboardSystemSection } from '../../models/dashboard.settings.model';
+import { DashboardSystemSection, DashboardSystemSections } from '../../models/dashboard.settings.model';
 import { DashboardSettingsService } from '../../services/dashboard.setting.service';
 import { SvgComponent } from '../svg/svg.component';
 
@@ -24,19 +24,25 @@ export class DashboardComponent implements OnInit {
         })),
     );
 
-    private readonly sections: DashboardSystemSection[] = ['general', 'security', 'photo-manage', 'storage', 'client'];
+    private readonly sections: DashboardSystemSection[] = [
+        DashboardSystemSections.General,
+        DashboardSystemSections.Security,
+        DashboardSystemSections.PhotoManage,
+        DashboardSystemSections.Storage,
+        DashboardSystemSections.Client
+    ];
 
     getSectionIcon(section: DashboardSystemSection): string {
         switch (section) {
-            case 'general':
+            case DashboardSystemSections.General:
                 return 'sectionGeneral';
-            case 'photo-manage':
+            case DashboardSystemSections.PhotoManage:
                 return 'sectionPhotoManage';
-            case 'storage':
+            case DashboardSystemSections.Storage:
                 return 'sectionStorage';
-            case 'security':
+            case DashboardSystemSections.Security:
                 return 'sectionSecurity';
-            case 'client':
+            case DashboardSystemSections.Client:
                 return 'sectionClient';
             default:
                 return 'sectionDefault';
@@ -49,15 +55,15 @@ export class DashboardComponent implements OnInit {
 
     getFallbackLabel(section: DashboardSystemSection): string {
         switch (section) {
-            case 'general':
+            case DashboardSystemSections.General:
                 return 'General Settings';
-            case 'photo-manage':
+            case DashboardSystemSections.PhotoManage:
                 return 'Photo Management';
-            case 'storage':
+            case DashboardSystemSections.Storage:
                 return 'Storage Manage';
-            case 'security':
+            case DashboardSystemSections.Security:
                 return 'Role & Security';
-            case 'client':
+            case DashboardSystemSections.Client:
                 return 'Client Manage';
             default:
                 return 'Settings';

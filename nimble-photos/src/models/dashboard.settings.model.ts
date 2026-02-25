@@ -1,5 +1,26 @@
-export type DashboardSystemSection = 'general' | 'experience' | 'notifications' | 'security' | 'photo-manage' | 'storage' | 'client';
-export type DashboardSettingValueType = 'string' | 'boolean' | 'number' | 'json';
+export const DashboardSystemSections = {
+    General: 'general',
+    Experience: 'experience',
+    Notifications: 'notifications',
+    Security: 'security',
+    PhotoManage: 'photo-manage',
+    Storage: 'storage',
+    Client: 'client'
+} as const;
+
+export type DashboardSystemSection =
+    typeof DashboardSystemSections[keyof typeof DashboardSystemSections];
+
+
+export const DashboardSettingValueTypes = {
+    String: 'string',
+    Boolean: 'boolean',
+    Number: 'number',
+    Json: 'json'
+} as const;
+
+export type DashboardSettingValueType =
+    typeof DashboardSettingValueTypes[keyof typeof DashboardSettingValueTypes];
 
 export interface DashboardSettingOption {
     label: string;
