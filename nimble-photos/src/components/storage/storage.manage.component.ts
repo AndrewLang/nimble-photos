@@ -7,12 +7,11 @@ import { StorageDiskInfo, StorageLocation } from '../../models/storage.model';
 import { DialogService } from '../../services/dialog.service';
 import { StorageService } from '../../services/storage.service';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
-import { SvgComponent } from "../svg/svg.component";
 import { StorageEditorComponent } from './storage.editor.component';
 
 @Component({
     selector: 'mtx-storage-manage',
-    imports: [StorageEditorComponent, FormatSizePipe, FormatAvailablePercentPipe, SvgComponent],
+    imports: [StorageEditorComponent, FormatSizePipe, FormatAvailablePercentPipe],
     templateUrl: './storage.manage.component.html',
 })
 export class StorageManageComponent {

@@ -26,10 +26,10 @@ export class DashboardComponent implements OnInit {
 
     private readonly sections: DashboardSystemSection[] = [
         DashboardSystemSections.General,
-        DashboardSystemSections.Security,
-        DashboardSystemSections.PhotoManage,
         DashboardSystemSections.Storage,
-        DashboardSystemSections.Client
+        DashboardSystemSections.PhotoManage,
+        DashboardSystemSections.Client,
+        DashboardSystemSections.Security,
     ];
 
     getSectionIcon(section: DashboardSystemSection): string {

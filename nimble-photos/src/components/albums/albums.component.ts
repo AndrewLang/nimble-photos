@@ -1,14 +1,14 @@
-﻿import { Component, OnInit, signal, computed, inject } from '@angular/core';
+﻿import { DatePipe } from '@angular/common';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { first } from 'rxjs';
-import { PhotoService } from '../../services/photo.service';
+import { Album } from '../../models/photo';
 import { AuthService } from '../../services/auth.service';
 import { DialogService } from '../../services/dialog.service';
-import { Album } from '../../models/photo';
-import { DatePipe } from '@angular/common';
+import { PhotoService } from '../../services/photo.service';
 
-import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
 import { ImageFallbackDirective } from '../../directives/image.fallback.directive';
+import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm.dialog.component';
 import { SvgComponent } from '../svg/svg.component';
 
 @Component({
@@ -23,19 +23,30 @@ export class AlbumsComponent implements OnInit {
     private readonly photoService = inject(PhotoService);
     private readonly authService = inject(AuthService);
     private readonly dialogService = inject(DialogService);
+    private readonly pageSize = 12;
+    private page = 1;
 
     readonly albums = signal<Album[]>([]);
     readonly searchQuery = signal('');
-    readonly loading = signal(false);
+    readonly isLoading = signal(false);
+    readonly isLoadingMore = signal(false);
+    readonly hasMore = signal(true);
 
     readonly isAdmin = computed(() => this.authService.isAdmin());
+    readonly albumsByDateDesc = computed(() =>
+        [...this.albums()].sort((a, b) => {
+            const left = a.createDate?.getTime() ?? 0;
+            const right = b.createDate?.getTime() ?? 0;
+            return right - left;
+        }),
+    );
     readonly filteredAlbums = computed(() => {
         const query = this.searchQuery().trim().toLowerCase();
         if (!query) {
-            return this.albums();
+            return this.albumsByDateDesc();
         }
 
-        return this.albums().filter((album) => {
+        return this.albumsByDateDesc().filter((album) => {
             const name = album.name?.toLowerCase() ?? '';
             const description = album.description?.toLowerCase() ?? '';
             const category = album.category?.toLowerCase() ?? '';
@@ -46,19 +57,62 @@ export class AlbumsComponent implements OnInit {
     constructor() { }
 
     ngOnInit(): void {
-        this.fetchAlbums();
+        this.fetchAlbums(true);
     }
 
-    private fetchAlbums(): void {
-        this.loading.set(true);
-        this.photoService.getAlbums().pipe(first()).subscribe(result => {
-            this.albums.set(result.items);
-            this.loading.set(false);
+    private fetchAlbums(reset: boolean): void {
+        if (reset) {
+            this.page = 1;
+            this.hasMore.set(true);
+            this.isLoading.set(true);
+        } else {
+            this.isLoadingMore.set(true);
+        }
+
+        this.photoService.getAlbums(this.page, this.pageSize).pipe(first()).subscribe(result => {
+            if (reset) {
+                this.albums.set(result.items);
+            } else {
+                this.albums.update(items => [...items, ...result.items]);
+            }
+            const loaded = (this.page - 1) * this.pageSize + result.items.length;
+            this.hasMore.set(loaded < result.total);
+            this.page += 1;
+            this.isLoading.set(false);
+            this.isLoadingMore.set(false);
+        }, () => {
+            this.isLoading.set(false);
+            this.isLoadingMore.set(false);
         });
     }
 
+    loadMore(): void {
+        if (this.isLoadingMore() || !this.hasMore()) {
+            return;
+        }
+        this.fetchAlbums(false);
+    }
+
+    onContainerScroll(event: Event): void {
+        if (this.searchQuery().trim().length || this.isLoading() || this.isLoadingMore() || !this.hasMore()) {
+            return;
+        }
+
+        const element = event.target as HTMLElement | null;
+        if (!element) {
+            return;
+        }
+        const threshold = 350;
+        const viewportBottom = element.scrollTop + element.clientHeight;
+        const docHeight = element.scrollHeight;
+        if (docHeight - viewportBottom <= threshold) {
+            this.loadMore();
+        }
+    }
+
     getThumbnailUrl(album: Album): string | null {
-        if (!album.thumbnailHash) return null;
+        if (!album.thumbnailHash)
+            return null;
         return `${this.photoService.apiBase}/photos/thumbnail/${album.thumbnailHash}`;
     }
 
@@ -86,6 +140,9 @@ export class AlbumsComponent implements OnInit {
                 this.photoService.deleteAlbum(album.id!).pipe(first()).subscribe({
                     next: () => {
                         this.albums.update(items => items.filter(a => a.id !== album.id));
+                        if (!this.albums().length && this.hasMore()) {
+                            this.fetchAlbums(true);
+                        }
                     },
                     error: (err) => {
                         console.error('Failed to delete album', err);
@@ -101,5 +158,3 @@ export class AlbumsComponent implements OnInit {
         this.searchQuery.set(input?.value ?? '');
     }
 }
-
-

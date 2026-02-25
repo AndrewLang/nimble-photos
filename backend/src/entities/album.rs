@@ -43,8 +43,6 @@ pub struct Album {
     pub description: Option<String>,
     pub category: Option<String>,
     pub kind: AlbumKind,
-    #[serde(alias = "rules_json")]
-    pub rules_json: Option<String>,
     #[serde(alias = "thumbnail_hash")]
     pub thumbnail_hash: Option<String>,
     #[serde(alias = "sort_order")]
@@ -107,7 +105,6 @@ impl PostgresEntity for Album {
             "description",
             "category",
             "kind",
-            "rules_json",
             "thumbnail_hash",
             "sort_order",
             "image_count",
@@ -123,7 +120,6 @@ impl PostgresEntity for Album {
             PostgresValueBuilder::optional_string(&self.description),
             PostgresValueBuilder::optional_string(&self.category),
             Value::String(self.kind.as_str().to_string()),
-            PostgresValueBuilder::optional_string(&self.rules_json),
             PostgresValueBuilder::optional_string(&self.thumbnail_hash),
             Value::Int(self.sort_order as i64),
             PostgresValueBuilder::optional_i64(self.image_count),
@@ -138,7 +134,6 @@ impl PostgresEntity for Album {
             "description",
             "category",
             "kind",
-            "rules_json",
             "thumbnail_hash",
             "sort_order",
             "image_count",
@@ -153,7 +148,6 @@ impl PostgresEntity for Album {
             PostgresValueBuilder::optional_string(&self.description),
             PostgresValueBuilder::optional_string(&self.category),
             Value::String(self.kind.as_str().to_string()),
-            PostgresValueBuilder::optional_string(&self.rules_json),
             PostgresValueBuilder::optional_string(&self.thumbnail_hash),
             Value::Int(self.sort_order as i64),
             PostgresValueBuilder::optional_i64(self.image_count),
@@ -171,7 +165,6 @@ impl PostgresEntity for Album {
             ColumnDef::new("description", ColumnType::Text),
             ColumnDef::new("category", ColumnType::Text),
             ColumnDef::new("kind", ColumnType::Text).not_null(),
-            ColumnDef::new("rules_json", ColumnType::Text),
             ColumnDef::new("thumbnail_hash", ColumnType::Text),
             ColumnDef::new("sort_order", ColumnType::Integer).not_null(),
             ColumnDef::new("image_count", ColumnType::BigInt),

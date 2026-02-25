@@ -1,3 +1,4 @@
+pub mod album_extensions;
 pub mod photo;
 pub mod photo_repo;
 pub mod postgres_extensions;

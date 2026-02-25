@@ -6,7 +6,6 @@ export interface AlbumModel {
     description?: string | null;
     category?: string | null;
     kind?: string | null;
-    rulesJson?: string | null;
     thumbnailHash?: string | null;
     sortOrder?: number | null;
     imageCount?: number | null;

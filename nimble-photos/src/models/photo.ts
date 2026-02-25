@@ -155,7 +155,6 @@ export interface Album {
   description?: string;
   category?: string;
   kind: AlbumKind;
-  rulesJson?: string;
   thumbnailHash?: string;
   sortOrder: number;
   imageCount?: number;

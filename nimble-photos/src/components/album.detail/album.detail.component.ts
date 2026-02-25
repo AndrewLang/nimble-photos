@@ -244,31 +244,9 @@ export class AlbumDetailComponent implements OnInit {
     }
 
     private performRemoval(album: Album, photosToRemove: Photo[]) {
-        let currentIds: string[] = [];
-        if (album.rulesJson) {
-            try {
-                const rules = JSON.parse(album.rulesJson);
-                currentIds = rules.photoIds || [];
-            } catch (e) {
-                console.error('Error parsing album rules', e);
-            }
-        }
-
-        const idsToRemove = new Set(photosToRemove.map(p => p.id));
-        const newIds = currentIds.filter(id => !idsToRemove.has(id));
-
-        this.photoService.updateAlbum({
-            id: album.id,
-            name: album.name,
-            description: album.description,
-            kind: album.kind,
-            sortOrder: album.sortOrder,
-            rulesJson: JSON.stringify({ photoIds: newIds })
-        }).subscribe({
-            next: (updatedAlbum) => {
-                // We need to refresh the album because the backend might return the updated album object
-                // but we specifically need to update the photos list locally or re-fetch.
-                // Re-fetching is safer to get the correct paged view.
+        const photoIds = photosToRemove.map(photo => photo.id);
+        this.photoService.removePhotosFromAlbum(album.id, photoIds).subscribe({
+            next: () => {
                 this.fetchAlbum(album.id!);
                 this.selectionService.clearSelection();
             },
@@ -312,4 +290,3 @@ export class AlbumDetailComponent implements OnInit {
         });
     }
 }
-

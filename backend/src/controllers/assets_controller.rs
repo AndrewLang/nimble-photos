@@ -15,8 +15,6 @@ impl Controller for AssetsController {
     fn routes() -> Vec<EndpointRoute> {
         vec![
             EndpointRoute::get("/api/assets/logo/{filename}", LogoHandler).build(),
-            EndpointRoute::get("/api/assets/{folder}/{filename}", FolderAssetHandler).build(),
-            EndpointRoute::get("/api/assets/{filename}", RootAssetHandler).build(),
         ]
     }
 }
@@ -39,50 +37,4 @@ impl HttpHandler for LogoHandler {
 
         Ok(ResponseValue::new(FileResponse::from_path(path)))
     }
-}
-
-struct FolderAssetHandler;
-
-#[async_trait]
-impl HttpHandler for FolderAssetHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let folder = context
-            .route()
-            .and_then(|route| route.params().get("folder"))
-            .ok_or_else(|| PipelineError::message("folder parameter missing"))?;
-        let filename = context
-            .route()
-            .and_then(|route| route.params().get("filename"))
-            .ok_or_else(|| PipelineError::message("filename parameter missing"))?;
-
-        validate_path_segment(folder)?;
-        validate_path_segment(filename)?;
-
-        let path = Path::new("data").join(folder).join(filename);
-        Ok(ResponseValue::new(FileResponse::from_path(path)))
-    }
-}
-
-struct RootAssetHandler;
-
-#[async_trait]
-impl HttpHandler for RootAssetHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let filename = context
-            .route()
-            .and_then(|route| route.params().get("filename"))
-            .ok_or_else(|| PipelineError::message("filename parameter missing"))?;
-
-        validate_path_segment(filename)?;
-
-        let path = Path::new("data").join(filename);
-        Ok(ResponseValue::new(FileResponse::from_path(path)))
-    }
-}
-
-fn validate_path_segment(segment: &str) -> Result<(), PipelineError> {
-    if segment.contains("..") || segment.contains('/') || segment.contains('\\') {
-        return Err(PipelineError::message("invalid path"));
-    }
-    Ok(())
 }

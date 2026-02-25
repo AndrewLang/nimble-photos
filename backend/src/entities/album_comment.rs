@@ -28,6 +28,20 @@ pub struct AlbumComment {
     pub hidden: bool,
 }
 
+impl AlbumComment {
+    pub fn new(album_id: Uuid, user_id: Uuid, display_name: String, body: String) -> Self {
+        Self {
+            id: Uuid::nil(),
+            album_id,
+            user_id,
+            user_display_name: Some(display_name),
+            body: Some(body),
+            created_at: Some(Utc::now()),
+            hidden: false,
+        }
+    }
+}
+
 impl Entity for AlbumComment {
     type Id = Uuid;
 

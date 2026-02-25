@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
@@ -19,6 +20,7 @@ use crate::entities::photo_browse::BrowseOptions;
 use crate::entities::photo_browse::BrowseRequest;
 use crate::entities::storage_location::StorageLocation;
 use crate::repositories::photo_repo::PhotoRepositoryExtensions;
+use crate::services::SettingService;
 
 #[async_trait]
 pub trait HttpContextExtensions {
@@ -31,6 +33,14 @@ pub trait HttpContextExtensions {
     fn route_storage_id(&self) -> Result<Uuid, PipelineError>;
     fn hash(&self) -> Result<String, PipelineError>;
     fn default_preview_root(&self) -> PathBuf;
+    fn is_admin(&self) -> bool;
+    fn is_viewer(&self) -> bool;
+    fn entity_id(&self) -> Result<Uuid, PipelineError>;
+    fn page(&self) -> Result<u32, PipelineError>;
+    fn page_size(&self) -> Result<u32, PipelineError>;
+    fn param(&self, key: &str) -> Result<String, PipelineError>;
+    fn id(&self, key: &str) -> Result<Uuid, PipelineError>;
+    async fn viewer_hidden_tags(&self) -> Result<HashSet<String>, PipelineError>;
     async fn current_client_id(&self) -> Result<Uuid, PipelineError>;
     async fn is_preview_exists(&self, hash: &str) -> bool;
     async fn load_client_storage_settings(
@@ -41,7 +51,8 @@ pub trait HttpContextExtensions {
     async fn validate_api_key(&mut self, api_key: &str) -> Result<Client, PipelineError>;
     async fn get_preview_root(&self, hash: &str) -> Result<PathBuf, PipelineError>;
     async fn get_preview_path(&self, hash: &str) -> Result<PathBuf, PipelineError>;
-    async fn get_preview_root_by_storage(&self, storage_id: Uuid) -> Result<PathBuf, PipelineError>;
+    async fn get_preview_root_by_storage(&self, storage_id: Uuid)
+    -> Result<PathBuf, PipelineError>;
     async fn get_preview_path_by_storage(
         &self,
         storage_id: Uuid,
@@ -134,28 +145,6 @@ impl HttpContextExtensions for HttpContext {
         Uuid::parse_str(&raw).map_err(|_| PipelineError::message("invalid storageId"))
     }
 
-    async fn current_client_id(&self) -> Result<Uuid, PipelineError> {
-        if let Some(identity) = self.get::<IdentityContext>() {
-            let subject = identity.identity().subject().to_string();
-            if let Ok(id) = Uuid::parse_str(&subject) {
-                return Ok(id);
-            }
-        }
-
-        let api_key = self.extract_api_key()?;
-
-        let repository = self.service::<Repository<Client>>()?;
-        let client = repository
-            .get_by("api_key_hash", Value::String(api_key.clone()))
-            .await
-            .map_err(|_| PipelineError::message("failed to query client by api key"))?;
-
-        match client {
-            Some(client) if client.is_active && client.is_approved => Ok(client.id),
-            _ => Err(PipelineError::message("Invalid api key")),
-        }
-    }
-
     fn hash(&self) -> Result<String, PipelineError> {
         let hash = self
             .route()
@@ -181,6 +170,118 @@ impl HttpContextExtensions for HttpContext {
         }
 
         PathBuf::from("./previews")
+    }
+
+    fn is_admin(&self) -> bool {
+        self.get::<IdentityContext>()
+            .map(|ctx| ctx.identity().claims().roles().contains("admin"))
+            .unwrap_or(false)
+    }
+
+    fn is_viewer(&self) -> bool {
+        self.get::<IdentityContext>()
+            .map(|ctx| {
+                let identity = ctx.identity();
+                let roles = identity.claims().roles();
+                roles.contains("viewer") && !roles.contains("admin")
+            })
+            .unwrap_or(false)
+    }
+
+    fn entity_id(&self) -> Result<Uuid, PipelineError> {
+        let id = self
+            .route()
+            .and_then(|route| route.params().get("id"))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        Uuid::parse_str(id).map_err(|_| PipelineError::message("invalid album id"))
+    }
+
+    fn param(&self, key: &str) -> Result<String, PipelineError> {
+        self.route()
+            .and_then(|route| route.params().get(key))
+            .cloned()
+            .ok_or_else(|| PipelineError::message(&format!("{} parameter missing", key)))
+    }
+
+    fn id(&self, key: &str) -> Result<Uuid, PipelineError> {
+        let id = self
+            .route()
+            .and_then(|route| route.params().get(key))
+            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
+        Uuid::parse_str(id).map_err(|_| PipelineError::message("invalid album id"))
+    }
+
+    fn page(&self) -> Result<u32, PipelineError> {
+        let page: u32 = self
+            .route()
+            .and_then(|route| route.params().get("page"))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1);
+        Ok(page)
+    }
+
+    fn page_size(&self) -> Result<u32, PipelineError> {
+        let page: u32 = self
+            .route()
+            .and_then(|route| route.params().get("pageSize"))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1);
+        Ok(page)
+    }
+
+    fn current_user_id(&self) -> Result<Uuid, PipelineError> {
+        let subject = self
+            .get::<IdentityContext>()
+            .ok_or_else(|| PipelineError::message("identity not found"))?
+            .identity()
+            .subject()
+            .to_string();
+        Uuid::parse_str(&subject)
+            .map_err(|_| PipelineError::message("Invalid identity: user ID is not valid"))
+    }
+
+    fn extract_api_key(&self) -> Result<String, PipelineError> {
+        let raw = self
+            .request()
+            .headers()
+            .get("authorization")
+            .and_then(|header| header.strip_prefix("ApiKey "))
+            .map(|token| token.to_string())
+            .ok_or_else(|| PipelineError::message("apiKey parameter missing"))?;
+
+        decode(&raw)
+            .map(|v| v.into_owned())
+            .map_err(|_| PipelineError::message("invalid apiKey encoding"))
+    }
+
+    async fn viewer_hidden_tags(&self) -> Result<HashSet<String>, PipelineError> {
+        if !self.is_viewer() {
+            return Ok(HashSet::new());
+        }
+        let settings = self.service::<SettingService>()?;
+        settings.viewer_hidden_tags().await
+    }
+
+    async fn current_client_id(&self) -> Result<Uuid, PipelineError> {
+        if let Some(identity) = self.get::<IdentityContext>() {
+            let subject = identity.identity().subject().to_string();
+            if let Ok(id) = Uuid::parse_str(&subject) {
+                return Ok(id);
+            }
+        }
+
+        let api_key = self.extract_api_key()?;
+
+        let repository = self.service::<Repository<Client>>()?;
+        let client = repository
+            .get_by("api_key_hash", Value::String(api_key.clone()))
+            .await
+            .map_err(|_| PipelineError::message("failed to query client by api key"))?;
+
+        match client {
+            Some(client) if client.is_active && client.is_approved => Ok(client.id),
+            _ => Err(PipelineError::message("Invalid api key")),
+        }
     }
 
     async fn load_client_storage_settings(
@@ -211,31 +312,6 @@ impl HttpContextExtensions for HttpContext {
         }
 
         Ok(BrowseOptions::default())
-    }
-
-    fn current_user_id(&self) -> Result<Uuid, PipelineError> {
-        let subject = self
-            .get::<IdentityContext>()
-            .ok_or_else(|| PipelineError::message("identity not found"))?
-            .identity()
-            .subject()
-            .to_string();
-        Uuid::parse_str(&subject)
-            .map_err(|_| PipelineError::message("Invalid identity: user ID is not valid"))
-    }
-
-    fn extract_api_key(&self) -> Result<String, PipelineError> {
-        let raw = self
-            .request()
-            .headers()
-            .get("authorization")
-            .and_then(|header| header.strip_prefix("ApiKey "))
-            .map(|token| token.to_string())
-            .ok_or_else(|| PipelineError::message("apiKey parameter missing"))?;
-
-        decode(&raw)
-            .map(|v| v.into_owned())
-            .map_err(|_| PipelineError::message("invalid apiKey encoding"))
     }
 
     async fn validate_api_key(&mut self, api_key: &str) -> Result<Client, PipelineError> {
@@ -348,7 +424,10 @@ impl HttpContextExtensions for HttpContext {
             .join(format!("{hash}.jpg")))
     }
 
-    async fn get_preview_root_by_storage(&self, storage_id: Uuid) -> Result<PathBuf, PipelineError> {
+    async fn get_preview_root_by_storage(
+        &self,
+        storage_id: Uuid,
+    ) -> Result<PathBuf, PipelineError> {
         let storage_repo = self.service::<Repository<StorageLocation>>()?;
         let storage = storage_repo
             .get(&storage_id)

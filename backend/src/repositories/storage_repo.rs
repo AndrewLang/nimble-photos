@@ -15,15 +15,15 @@ pub trait StorageRepositoryExtensions {
     fn list_disks(&self) -> Vec<DiskInfo>;
     fn disk_sort_key(&self, mount_point: &str) -> (u8, String);
     fn find_disk(&self, path: &str, disks: &[DiskInfo]) -> Option<DiskInfo>;
-    async fn load_locations(&self) -> Result<Vec<StorageLocation>, PipelineError>;
-    async fn find_location_by_path(
+    async fn load_storages(&self) -> Result<Vec<StorageLocation>, PipelineError>;
+    async fn find_storage_by_path(
         &self,
         path: &str,
     ) -> Result<Option<StorageLocation>, PipelineError>;
     async fn exists_by_path(&self, path: &str) -> Result<bool, PipelineError>;
     async fn exists_by_id(&self, id: Uuid) -> Result<bool, PipelineError>;
     async fn is_empty(&self) -> Result<bool, PipelineError>;
-    async fn default_locations(&self) -> Result<Vec<StorageLocation>, PipelineError>;
+    async fn default_storages(&self) -> Result<Vec<StorageLocation>, PipelineError>;
     async fn reset_default(&self) -> Result<(), PipelineError>;
 }
 
@@ -67,7 +67,7 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
             .cloned()
     }
 
-    async fn load_locations(&self) -> Result<Vec<StorageLocation>, PipelineError> {
+    async fn load_storages(&self) -> Result<Vec<StorageLocation>, PipelineError> {
         let locations = self
             .query(Query::<StorageLocation>::new())
             .await
@@ -76,7 +76,7 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
         Ok(locations)
     }
 
-    async fn find_location_by_path(
+    async fn find_storage_by_path(
         &self,
         path: &str,
     ) -> Result<Option<StorageLocation>, PipelineError> {
@@ -86,7 +86,7 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
     }
 
     async fn exists_by_path(&self, path: &str) -> Result<bool, PipelineError> {
-        Ok(self.find_location_by_path(path).await?.is_some())
+        Ok(self.find_storage_by_path(path).await?.is_some())
     }
 
     async fn exists_by_id(&self, id: Uuid) -> Result<bool, PipelineError> {
@@ -107,7 +107,7 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
         Ok(count == 0)
     }
 
-    async fn default_locations(&self) -> Result<Vec<StorageLocation>, PipelineError> {
+    async fn default_storages(&self) -> Result<Vec<StorageLocation>, PipelineError> {
         let locations = self
             .query(
                 Query::<StorageLocation>::new()
@@ -121,10 +121,10 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
     }
 
     async fn reset_default(&self) -> Result<(), PipelineError> {
-        let mut locations = self.default_locations().await?;
-        for location in locations.iter_mut() {
-            location.is_default = false;
-            self.update(location.clone())
+        let mut storages = self.default_storages().await?;
+        for storage in storages.iter_mut() {
+            storage.is_default = false;
+            self.update(storage.clone())
                 .await
                 .map_err(|_| PipelineError::message("failed to reset default storage settings"))?;
         }

@@ -130,7 +130,6 @@ export class HeaderComponent implements OnInit {
     this.settingsService.getSetting<string>(SettingNames.SiteTagline, value => this.siteTagline.set(value));
     this.settingsService.getSetting<boolean>(SettingNames.SiteAllowRegistration, value => this.allowRegistration.set(value));
     this.settingsService.getSetting<string>(SettingNames.SiteLogo, value => {
-      console.log('Site logo URL:', value);
       this.siteLogo.set(value);
       this.setFavicon(value);
     });

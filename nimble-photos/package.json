@@ -5,7 +5,7 @@
     "ng": "ng",
     "start": "npm run dev",
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "dev:frontend": "ng build --watch",
+    "dev:frontend": "ng build --configuration production --watch",
     "dev:backend": "cd ../backend && cargo watch -x run",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"

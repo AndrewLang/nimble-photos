@@ -1,32 +1,31 @@
+use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::dtos::album_comment_dto::AlbumCommentDto;
-use crate::dtos::photo_dtos::PhotoWithTags;
 use crate::entities::album::Album;
 use crate::entities::album_comment::AlbumComment;
+use crate::entities::album_photo::AlbumPhoto;
+use crate::entities::photo::Photo;
 use crate::entities::user_settings::UserSettings;
-use crate::repositories::photo::{PhotoRepository, TagRef};
-use crate::services::SettingService;
+use crate::repositories::album_extensions::AlbumPhotoExtensions;
+use crate::repositories::photo_repo::PhotoRepositoryExtensions;
 
 use async_trait::async_trait;
-use chrono::Utc;
 use serde::Deserialize;
 use serde_json::json;
-use sqlx::PgPool;
-use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
-use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection, Value};
+use nimble_web::data::query::{FilterOperator, Value};
+use nimble_web::data::query_builder::QueryBuilder;
 use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
-use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
-use nimble_web::{get, post, put};
+use nimble_web::{delete, get, post, put};
 
 pub struct AlbumController;
 
@@ -40,12 +39,6 @@ impl Controller for AlbumController {
 
 struct AlbumPhotosHandler;
 
-#[derive(Deserialize)]
-struct AlbumRules {
-    #[serde(rename = "photoIds")]
-    photo_ids: Vec<Uuid>,
-}
-
 #[async_trait]
 #[get("/api/albums/{id}/photos/{page}/{pageSize}")]
 impl HttpHandler for AlbumPhotosHandler {
@@ -53,78 +46,13 @@ impl HttpHandler for AlbumPhotosHandler {
         &self,
         context: &mut HttpContext,
     ) -> std::result::Result<ResponseValue, PipelineError> {
-        let route_params = context.route().map(|r| r.params());
+        let id = context.entity_id()?;
+        let page: u32 = context.page().unwrap_or(1);
+        let page_size: u32 = context.page_size().unwrap_or(20);
+        let repository = context.service::<Repository<Photo>>()?;
+        let paged_photos = repository.photos_in_album(id, page, page_size).await?;
 
-        let id_str = route_params
-            .and_then(|p| p.get("id"))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-
-        let page: u32 = route_params
-            .and_then(|p| p.get("page"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(1);
-
-        let page_size: u32 = route_params
-            .and_then(|p| p.get("pageSize"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(20);
-
-        let id = Uuid::parse_str(id_str).map_err(|_| PipelineError::message("invalid album id"))?;
-
-        let album_repo = context.service::<Repository<Album>>()?;
-
-        let album = album_repo
-            .get(&id)
-            .await
-            .map_err(|e| PipelineError::message(&format!("Failed to fetch album: {:?}", e)))?
-            .ok_or_else(|| PipelineError::message("Album not found"))?;
-
-        let mut photos: Vec<PhotoWithTags> = Vec::new();
-        let mut total = 0u64;
-
-        if let Some(rules_json) = album.rules_json {
-            if let Ok(rules) = serde_json::from_str::<AlbumRules>(&rules_json) {
-                total = rules.photo_ids.len() as u64;
-
-                let start = ((page - 1) * page_size) as usize;
-                let mut end = start + page_size as usize;
-                if end > rules.photo_ids.len() {
-                    end = rules.photo_ids.len();
-                }
-
-                if start < rules.photo_ids.len() {
-                    let slice = &rules.photo_ids[start..end];
-                    let photo_repo = context.service::<Box<dyn PhotoRepository>>()?;
-                    let can_view_admin_only = context
-                        .get::<IdentityContext>()
-                        .map(|ctx| ctx.identity().claims().roles().contains("admin"))
-                        .unwrap_or(false);
-
-                    let mut resolved = photo_repo
-                        .get_by_ids(slice, can_view_admin_only)
-                        .await
-                        .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-                    let photo_ids = AlbumController::collect_photo_ids(&resolved);
-                    let tag_map = photo_repo
-                        .get_photo_tag_name_map(&photo_ids, can_view_admin_only)
-                        .await
-                        .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-                    let hidden_tags = AlbumController::viewer_hidden_tags(context).await?;
-                    resolved =
-                        AlbumController::filter_photos_for_viewer(resolved, &hidden_tags, &tag_map);
-                    photos = AlbumController::attach_tags_to_photos(resolved, &tag_map);
-                }
-            }
-        }
-
-        let response = serde_json::json!({
-            "page": page,
-            "page_size": page_size,
-            "total": total,
-            "items": photos
-        });
-
-        Ok(ResponseValue::new(Json(response)))
+        Ok(ResponseValue::json(paged_photos))
     }
 }
 
@@ -137,109 +65,68 @@ impl HttpHandler for ListAlbumsHandler {
         &self,
         context: &mut HttpContext,
     ) -> std::result::Result<ResponseValue, PipelineError> {
-        let pool = context.service::<PgPool>()?;
-        let route_params = context.route().map(|r| r.params());
+        let page: u32 = context.page().unwrap_or(1);
+        let page_size: u32 = context.page_size().unwrap_or(20);
+        let repository = context.service::<Repository<Album>>()?;
 
-        let page: u32 = route_params
-            .and_then(|p| p.get("page"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(1);
+        let query = QueryBuilder::<Album>::new().page(page, page_size).build();
 
-        let page_size: u32 = route_params
-            .and_then(|p| p.get("pageSize"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(20);
-
-        let offset = if page > 0 { (page - 1) * page_size } else { 0 };
-
-        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM albums")
-            .fetch_one(&*pool)
+        let albums = repository
+            .query(query)
             .await
-            .map_err(|e| PipelineError::message(&format!("Failed to count albums: {:?}", e)))?;
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
-        let albums = sqlx::query_as::<_, Album>(
-            "SELECT * FROM albums ORDER BY create_date DESC LIMIT $1 OFFSET $2",
-        )
-        .bind(page_size as i64)
-        .bind(offset as i64)
-        .fetch_all(&*pool)
-        .await
-        .map_err(|e| PipelineError::message(&format!("Failed to fetch albums: {:?}", e)))?;
-
-        let response = serde_json::json!({
-            "page": page,
-            "pageSize": page_size,
-            "total": total,
-            "items": albums
-        });
-
-        Ok(ResponseValue::new(Json(response)))
+        Ok(ResponseValue::json(albums))
     }
 }
 
 struct AlbumCommentsHandler;
 
 #[derive(Deserialize)]
-struct ReplaceAlbumTagsPayload {
-    tags: Vec<serde_json::Value>,
+struct AlbumPhotoIdsPayload {
+    #[serde(rename = "photoIds")]
+    photo_ids: Vec<Uuid>,
 }
 
-struct AlbumTagsHandler;
+struct AddAlbumPhotosHandler;
 
 #[async_trait]
-#[get("/api/albums/{id}/tags")]
-impl HttpHandler for AlbumTagsHandler {
+#[post("/api/albums/{id}/photos", policy = Policy::Authenticated)]
+impl HttpHandler for AddAlbumPhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let album_id_param = context
-            .route()
-            .and_then(|route| route.params().get("id"))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-        let album_id = Uuid::parse_str(album_id_param)
-            .map_err(|e| PipelineError::message(&format!("invalid album id: {}", e)))?;
+        let album_id = context.entity_id()?;
+        let payload = context
+            .read_json::<AlbumPhotoIdsPayload>()
+            .map_err(|e| PipelineError::message(e.message()))?;
 
-        let repository = context.service::<Box<dyn PhotoRepository>>()?;
-        let tags = repository
-            .get_album_tags(album_id, AlbumController::is_admin(context))
+        let photo_ids = payload.photo_ids;
+        let repository = context.service::<Repository<AlbumPhoto>>()?;
+        let added = repository
+            .add_photos_to_album(album_id, &photo_ids)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
-        Ok(ResponseValue::new(Json(tags)))
+        Ok(ResponseValue::new(Json(json!({ "updated": added }))))
     }
 }
 
-struct ReplaceAlbumTagsHandler;
+struct RemoveAlbumPhotosHandler;
 
 #[async_trait]
-#[put("/api/albums/{id}/tags", policy = Policy::Authenticated)]
-impl HttpHandler for ReplaceAlbumTagsHandler {
+#[delete("/api/albums/{id}/photos", policy = Policy::Authenticated)]
+impl HttpHandler for RemoveAlbumPhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let album_id_param = context
-            .route()
-            .and_then(|route| route.params().get("id"))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-        let album_id = Uuid::parse_str(album_id_param)
-            .map_err(|e| PipelineError::message(&format!("invalid album id: {}", e)))?;
-
+        let album_id = context.entity_id()?;
         let payload = context
-            .read_json::<ReplaceAlbumTagsPayload>()
+            .read_json::<AlbumPhotoIdsPayload>()
             .map_err(|e| PipelineError::message(e.message()))?;
-        let refs = AlbumController::to_tag_refs(&payload.tags)?;
-        let current_user_id = context
-            .get::<IdentityContext>()
-            .and_then(|ctx| Uuid::parse_str(ctx.identity().subject()).ok())
-            .ok_or_else(|| PipelineError::message("Invalid identity: user ID is not valid"))?;
-
-        let repository = context.service::<Box<dyn PhotoRepository>>()?;
-        repository
-            .set_album_tags(album_id, &refs, Some(current_user_id))
+        let photo_ids = payload.photo_ids;
+        let repository = context.service::<Repository<AlbumPhoto>>()?;
+        let removed = repository
+            .remove_photos_from_album(album_id, &photo_ids)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-        let tags = repository
-            .get_album_tags(album_id, AlbumController::is_admin(context))
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-
-        Ok(ResponseValue::new(Json(tags)))
+        Ok(ResponseValue::new(Json(json!({ "updated": removed }))))
     }
 }
 
@@ -247,70 +134,25 @@ impl HttpHandler for ReplaceAlbumTagsHandler {
 #[get("/api/album/comments/{id}")]
 impl HttpHandler for AlbumCommentsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let album_id_param = context
-            .route()
-            .and_then(|route| route.params().get("id"))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-        let album_id = Uuid::parse_str(album_id_param)
-            .map_err(|_| PipelineError::message("invalid album id"))?;
+        let album_id = context.entity_id()?;
+        let is_admin = context.is_admin();
 
         log::info!("Fetching comments for album {}", album_id);
 
         let repository = context.service::<Repository<AlbumComment>>()?;
+        let allow_hidden = is_admin;
 
-        let mut query = Query::<AlbumComment>::new();
-        query.filters.push(Filter {
-            field: "album_id".to_string(),
-            operator: FilterOperator::Eq,
-            value: Value::Uuid(album_id),
-        });
-        query.sorting.push(Sort {
-            field: "created_at".to_string(),
-            direction: SortDirection::Desc,
-        });
-
-        let comments_page = repository
+        let query = QueryBuilder::<AlbumComment>::new()
+            .filter("album_id", FilterOperator::Eq, Value::Uuid(album_id))
+            .filter("hidden", FilterOperator::Eq, Value::Bool(allow_hidden))
+            .sort_desc("created_at")
+            .build();
+        let comments = repository
             .query(query)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
-        let identity_context = context.get::<IdentityContext>();
-        let is_admin = identity_context
-            .as_ref()
-            .map(|ctx| ctx.identity().claims().roles().contains("admin"))
-            .unwrap_or(false);
-        let current_user_id = identity_context
-            .as_ref()
-            .and_then(|ctx| Uuid::parse_str(ctx.identity().subject()).ok());
-
-        let visible_comments = comments_page
-            .items
-            .into_iter()
-            .filter(|comment| {
-                if !comment.hidden {
-                    return true;
-                }
-                if is_admin {
-                    return true;
-                }
-                if let Some(user_id) = current_user_id {
-                    return comment.user_id == user_id;
-                }
-                false
-            })
-            .collect::<Vec<_>>();
-
-        let total = visible_comments.len();
-        let response = json!({
-            "page": 1,
-            "pageSize": total,
-            "total": total,
-            "items": visible_comments.into_iter().map(AlbumCommentDto::from).collect::<Vec<_>>(),
-        });
-
-        log::info!("Returning {} comments for album {}", total, album_id);
-
-        Ok(ResponseValue::new(Json(response)))
+        Ok(ResponseValue::json(comments))
     }
 }
 
@@ -321,15 +163,9 @@ struct CreateAlbumCommentPayload {
 
 struct CreateAlbumCommentHandler;
 
-#[async_trait]
-#[post("/api/album/comments/{id}", policy = Policy::Authenticated)]
-impl HttpHandler for CreateAlbumCommentHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload = context
-            .read_json::<CreateAlbumCommentPayload>()
-            .map_err(|e| PipelineError::message(e.message()))?;
-
-        let trimmed = payload.comment.trim();
+impl CreateAlbumCommentHandler {
+    fn validate_comment(&self, comment: &str) -> Result<String, PipelineError> {
+        let trimmed = comment.trim();
         if trimmed.is_empty() {
             return Err(PipelineError::message("Comment cannot be empty"));
         }
@@ -339,27 +175,21 @@ impl HttpHandler for CreateAlbumCommentHandler {
                 MAX_COMMENT_LENGTH
             )));
         }
+        Ok(trimmed.to_string())
+    }
+}
 
-        let album_id_param = context
-            .route()
-            .and_then(|route| route.params().get("id"))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-        let album_id = Uuid::parse_str(album_id_param)
-            .map_err(|e| PipelineError::message(&format!("invalid album id: {}", e)))?;
+#[async_trait]
+#[post("/api/album/comments/{id}", policy = Policy::Authenticated)]
+impl HttpHandler for CreateAlbumCommentHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let payload = context
+            .read_json::<CreateAlbumCommentPayload>()
+            .map_err(|e| PipelineError::message(e.message()))?;
 
-        let identity = context
-            .get::<IdentityContext>()
-            .ok_or_else(|| PipelineError::message("Identity not found"))?;
-        let user_id = Uuid::parse_str(identity.identity().subject())
-            .map_err(|_| PipelineError::message("Invalid identity"))?;
-        let settings = context.service::<SettingService>()?;
-        let can_comment = settings
-            .can_create_comments(identity.identity().claims().roles())
-            .await?;
-        if !can_comment {
-            context.response_mut().set_status(403);
-            return Ok(ResponseValue::empty());
-        }
+        let comment = self.validate_comment(&payload.comment)?;
+        let album_id = context.entity_id()?;
+        let user_id = context.current_user_id()?;
 
         let settings_repo = context.service::<Repository<UserSettings>>()?;
         let display_name = settings_repo
@@ -369,22 +199,14 @@ impl HttpHandler for CreateAlbumCommentHandler {
             .map(|settings| settings.display_name)
             .unwrap_or_else(|| "Anonymous".to_string());
 
-        let mut new_comment = AlbumComment::default();
-        new_comment.id = Uuid::new_v4();
-        new_comment.album_id = album_id;
-        new_comment.user_id = user_id;
-        new_comment.user_display_name = Some(display_name);
-        new_comment.body = Some(trimmed.to_string());
-        new_comment.created_at = Some(Utc::now());
-        new_comment.hidden = false;
-
+        let new_comment = AlbumComment::new(album_id, user_id, display_name, comment);
         let repository = context.service::<Repository<AlbumComment>>()?;
         let saved = repository
             .insert(new_comment)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
-        Ok(ResponseValue::new(Json(AlbumCommentDto::from(saved))))
+        Ok(ResponseValue::json(AlbumCommentDto::from(saved)))
     }
 }
 
@@ -399,21 +221,8 @@ struct UpdateAlbumCommentVisibilityHandler;
 #[put("/api/album/comments/visibility/{albumId}/{commentId}", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for UpdateAlbumCommentVisibilityHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let route_params = context.route().map(|route| route.params());
-
-        let album_id_param = route_params
-            .as_ref()
-            .and_then(|params| params.get("albumId"))
-            .ok_or_else(|| PipelineError::message("albumId parameter missing"))?;
-        let album_id = Uuid::parse_str(album_id_param)
-            .map_err(|_| PipelineError::message("invalid album id"))?;
-
-        let comment_id_param = route_params
-            .and_then(|params| params.get("commentId"))
-            .ok_or_else(|| PipelineError::message("commentId parameter missing"))?;
-        let comment_id = Uuid::parse_str(comment_id_param)
-            .map_err(|_| PipelineError::message("invalid comment id"))?;
-
+        let album_id = context.id("albumId")?;
+        let comment_id = context.id("commentId")?;
         let payload = context
             .read_json::<UpdateAlbumCommentVisibilityPayload>()
             .map_err(|e| PipelineError::message(e.message()))?;
@@ -439,98 +248,5 @@ impl HttpHandler for UpdateAlbumCommentVisibilityHandler {
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::new(Json(AlbumCommentDto::from(saved))))
-    }
-}
-
-impl AlbumController {
-    fn is_admin(context: &HttpContext) -> bool {
-        context
-            .get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().contains("admin"))
-            .unwrap_or(false)
-    }
-
-    fn to_tag_refs(values: &[serde_json::Value]) -> Result<Vec<TagRef>, PipelineError> {
-        let mut refs = Vec::<TagRef>::new();
-        for value in values {
-            match value {
-                serde_json::Value::Number(_) => {
-                    return Err(PipelineError::message("tags must be UUID strings or names"));
-                }
-                serde_json::Value::String(text) => {
-                    let trimmed = text.trim();
-                    if trimmed.is_empty() {
-                        continue;
-                    }
-                    if let Ok(id) = Uuid::parse_str(trimmed) {
-                        refs.push(TagRef::Id(id));
-                    } else {
-                        refs.push(TagRef::Name(trimmed.to_string()));
-                    }
-                }
-                _ => return Err(PipelineError::message("tags must be UUID strings or names")),
-            }
-        }
-        Ok(refs)
-    }
-
-    fn is_viewer(context: &HttpContext) -> bool {
-        context
-            .get::<IdentityContext>()
-            .map(|ctx| {
-                let identity = ctx.identity();
-                let roles = identity.claims().roles();
-                roles.contains("viewer") && !roles.contains("admin")
-            })
-            .unwrap_or(false)
-    }
-
-    async fn viewer_hidden_tags(context: &HttpContext) -> Result<HashSet<String>, PipelineError> {
-        if !Self::is_viewer(context) {
-            return Ok(HashSet::new());
-        }
-        let settings = context.service::<SettingService>()?;
-        settings.viewer_hidden_tags().await
-    }
-
-    fn filter_photos_for_viewer(
-        photos: Vec<crate::entities::photo::Photo>,
-        hidden_tags: &HashSet<String>,
-        photo_tags: &HashMap<Uuid, Vec<String>>,
-    ) -> Vec<crate::entities::photo::Photo> {
-        if hidden_tags.is_empty() {
-            return photos;
-        }
-
-        photos
-            .into_iter()
-            .filter(|photo| {
-                let tags = photo_tags.get(&photo.id);
-                !tags
-                    .map(|items| {
-                        items
-                            .iter()
-                            .any(|tag| hidden_tags.contains(&tag.trim().to_lowercase()))
-                    })
-                    .unwrap_or(false)
-            })
-            .collect()
-    }
-
-    fn collect_photo_ids(photos: &[crate::entities::photo::Photo]) -> Vec<Uuid> {
-        photos.iter().map(|photo| photo.id).collect()
-    }
-
-    fn attach_tags_to_photos(
-        photos: Vec<crate::entities::photo::Photo>,
-        photo_tags: &HashMap<Uuid, Vec<String>>,
-    ) -> Vec<PhotoWithTags> {
-        photos
-            .into_iter()
-            .map(|photo| {
-                let tags = photo_tags.get(&photo.id).cloned().unwrap_or_default();
-                PhotoWithTags { photo, tags }
-            })
-            .collect()
     }
 }

@@ -74,6 +74,7 @@ pub trait PhotoRepository: Send + Sync {
         created_by_user_id: Option<Uuid>,
     ) -> DataResult<()>;
     async fn get_album_tags(&self, album_id: Uuid, is_admin: bool) -> DataResult<Vec<Tag>>;
+    fn collect_photo_ids(&self, photos: &[Photo]) -> Vec<Uuid>;
 }
 
 pub struct PostgresPhotoRepository {
@@ -811,5 +812,9 @@ impl PhotoRepository for PostgresPhotoRepository {
             .fetch_all(&self.pool)
             .await
             .map_err(|e| DataError::Provider(e.to_string()))
+    }
+
+    fn collect_photo_ids(&self, photos: &[Photo]) -> Vec<Uuid> {
+        photos.iter().map(|photo| photo.id).collect()
     }
 }

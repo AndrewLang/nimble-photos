@@ -1,24 +1,15 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
 
-use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::entities::StorageLocation;
-use crate::entities::client_storage::ClientStorage;
-use crate::entities::photo_browse::{BrowseOptions, BrowseResponse};
-use crate::entities::photo_cursor::PhotoCursor;
 use crate::entities::storage_location::{
-    CreateStoragePayload, StorageLocationResponse, UpdateClientStorageSettingsPayload,
-    UpdateStoragePayload,
+    CreateStoragePayload, StorageLocationResponse, UpdateStoragePayload,
 };
-use crate::repositories::storage_repo::{
-    ClientStorageRepositoryExtensions, StorageRepositoryExtensions,
-};
+use crate::repositories::storage_repo::StorageRepositoryExtensions;
 use crate::repositories::validation::StringValidations;
-use crate::services::BrowseService;
 
 use nimble_web::DataProvider;
 use nimble_web::controller::controller::Controller;
@@ -57,7 +48,7 @@ struct ListStorageHandler;
 impl HttpHandler for ListStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repo = context.service::<Repository<StorageLocation>>()?;
-        let locations = repo.load_locations().await?;
+        let locations = repo.load_storages().await?;
         let disks = repo.list_disks();
 
         let response = locations
@@ -194,7 +185,7 @@ impl HttpHandler for UpdateStorageHandler {
             if !Path::new(&path_value).exists() {
                 return Err(PipelineError::message("Storage path does not exist"));
             }
-            if let Some(existing) = repository.find_location_by_path(&path_value).await? {
+            if let Some(existing) = repository.find_storage_by_path(&path_value).await? {
                 if existing.id != location.id {
                     return Err(PipelineError::message("Storage path already registered"));
                 }
@@ -217,7 +208,7 @@ impl HttpHandler for UpdateStorageHandler {
             } else if location.is_default {
                 location.is_default = false;
                 if let Some(mut replacement) = repository
-                    .load_locations()
+                    .load_storages()
                     .await?
                     .into_iter()
                     .find(|entry| entry.id != location.id)
@@ -240,7 +231,7 @@ impl HttpHandler for UpdateStorageHandler {
             .await
             .map_err(|_| PipelineError::message("failed to save storage settings"))?;
 
-        let locations = repository.load_locations().await?;
+        let locations = repository.load_storages().await?;
         let disks = repository.list_disks();
 
         let response = locations
@@ -291,7 +282,7 @@ impl HttpHandler for DefaultStorageHandler {
             .await
             .map_err(|_| PipelineError::message("failed to save storage settings"))?;
 
-        let locations = storage_repo.load_locations().await?;
+        let locations = storage_repo.load_storages().await?;
         let disks = storage_repo.list_disks();
 
         let response = locations
@@ -342,7 +333,7 @@ impl HttpHandler for DeleteStorageHandler {
             .await
             .map_err(|_| PipelineError::message("failed to save storage settings"))?;
 
-        let mut locations = repository.load_locations().await?;
+        let mut locations = repository.load_storages().await?;
         if !locations.iter().any(|location| location.is_default) {
             if let Some(mut first) = locations.first().cloned() {
                 first.is_default = true;
@@ -350,7 +341,7 @@ impl HttpHandler for DeleteStorageHandler {
                     .update(first)
                     .await
                     .map_err(|_| PipelineError::message("failed to save storage settings"))?;
-                locations = repository.load_locations().await?;
+                locations = repository.load_storages().await?;
             }
         }
         let disks = repository.list_disks();
@@ -372,199 +363,5 @@ impl HttpHandler for DeleteStorageHandler {
             .collect::<Vec<_>>();
 
         Ok(ResponseValue::json(response))
-    }
-}
-
-struct BrowseStorageHandler;
-
-#[async_trait]
-#[get("/api/storage/{storageId}/browse")]
-impl HttpHandler for BrowseStorageHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let storage_id = context.route_storage_id()?;
-        let request = context.parse_browse_request()?;
-        let path_segments = request.path_segments().map_err(|_| {
-            context.response_mut().set_status(400);
-            PipelineError::message("invalid browse path")
-        })?;
-
-        let repository = context.service::<Repository<StorageLocation>>()?;
-        let storage = repository
-            .get(&storage_id)
-            .await
-            .map_err(|_| PipelineError::message("failed to load storage settings"))?
-            .ok_or_else(|| {
-                context.response_mut().set_status(404);
-                PipelineError::message("storage not found")
-            })?;
-
-        let client_id = context.current_client_id().await?;
-        let browse_options = context
-            .load_client_storage_settings(client_id, storage.id)
-            .await?;
-        log::info!(
-            "Browsing storage '{}' with path '{}', options: {:?}, page size: {}, cursor: {:?}",
-            storage.id,
-            request.path.as_deref().unwrap_or(""),
-            browse_options,
-            request.page_size.unwrap_or(50),
-            request.cursor.as_deref().unwrap_or("")
-        );
-
-        let cursor = match request.cursor.as_deref() {
-            Some(raw) if !raw.trim().is_empty() => Some(
-                PhotoCursor::decode(raw).map_err(|_| PipelineError::message("invalid cursor"))?,
-            ),
-            _ => None,
-        };
-
-        let page_size = request.page_size.unwrap_or(50);
-        let browse_service = context.service::<BrowseService>()?;
-        let response: BrowseResponse = browse_service
-            .browse(
-                &storage.id,
-                &path_segments,
-                &browse_options,
-                page_size,
-                cursor,
-            )
-            .await
-            .map_err(|err| {
-                let message = err.to_string();
-                if message.contains("invalid browse path depth")
-                    || message.contains("invalid digit found in string")
-                    || message.contains("input contains invalid characters")
-                    || message.contains("trailing input")
-                    || message.contains("input is out of range")
-                {
-                    context.response_mut().set_status(400);
-                    return PipelineError::message("invalid browse path");
-                }
-                PipelineError::message(&message)
-            })?;
-
-        Ok(ResponseValue::json(response))
-    }
-}
-
-struct ListStorageForClientController;
-
-#[async_trait]
-#[get("/api/storage/list")]
-impl HttpHandler for ListStorageForClientController {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let api_key = context.extract_api_key()?;
-        let _ = context.validate_api_key(&api_key).await?;
-
-        let repository = context.service::<Repository<StorageLocation>>()?;
-        let locations = repository.load_locations().await?;
-        let disks = repository.list_disks();
-
-        let response = locations
-            .into_iter()
-            .map(|location| {
-                let disk = repository.find_disk(&location.path, &disks);
-                StorageLocationResponse {
-                    id: location.id.to_string(),
-                    label: location.label,
-                    path: location.path,
-                    is_default: location.is_default,
-                    created_at: location.created_at,
-                    category_template: location.category_template,
-                    disk,
-                }
-            })
-            .collect::<Vec<_>>();
-
-        Ok(ResponseValue::json(response))
-    }
-}
-
-struct UpdateClientStorageSettingsHandler;
-
-#[async_trait]
-#[post("/api/client/storage/settings")]
-impl HttpHandler for UpdateClientStorageSettingsHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let api_key = context.extract_api_key()?;
-        let client = context.validate_api_key(&api_key).await?;
-
-        let payload = context
-            .read_json::<UpdateClientStorageSettingsPayload>()
-            .map_err(|err| PipelineError::message(err.message()))?;
-        if payload.storage_ids.is_empty() {
-            return Err(PipelineError::message("storageIds is required"));
-        }
-        log::info!(
-            "Updating storage settings for client '{}', storageIds: {:?}",
-            client.id,
-            payload.storage_ids
-        );
-
-        let storage_repo = context.service::<Repository<StorageLocation>>()?;
-        let storages = storage_repo.load_locations().await?;
-        let configured_storage_ids = storages
-            .iter()
-            .map(|location| location.id.clone())
-            .collect::<HashSet<_>>();
-
-        let mut requested_storage_ids = HashSet::<Uuid>::new();
-        for raw_storage_id in payload.storage_ids {
-            let storage_id = Uuid::parse_str(&raw_storage_id)
-                .map_err(|_| PipelineError::message("invalid storageId"))?;
-            if !configured_storage_ids.contains(&storage_id) {
-                context.response_mut().set_status(404);
-                return Err(PipelineError::message("storage not found"));
-            }
-            requested_storage_ids.insert(storage_id);
-        }
-
-        let repository = context.service::<Repository<ClientStorage>>()?;
-        let existing_rows = repository.for_client(client.id).await?;
-        let existing_storage_ids = existing_rows
-            .iter()
-            .map(|item| item.storage_id)
-            .collect::<HashSet<_>>();
-
-        for storage_id in &requested_storage_ids {
-            if existing_storage_ids.contains(storage_id) {
-                continue;
-            }
-
-            let record = ClientStorage {
-                id: Uuid::new_v4(),
-                client_id: client.id,
-                storage_id: *storage_id,
-                browse_options: BrowseOptions::default(),
-            };
-            log::info!("Record to insert {:?}", record);
-
-            match repository.insert(record).await {
-                Ok(_) => {}
-                Err(err) => {
-                    let message = format!("{:?}", err).to_ascii_lowercase();
-                    if message.contains("duplicate key")
-                        || message.contains("unique constraint")
-                        || message.contains("already exists")
-                    {
-                        continue;
-                    }
-                    return Err(PipelineError::message(
-                        "failed to create client storage settings",
-                    ));
-                }
-            }
-        }
-
-        let client_storage_ids = existing_storage_ids
-            .union(&requested_storage_ids)
-            .copied()
-            .collect::<HashSet<Uuid>>();
-        let client_locations = storages
-            .into_iter()
-            .filter(|location| client_storage_ids.contains(&location.id))
-            .collect::<Vec<_>>();
-
-        Ok(ResponseValue::json(client_locations))
     }
 }

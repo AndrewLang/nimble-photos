@@ -313,14 +313,23 @@ export class PhotoService {
     );
   }
 
+  addPhotosToAlbum(albumId: string, photoIds: string[]): Observable<{ updated: number }> {
+    return this.http.post<{ updated: number }>(`${this.apiBase}/albums/${albumId}/photos`, { photoIds });
+  }
+
+  removePhotosFromAlbum(albumId: string, photoIds: string[]): Observable<{ updated: number }> {
+    return this.http.delete<{ updated: number }>(`${this.apiBase}/albums/${albumId}/photos`, {
+      body: { photoIds }
+    });
+  }
+
   getAlbumById(id: string): Observable<Album | null> {
     return this.http.get<AlbumModel>(`${this.apiBase}/albums/${id}`).pipe(
       switchMap((dto) => {
-        const rules = JSON.parse(dto.rulesJson || '{ "photoIds": [] }');
-
         return this.getAlbumPhotos(id, 1, 100).pipe(
           map((photos) => ({
             ...this.mapAlbum(dto),
+            imageCount: photos?.total ?? 0,
             photos: photos || { page: 1, pageSize: 100, total: 0, items: [] },
           }))
         );
@@ -380,7 +389,6 @@ export class PhotoService {
       description: dto.description ?? undefined,
       category: dto.category ?? undefined,
       kind: (dto.kind === 'smart' ? 'smart' : 'manual') as Album['kind'],
-      rulesJson: dto.rulesJson ?? undefined,
       thumbnailHash: dto.thumbnailHash ?? undefined,
       sortOrder: dto.sortOrder ?? 0,
       imageCount: dto.imageCount ?? undefined,

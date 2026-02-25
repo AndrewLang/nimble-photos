@@ -6,8 +6,7 @@ use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 
 use crate::dtos::auth_dtos::{
-    ChangePasswordRequest, LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterRequest,
-    RegistrationStatusResponse, ResetPasswordRequest, VerifyEmailRequest,
+    LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterRequest, RegistrationStatusResponse,
 };
 use crate::dtos::user_profile_dto::UserProfileDto;
 use crate::entities::{user::User, user_settings::UserSettings};
@@ -34,11 +33,6 @@ impl Controller for AuthController {
             EndpointRoute::post("/api/auth/login", LoginHandler).build(),
             EndpointRoute::post("/api/auth/refresh", RefreshHandler).build(),
             EndpointRoute::post("/api/auth/logout", LogoutHandler).build(),
-            EndpointRoute::post("/api/auth/change-password", ChangePasswordHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-            EndpointRoute::post("/api/auth/reset-password", ResetPasswordHandler).build(),
-            EndpointRoute::post("/api/auth/verify-email", VerifyEmailHandler).build(),
             EndpointRoute::get("/api/auth/registration-status", RegistrationStatusHandler).build(),
             EndpointRoute::get("/api/auth/me", MeHandler)
                 .with_policy(Policy::Authenticated)
@@ -181,60 +175,6 @@ impl HttpHandler for LogoutHandler {
         let payload: LogoutRequest = context.json()?;
         let auth_service = context.service::<AuthService>()?;
         auth_service.logout(&payload.refresh_token)?;
-
-        Ok(ResponseValue::empty())
-    }
-}
-
-struct ChangePasswordHandler;
-
-#[async_trait]
-impl HttpHandler for ChangePasswordHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload: ChangePasswordRequest = context.json()?;
-        let identity = context
-            .get::<IdentityContext>()
-            .ok_or_else(|| PipelineError::message("identity not found"))?;
-        let user_id = identity.identity().subject().to_string();
-
-        let auth_service = context.service::<AuthService>()?;
-        let old_pw = payload.old_password.clone();
-        let new_pw = payload.new_password.clone();
-
-        auth_service
-            .change_password(&user_id, &old_pw, &new_pw)
-            .await?;
-
-        Ok(ResponseValue::empty())
-    }
-}
-
-struct ResetPasswordHandler;
-
-#[async_trait]
-impl HttpHandler for ResetPasswordHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload: ResetPasswordRequest = context.json()?;
-        let auth_service = context.service::<AuthService>()?;
-        let token = payload.token.clone();
-        let new_pw = payload.new_password.clone();
-
-        auth_service.reset_password(&token, &new_pw).await?;
-
-        Ok(ResponseValue::empty())
-    }
-}
-
-struct VerifyEmailHandler;
-
-#[async_trait]
-impl HttpHandler for VerifyEmailHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload: VerifyEmailRequest = context.json()?;
-        let auth_service = context.service::<AuthService>()?;
-        let token = payload.token.clone();
-
-        auth_service.verify_email(&token).await?;
 
         Ok(ResponseValue::empty())
     }

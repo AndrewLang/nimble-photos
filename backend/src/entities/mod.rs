@@ -1,5 +1,6 @@
 use album::Album;
 use album_comment::AlbumComment;
+use album_photo::AlbumPhoto;
 use client::Client;
 use client_storage::ClientStorage;
 use exif::ExifModel;
@@ -18,12 +19,15 @@ use crate::repositories::photo::PhotoRepository;
 use anyhow::{Result, anyhow};
 #[cfg(feature = "postgres")]
 use nimble_web::data::postgres::PostgresEntity;
+#[cfg(feature = "postgres")]
+use sqlx::Row;
 
 pub use storage_location::StorageLocation;
 
 pub mod album;
 pub mod album_comment;
 pub mod album_hooks;
+pub mod album_photo;
 pub mod client;
 pub mod client_storage;
 pub mod exif;
@@ -95,7 +99,6 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             EntityOperation::Update,
         ],
     );
-
     #[cfg(not(feature = "postgres"))]
     {
         builder.register_singleton(|_| {
@@ -133,6 +136,10 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         builder.register_singleton(|_| {
             let provider = MemoryRepository::<PhotoComment>::new();
             Repository::<PhotoComment>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
+            let provider = MemoryRepository::<AlbumPhoto>::new();
+            Repository::<AlbumPhoto>::new(Box::new(provider))
         });
         builder.register_singleton(|_| {
             let provider = MemoryRepository::<Setting>::new();
@@ -210,6 +217,11 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         });
         builder.register_singleton(|p| {
             let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<AlbumPhoto>::new((*pool).clone());
+            Repository::<AlbumPhoto>::new(Box::new(provider))
+        });
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
             let provider = PostgresProvider::<Setting>::new((*pool).clone());
             Repository::<Setting>::new(Box::new(provider))
         });
@@ -237,6 +249,7 @@ pub async fn migrate_entities(app: &Application) -> Result<()> {
         migrate_entity::<ExifModel>(app).await?;
         migrate_entity::<PhotoComment>(app).await?;
         migrate_entity::<AlbumComment>(app).await?;
+        migrate_entity::<AlbumPhoto>(app).await?;
         migrate_entity::<Setting>(app).await?;
 
         let pool = app
@@ -292,6 +305,9 @@ pub async fn ensure_supporting_schema(pool: &sqlx::PgPool) -> Result<()> {
         "CREATE INDEX IF NOT EXISTS idx_exifs_image_id ON exifs (image_id)",
         "CREATE INDEX IF NOT EXISTS idx_photo_comments_photo_id ON photo_comments (photo_id)",
         "CREATE INDEX IF NOT EXISTS idx_album_comments_album_id ON album_comments (album_id)",
+        "CREATE INDEX IF NOT EXISTS idx_album_photos_album_id ON album_photos (album_id)",
+        "CREATE INDEX IF NOT EXISTS idx_album_photos_photo_id ON album_photos (photo_id)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_album_photos_album_photo ON album_photos (album_id, photo_id)",
         "CREATE TABLE IF NOT EXISTS tags (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, name_norm TEXT NOT NULL, visibility SMALLINT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), CONSTRAINT ck_tags_visibility CHECK (visibility IN (0, 1)))",
         "CREATE UNIQUE INDEX IF NOT EXISTS ux_tags_name_norm ON tags (name_norm)",
         "CREATE INDEX IF NOT EXISTS idx_tags_name ON tags (name)",
@@ -309,6 +325,84 @@ pub async fn ensure_supporting_schema(pool: &sqlx::PgPool) -> Result<()> {
             .await
             .map_err(|err| anyhow!("Failed to execute SQL '{}': {}", sql, err))?;
     }
+
+    migrate_album_rules_json(pool).await?;
+
+    Ok(())
+}
+
+#[cfg(feature = "postgres")]
+async fn migrate_album_rules_json(pool: &sqlx::PgPool) -> Result<()> {
+    let has_rules_json: bool = sqlx::query_scalar(
+        "SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'albums' AND column_name = 'rules_json'
+        )",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| anyhow!("Failed to check albums.rules_json: {}", e))?;
+    if !has_rules_json {
+        return Ok(());
+    }
+
+    let rows = sqlx::query(
+        "SELECT id, rules_json, create_date FROM albums WHERE rules_json IS NOT NULL",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| anyhow!("Failed to fetch album rules_json rows: {}", e))?;
+
+    for row in rows {
+        let album_id: uuid::Uuid = row
+            .try_get("id")
+            .map_err(|e| anyhow!("Failed to read album id: {}", e))?;
+        let rules_json: Option<String> = row
+            .try_get("rules_json")
+            .map_err(|e| anyhow!("Failed to read rules_json: {}", e))?;
+        let create_date: Option<chrono::DateTime<chrono::Utc>> = row
+            .try_get("create_date")
+            .map_err(|e| anyhow!("Failed to read create_date: {}", e))?;
+        let created_at = create_date.unwrap_or_else(chrono::Utc::now);
+        let Some(raw) = rules_json else {
+            continue;
+        };
+
+        let parsed = serde_json::from_str::<serde_json::Value>(&raw);
+        let photo_ids = parsed
+            .ok()
+            .and_then(|value| value.get("photoIds").cloned())
+            .and_then(|value| value.as_array().cloned())
+            .unwrap_or_default();
+
+        for photo in photo_ids {
+            let Some(photo_id) = photo.as_str() else {
+                continue;
+            };
+            let Ok(photo_id) = uuid::Uuid::parse_str(photo_id) else {
+                continue;
+            };
+
+            sqlx::query(
+                "INSERT INTO album_photos (id, album_id, photo_id, created_at)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (album_id, photo_id) DO NOTHING",
+            )
+            .bind(uuid::Uuid::new_v4())
+            .bind(album_id)
+            .bind(photo_id)
+            .bind(created_at.clone())
+            .execute(pool)
+            .await
+            .map_err(|e| anyhow!("Failed to migrate album photo mapping: {}", e))?;
+        }
+    }
+
+    sqlx::query("ALTER TABLE albums DROP COLUMN IF EXISTS rules_json")
+        .execute(pool)
+        .await
+        .map_err(|e| anyhow!("Failed to drop albums.rules_json: {}", e))?;
 
     Ok(())
 }

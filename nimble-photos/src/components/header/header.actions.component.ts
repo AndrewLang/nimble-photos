@@ -92,18 +92,31 @@ export class HeaderActionsComponent {
         }
 
         const albumData = result;
+        const photoIds: string[] = Array.isArray(albumData.photoIds) ? albumData.photoIds : [];
         this.photoService
             .createAlbum({
                 name: albumData.name,
                 description: albumData.description,
                 kind: 'manual',
-                rulesJson: JSON.stringify({ photoIds: albumData.photoIds }),
                 sortOrder: 0
             })
             .subscribe({
                 next: album => {
-                    this.selectionService.clearSelection();
-                    this.router.navigate(['/album', album.id]);
+                    if (!photoIds.length) {
+                        this.selectionService.clearSelection();
+                        this.router.navigate(['/albums', album.id]);
+                        return;
+                    }
+                    this.photoService.addPhotosToAlbum(album.id, photoIds).subscribe({
+                        next: () => {
+                            this.selectionService.clearSelection();
+                            this.router.navigate(['/albums', album.id]);
+                        },
+                        error: err => {
+                            console.error('Failed to add photos to created album:', err);
+                            alert('Album created, but adding photos failed.');
+                        }
+                    });
                 },
                 error: err => {
                     console.error('Failed to create album:', err);
@@ -133,52 +146,16 @@ export class HeaderActionsComponent {
         }
 
         const targetAlbum = result;
-        this.photoService.getAlbumById(targetAlbum.id!).subscribe(fullAlbum => {
-            if (!fullAlbum) {
-                alert('Album not found.');
-                return;
-            }
-
-            let currentIds: string[] = [];
-            if (fullAlbum.rulesJson) {
-                try {
-                    const rules = JSON.parse(fullAlbum.rulesJson);
-                    currentIds = rules.photoIds || [];
-                } catch (error) {
-                    console.error('Error parsing album rules', error);
-                }
-            }
-
-            const currentIdsSet = new Set(currentIds.map(id => id.toLowerCase()));
-            const newIds = photos.map(photo => photo.id.toLowerCase());
-            const idsToAdd = newIds.filter(id => !currentIdsSet.has(id));
-
-            if (idsToAdd.length === 0) {
-                alert('Selected photos are already in this album.');
+        const photoIds = photos.map(photo => photo.id);
+        this.photoService.addPhotosToAlbum(targetAlbum.id!, photoIds).subscribe({
+            next: () => {
                 this.selectionService.clearSelection();
-                return;
+                this.router.navigate(['/albums', targetAlbum.id]);
+            },
+            error: err => {
+                console.error('Failed to add photos to album', err);
+                alert('Failed to add photos to album.');
             }
-
-            const mergedIds = [...currentIds, ...idsToAdd];
-            this.photoService
-                .updateAlbum({
-                    id: fullAlbum.id,
-                    name: fullAlbum.name,
-                    description: fullAlbum.description,
-                    kind: fullAlbum.kind,
-                    sortOrder: fullAlbum.sortOrder,
-                    rulesJson: JSON.stringify({ photoIds: mergedIds })
-                })
-                .subscribe({
-                    next: () => {
-                        this.selectionService.clearSelection();
-                        this.router.navigate(['/album', fullAlbum.id]);
-                    },
-                    error: err => {
-                        console.error('Failed to update album', err);
-                        alert('Failed to add photos to album.');
-                    }
-                });
         });
     }
 
