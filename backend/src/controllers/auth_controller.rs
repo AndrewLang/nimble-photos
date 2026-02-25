@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use uuid::Uuid;
 
 #[cfg(feature = "testbot")]
 use serde::{Deserialize, Serialize};
 
+use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::dtos::auth_dtos::{
     LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterRequest, RegistrationStatusResponse,
 };
@@ -19,7 +19,6 @@ use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
-use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
@@ -117,14 +116,7 @@ struct MeHandler;
 #[async_trait]
 impl HttpHandler for MeHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let identity = context
-            .get::<IdentityContext>()
-            .ok_or_else(|| PipelineError::message("identity not found"))?;
-
-        let subject = identity.identity().subject().to_string();
-        let user_id = Uuid::parse_str(&subject)
-            .map_err(|_| PipelineError::message("Invalid identity: user ID is not valid for me"))?;
-
+        let user_id = context.current_user_id()?;
         let user_repo = context.service::<Repository<User>>()?;
         let settings_repo = context.service::<Repository<UserSettings>>()?;
 
