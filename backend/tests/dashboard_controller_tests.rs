@@ -35,7 +35,7 @@ fn routes_require_authenticated() {
     assert_eq!(upload_route.route.method(), "POST");
     assert_eq!(
         upload_route.route.path(),
-        "/api/dashboard/settings/site.logo/upload"
+        "/api/dashboard/settings/logo/upload"
     );
     assert_eq!(
         upload_route.endpoint.metadata().policy(),

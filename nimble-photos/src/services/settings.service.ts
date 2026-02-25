@@ -43,7 +43,7 @@ export class SettingsService {
     }
 
     uploadLogo(dataUrl: string): Observable<DashboardSetting> {
-        return this.http.post<DashboardSetting>(`${this.apiBase}/dashboard/settings/${SettingNames.SiteLogo}/upload`, {
+        return this.http.post<DashboardSetting>(`${this.apiBase}/dashboard/settings/logo/upload`, {
             dataUrl,
         });
     }

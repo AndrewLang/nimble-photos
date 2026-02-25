@@ -9,7 +9,6 @@ use crate::services::SettingService;
 
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::provider::DataProvider;
-use nimble_web::data::query::Query;
 use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
@@ -17,7 +16,7 @@ use nimble_web::http::context::HttpContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
-use nimble_web::{get, put};
+use nimble_web::{QueryBuilder, get, put};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -64,8 +63,9 @@ impl HttpHandler for ListClientsHandler {
         context.require_admin()?;
 
         let repo = context.service::<Repository<Client>>()?;
+        let query = QueryBuilder::new().page(1, 100).build();
         let page = repo
-            .query(Query::<Client>::new())
+            .query(query)
             .await
             .map_err(|_| PipelineError::message("failed to query clients"))?;
 
@@ -95,7 +95,7 @@ impl HttpHandler for ApproveClientHandler {
             ));
         }
 
-        let client_id = context.route_uuid("id")?;
+        let client_id = context.id("id")?;
         let repo = context.service::<Repository<Client>>()?;
         let mut client = repo
             .get(&client_id)
@@ -125,7 +125,7 @@ impl HttpHandler for RevokeClientHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         context.require_admin()?;
 
-        let client_id = context.route_uuid("id")?;
+        let client_id = context.id("id")?;
         let repo = context.service::<Repository<Client>>()?;
         let mut client = repo
             .get(&client_id)

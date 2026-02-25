@@ -6,6 +6,7 @@ use std::fs;
 use std::path::Path;
 use uuid::Uuid;
 
+use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::dtos::dashboard_settings_dto::{LogoUploadRequest, UpdateSettingPayload};
 use crate::services::SettingService;
 
@@ -13,42 +14,27 @@ use nimble_web::controller::controller::Controller;
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
-use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
+use nimble_web::{get, post, put};
 
 pub struct DashboardController;
 
 impl Controller for DashboardController {
     fn routes() -> Vec<EndpointRoute> {
-        vec![
-            EndpointRoute::get("/api/dashboard/settings", ListSettingsHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-            EndpointRoute::get("/api/dashboard/settings/{key}", GetSettingHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-            EndpointRoute::put("/api/dashboard/settings/{key}", UpdateSettingHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-            EndpointRoute::post(
-                "/api/dashboard/settings/site.logo/upload",
-                UploadLogoHandler,
-            )
-            .with_policy(Policy::Authenticated)
-            .build(),
-        ]
+        vec![]
     }
 }
 
 struct ListSettingsHandler;
 
 #[async_trait]
+#[get("/api/dashboard/settings", policy = Policy::Authenticated)]
 impl HttpHandler for ListSettingsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let service = context.service::<SettingService>()?;
-        if !DashboardController::can_access_dashboard(context, &service).await? {
+        if !context.can_access_dashboard().await? {
             context.response_mut().set_status(403);
             return Ok(ResponseValue::empty());
         }
@@ -60,6 +46,7 @@ impl HttpHandler for ListSettingsHandler {
 struct UpdateSettingHandler;
 
 #[async_trait]
+#[put("/api/dashboard/settings/{key}", policy = Policy::Authenticated)]
 impl HttpHandler for UpdateSettingHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload = context
@@ -72,7 +59,7 @@ impl HttpHandler for UpdateSettingHandler {
             .ok_or_else(|| PipelineError::message("key parameter missing"))?;
 
         let service = context.service::<SettingService>()?;
-        if !DashboardController::can_update_setting(context, &service, key).await? {
+        if !context.can_update_setting(key).await? {
             context.response_mut().set_status(403);
             return Ok(ResponseValue::empty());
         }
@@ -85,6 +72,7 @@ impl HttpHandler for UpdateSettingHandler {
 struct GetSettingHandler;
 
 #[async_trait]
+#[get("/api/dashboard/settings/{key}", policy = Policy::Authenticated)]
 impl HttpHandler for GetSettingHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let key = context
@@ -93,7 +81,7 @@ impl HttpHandler for GetSettingHandler {
             .ok_or_else(|| PipelineError::message("key parameter missing"))?;
 
         let service = context.service::<SettingService>()?;
-        if !DashboardController::can_access_dashboard(context, &service).await? {
+        if !context.can_access_dashboard().await? {
             context.response_mut().set_status(403);
             return Ok(ResponseValue::empty());
         }
@@ -129,6 +117,7 @@ impl UploadLogoHandler {
 }
 
 #[async_trait]
+#[post("/api/dashboard/settings/logo/upload", policy = Policy::Authenticated)]
 impl HttpHandler for UploadLogoHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload = context
@@ -162,37 +151,12 @@ impl HttpHandler for UploadLogoHandler {
 
         let logo_url = format!("/api/assets/logo/{}", filename);
         let service = context.service::<SettingService>()?;
-        if !DashboardController::can_update_setting(context, &service, "site.logo").await? {
+        if !context.can_update_setting("site.logo").await? {
             context.response_mut().set_status(403);
             return Ok(ResponseValue::empty());
         }
         let updated = service.update("site.logo", json!(logo_url)).await?;
 
         Ok(ResponseValue::json(updated))
-    }
-}
-
-impl DashboardController {
-    async fn can_access_dashboard(
-        context: &HttpContext,
-        service: &SettingService,
-    ) -> Result<bool, PipelineError> {
-        let roles = context
-            .get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().clone())
-            .unwrap_or_default();
-        service.can_access_dashboard(&roles).await
-    }
-
-    async fn can_update_setting(
-        context: &HttpContext,
-        service: &SettingService,
-        key: &str,
-    ) -> Result<bool, PipelineError> {
-        let roles = context
-            .get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().clone())
-            .unwrap_or_default();
-        service.can_update_setting(&roles, key).await
     }
 }

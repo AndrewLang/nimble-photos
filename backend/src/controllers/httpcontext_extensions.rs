@@ -40,6 +40,8 @@ pub trait HttpContextExtensions {
     fn page_size(&self) -> Result<u32, PipelineError>;
     fn param(&self, key: &str) -> Result<String, PipelineError>;
     fn id(&self, key: &str) -> Result<Uuid, PipelineError>;
+    async fn can_access_dashboard(&self) -> Result<bool, PipelineError>;
+    async fn can_update_setting(&self, key: &str) -> Result<bool, PipelineError>;
     async fn viewer_hidden_tags(&self) -> Result<HashSet<String>, PipelineError>;
     async fn current_client_id(&self) -> Result<Uuid, PipelineError>;
     async fn is_preview_exists(&self, hash: &str) -> bool;
@@ -252,6 +254,26 @@ impl HttpContextExtensions for HttpContext {
         decode(&raw)
             .map(|v| v.into_owned())
             .map_err(|_| PipelineError::message("invalid apiKey encoding"))
+    }
+
+    async fn can_access_dashboard(&self) -> Result<bool, PipelineError> {
+        let roles = self
+            .get::<IdentityContext>()
+            .map(|ctx| ctx.identity().claims().roles().clone())
+            .unwrap_or_default();
+        self.service::<SettingService>()?
+            .can_access_dashboard(&roles)
+            .await
+    }
+
+    async fn can_update_setting(&self, key: &str) -> Result<bool, PipelineError> {
+        let roles = self
+            .get::<IdentityContext>()
+            .map(|ctx| ctx.identity().claims().roles().clone())
+            .unwrap_or_default();
+        self.service::<SettingService>()?
+            .can_update_setting(&roles, key)
+            .await
     }
 
     async fn viewer_hidden_tags(&self) -> Result<HashSet<String>, PipelineError> {
