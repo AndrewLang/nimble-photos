@@ -24,6 +24,24 @@ pub struct PhotoComment {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+impl PhotoComment {
+    pub fn new(
+        photo_id: Uuid,
+        user_id: Uuid,
+        user_display_name: Option<String>,
+        body: Option<String>,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            photo_id,
+            user_id,
+            user_display_name,
+            body,
+            created_at: Some(Utc::now()),
+        }
+    }
+}
+
 impl Default for PhotoComment {
     fn default() -> Self {
         Self {

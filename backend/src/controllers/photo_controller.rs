@@ -1,7 +1,5 @@
 use async_trait::async_trait;
-use chrono::Utc;
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::result::Result;
 use std::time::Instant;
@@ -10,26 +8,25 @@ use uuid::Uuid;
 
 use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::dtos::photo_comment_dto::PhotoCommentDto;
+use crate::dtos::photo_dtos::TagRef;
 use crate::dtos::photo_dtos::{
-    DeletePhotosPayload, PhotoLoc, PhotoLocWithTags, PhotoWithTags, UpdatePhotoTagsPayload,
-    UploadFileResponse, UploadPhotosResponse,
+    DeletePhotosPayload, UpdatePhotoTagsPayload, UploadFileResponse, UploadPhotosResponse,
 };
 use crate::entities::StorageLocation;
-use crate::entities::exif::ExifModel;
 use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
-use crate::entities::user_settings::UserSettings;
+use crate::entities::tag::Tag;
 use crate::models::setting_consts::SettingConsts;
-use crate::repositories::photo::{PhotoRepository, TagRef};
+use crate::models::string_id::ToUuid;
 use crate::repositories::photo_repo::PhotoRepositoryExtensions;
+use crate::repositories::tag_extensions::TagRepositoryExtensions;
 use crate::services::file_service::FileService;
 use crate::services::{ImageProcessPipeline, PhotoUploadService, PreviewExtractor, SettingService};
 
-use nimble_web::DataProvider;
 use nimble_web::Repository;
 use nimble_web::controller::controller::Controller;
 use nimble_web::data::paging::Page;
-use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection, Value};
+use nimble_web::data::query::{FilterOperator, Value};
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
@@ -39,6 +36,7 @@ use nimble_web::result::FileResponse;
 use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
+use nimble_web::{DataProvider, QueryBuilder};
 use nimble_web::{delete, get, post, put};
 
 const MAX_COMMENT_LENGTH: usize = 1024;
@@ -308,43 +306,20 @@ struct TimelineHandler;
 #[get("/api/photos/timeline/{page}/{pageSize}")]
 impl HttpHandler for TimelineHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context
-            .services()
-            .resolve::<Box<dyn PhotoRepository>>()
-            .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
-        let query = context.request().query_params();
-        let tags_raw = query.get("tags").cloned().unwrap_or_default();
-        let _search_tags = tags_raw
-            .split(',')
-            .map(|v| v.trim().to_lowercase())
-            .filter(|v| !v.is_empty())
-            .collect::<Vec<_>>();
-        let _match_all = query
-            .get("match")
-            .map(|v| v.eq_ignore_ascii_case("all"))
-            .unwrap_or(false);
+        let repository = context.service::<Repository<Photo>>()?;
 
-        let route_params = context.route().map(|r| r.params());
-
-        let page: u32 = route_params
-            .and_then(|p| p.get("page"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(1);
-
-        let page_size: u32 = route_params
-            .and_then(|p| p.get("pageSize"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(10);
+        let page: u32 = context.page().unwrap_or(1);
+        let page_size: u32 = context.page_size().unwrap_or(20);
 
         let limit = page_size;
         let offset = if page > 0 { (page - 1) * limit } else { 0 };
 
         let timeline = repository
-            .get_timeline(limit, offset, context.is_admin())
+            .build_timeline(limit, offset)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
-        Ok(ResponseValue::new(Json(timeline)))
+        Ok(ResponseValue::json(timeline))
     }
 }
 
@@ -354,17 +329,14 @@ struct TimelineYearsHandler;
 #[get("/api/photos/timeline/years")]
 impl HttpHandler for TimelineYearsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context
-            .services()
-            .resolve::<Box<dyn PhotoRepository>>()
-            .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
+        let repository = context.service::<Repository<Photo>>()?;
 
         let years = repository
-            .get_years(context.is_admin())
+            .get_years()
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
-        Ok(ResponseValue::new(Json(years)))
+        Ok(ResponseValue::json(years))
     }
 }
 
@@ -374,18 +346,11 @@ struct YearOffsetHandler;
 #[get("/api/photos/timeline/year-offset/{year}")]
 impl HttpHandler for YearOffsetHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context
-            .services()
-            .resolve::<Box<dyn PhotoRepository>>()
-            .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
-
-        let year = context
-            .route()
-            .and_then(|route| route.params().get("year"))
-            .ok_or_else(|| PipelineError::message("year parameter missing"))?;
+        let repository = context.service::<Repository<Photo>>()?;
+        let year = context.param("year")?;
 
         let offset = repository
-            .get_year_offset(year, context.is_admin())
+            .get_year_offset(&year)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
@@ -396,42 +361,21 @@ impl HttpHandler for YearOffsetHandler {
 struct MapPhotosHandler;
 
 #[async_trait]
-#[get("/api/photos/with-gps/{page}/{pageSize}")]
+#[get("/api/photos/gps/{page}/{pageSize}")]
 impl HttpHandler for MapPhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context
-            .services()
-            .resolve::<Box<dyn PhotoRepository>>()
-            .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
-        let is_admin = context.is_admin();
+        let repository = context.service::<Repository<Photo>>()?;
 
-        let route_params = context.route().map(|r| r.params());
-
-        let page: u32 = route_params
-            .and_then(|p| p.get("page"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(1);
-
-        let page_size: u32 = route_params
-            .and_then(|p| p.get("pageSize"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(100);
+        let page: u32 = context.page().unwrap_or(1);
+        let page_size: u32 = context.page_size().unwrap_or(200);
 
         let limit = page_size;
         let offset = if page > 0 { (page - 1) * limit } else { 0 };
 
         let photos = repository
-            .get_with_gps(limit, offset, is_admin)
+            .photos_with_gps(limit, offset)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-        let photo_ids = PhotoController::collect_photo_loc_ids(&photos);
-        let tag_map = repository
-            .get_photo_tag_name_map(&photo_ids, is_admin)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-        let hidden_tags = PhotoController::viewer_hidden_tags(context).await?;
-        let photos = PhotoController::filter_photo_locs_for_viewer(photos, &hidden_tags, &tag_map);
-        let photos = PhotoController::attach_tags_to_locs(photos, &tag_map);
 
         let response = serde_json::json!({
             "page": page,
@@ -439,71 +383,7 @@ impl HttpHandler for MapPhotosHandler {
             "items": photos
         });
 
-        Ok(ResponseValue::new(Json(response)))
-    }
-}
-
-struct PhotosQueryHandler;
-
-#[async_trait]
-#[get("/api/photos")]
-impl HttpHandler for PhotosQueryHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context
-            .services()
-            .resolve::<Box<dyn PhotoRepository>>()
-            .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
-        let hidden_tags = PhotoController::viewer_hidden_tags(context).await?;
-
-        let query = context.request().query_params();
-        let tags_raw = query.get("tags").cloned().unwrap_or_default();
-        let tags = tags_raw
-            .split(',')
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .collect::<Vec<_>>();
-        let match_all = query
-            .get("match")
-            .map(|v| v.eq_ignore_ascii_case("all"))
-            .unwrap_or(false);
-        let page = query
-            .get("page")
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(1);
-        let page_size = query
-            .get("pageSize")
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(56);
-        let is_admin = PhotoController::is_admin(context);
-
-        if tags.is_empty() {
-            let mut page_result = repository
-                .get_photos_page(page, page_size, is_admin)
-                .await
-                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-            let photo_ids = PhotoController::collect_photo_ids(&page_result.items);
-            let tag_map = repository
-                .get_photo_tag_name_map(&photo_ids, is_admin)
-                .await
-                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-            page_result =
-                PhotoController::filter_photo_page_for_viewer(page_result, &hidden_tags, &tag_map);
-            let dto_page = PhotoController::attach_tags_to_page(page_result, &tag_map);
-            return Ok(ResponseValue::new(Json(dto_page)));
-        }
-
-        let mut result = repository
-            .filter_photos_by_tags(&tags, match_all, is_admin, page, page_size)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-        let photo_ids = PhotoController::collect_photo_ids(&result.items);
-        let tag_map = repository
-            .get_photo_tag_name_map(&photo_ids, is_admin)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-        result = PhotoController::filter_photo_page_for_viewer(result, &hidden_tags, &tag_map);
-        let dto_page = PhotoController::attach_tags_to_page(result, &tag_map);
-        Ok(ResponseValue::new(Json(dto_page)))
+        Ok(ResponseValue::json(response))
     }
 }
 
@@ -515,42 +395,38 @@ struct CreatePhotoCommentPayload {
 struct PhotoCommentsHandler;
 
 #[async_trait]
-#[get("/api/photos/comments/{id}")]
+#[get("/api/photos/comments/{id}/{page}/{pageSize}")]
 impl HttpHandler for PhotoCommentsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let photo_id_param = context
-            .route()
-            .and_then(|route| route.params().get("id"))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-        let photo_id = Uuid::parse_str(photo_id_param)
-            .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
+        let photo_id = context.id("id")?;
+        let page: u32 = context.page().unwrap_or(1);
+        let page_size: u32 = context.page_size().unwrap_or(50);
 
-        let repository = context
-            .service::<Repository<PhotoComment>>()
-            .map_err(|_| PipelineError::message("PhotoComment repository not found"))?;
+        let repository = context.service::<Repository<PhotoComment>>()?;
 
-        let mut query = Query::<PhotoComment>::new();
-        query.filters.push(Filter {
-            field: "photo_id".to_string(),
-            operator: FilterOperator::Eq,
-            value: Value::Uuid(photo_id),
-        });
-        query.sorting.push(Sort {
-            field: "created_at".to_string(),
-            direction: SortDirection::Desc,
-        });
+        let query = QueryBuilder::<PhotoComment>::new()
+            .filter("photo_id", FilterOperator::Eq, Value::Uuid(photo_id))
+            .sort_desc("created_at")
+            .page(page, page_size)
+            .build();
 
-        let comments_page = repository
+        let comments = repository
             .query(query)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-        let comments = comments_page
-            .items
-            .into_iter()
-            .map(PhotoCommentDto::from)
-            .collect::<Vec<_>>();
 
-        Ok(ResponseValue::new(Json(comments)))
+        let dtos = Page {
+            items: comments
+                .items
+                .into_iter()
+                .map(PhotoCommentDto::from)
+                .collect(),
+            total: comments.total,
+            page: comments.page,
+            page_size: comments.page_size,
+        };
+
+        Ok(ResponseValue::json(dtos))
     }
 }
 
@@ -560,6 +436,23 @@ struct CreatePhotoCommentHandler;
 #[post("/api/photos/comments/{id}")]
 impl HttpHandler for CreatePhotoCommentHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let user_id = context.current_user_id()?;
+        let photo_id = context.id("id")?;
+        let display_name = context.current_user_display_name().await?;
+
+        let identity = context
+            .get::<IdentityContext>()
+            .ok_or_else(|| PipelineError::message("Identity context not found"))?;
+
+        let settings = context.service::<SettingService>()?;
+        let can_comment = settings
+            .can_create_comments(identity.identity().claims().roles())
+            .await?;
+        if !can_comment {
+            context.response_mut().set_status(403);
+            return Ok(ResponseValue::empty());
+        }
+
         let payload = context
             .read_json::<CreatePhotoCommentPayload>()
             .map_err(|e| PipelineError::message(e.message()))?;
@@ -575,77 +468,19 @@ impl HttpHandler for CreatePhotoCommentHandler {
             )));
         }
 
-        let photo_id_param = context
-            .route()
-            .and_then(|route| route.params().get("id"))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-        let photo_id = Uuid::parse_str(photo_id_param)
-            .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
-
-        let identity = context
-            .get::<IdentityContext>()
-            .ok_or_else(|| PipelineError::message("Identity not found"))?;
-        let user_id = Uuid::parse_str(identity.identity().subject()).map_err(|_| {
-            PipelineError::message("Invalid identity: user ID is not valid, photo comment")
-        })?;
-        let settings = context.service::<SettingService>()?;
-        let can_comment = settings
-            .can_create_comments(identity.identity().claims().roles())
-            .await?;
-        if !can_comment {
-            context.response_mut().set_status(403);
-            return Ok(ResponseValue::empty());
-        }
-
-        let settings_repo = context.service::<Repository<UserSettings>>()?;
-        let display_name = settings_repo
-            .get(&user_id)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
-            .map(|settings| settings.display_name)
-            .unwrap_or_else(|| "Anonymous".to_string());
-
-        let mut new_comment = PhotoComment::default();
-        new_comment.id = Uuid::new_v4();
-        new_comment.photo_id = photo_id;
-        new_comment.user_id = user_id;
-        new_comment.user_display_name = Some(display_name);
-        new_comment.body = Some(body.to_string());
-        new_comment.created_at = Some(Utc::now());
-
+        let comment = PhotoComment::new(
+            photo_id,
+            user_id,
+            Some(display_name),
+            Some(body.to_string()),
+        );
         let repository = context.service::<Repository<PhotoComment>>()?;
         let saved = repository
-            .insert(new_comment)
+            .insert(comment)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
-        Ok(ResponseValue::new(Json(PhotoCommentDto::from(saved))))
-    }
-}
-
-struct PhotoMetadataHandler;
-
-#[async_trait]
-impl HttpHandler for PhotoMetadataHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context
-            .services()
-            .resolve::<Repository<ExifModel>>()
-            .ok_or_else(|| PipelineError::message("Exif repository not found"))?;
-
-        let photo_id_param = context
-            .route()
-            .and_then(|route| route.params().get("id"))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-        let photo_id = Uuid::parse_str(photo_id_param)
-            .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
-
-        let metadata = repository
-            .get_by("image_id", Value::Uuid(photo_id))
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-
-        Ok(ResponseValue::new(Json(metadata)))
+        Ok(ResponseValue::json(PhotoCommentDto::from(saved)))
     }
 }
 
@@ -655,13 +490,19 @@ struct PhotoTagsHandler;
 #[get("/api/photos/tags")]
 impl HttpHandler for PhotoTagsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context.service::<Box<dyn PhotoRepository>>()?;
+        let repository = context.service::<Repository<Tag>>()?;
+
+        let query = QueryBuilder::<Tag>::new()
+            .distinct()
+            .sort_asc("name")
+            .build();
+
         let tags = repository
-            .list_all_tags(PhotoController::is_admin(context))
+            .all(query)
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
         let names = tags.into_iter().map(|t| t.name).collect::<Vec<_>>();
-        Ok(ResponseValue::new(Json(names)))
+        Ok(ResponseValue::json(names))
     }
 }
 
@@ -684,23 +525,16 @@ impl HttpHandler for UpdatePhotoTagsHandler {
             .iter()
             .map(|name| TagRef::Name(name.clone()))
             .collect::<Vec<_>>();
-        let current_user_id = context
-            .get::<IdentityContext>()
-            .and_then(|ctx| Uuid::parse_str(ctx.identity().subject()).ok())
-            .ok_or_else(|| {
-                PipelineError::message(
-                    "Invalid identity: user ID is not valid, updating photo tags",
-                )
-            })?;
-        let repository = context.service::<Box<dyn PhotoRepository>>()?;
+        let photo_repo = context.service::<Repository<Photo>>()?;
+        let tag_repo = context.service::<Repository<Tag>>()?;
 
         let mut updated = 0u32;
         for raw_photo_id in payload.photo_ids {
-            let photo_id = Uuid::parse_str(raw_photo_id.trim())
-                .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
+            let photo_id = raw_photo_id.to_uuid().ok_or_else(|| {
+                PipelineError::message(&format!("invalid photo id: {}", raw_photo_id))
+            })?;
 
-            let exists = context
-                .service::<Repository<Photo>>()?
+            let exists = photo_repo
                 .get(&photo_id)
                 .await
                 .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
@@ -710,8 +544,8 @@ impl HttpHandler for UpdatePhotoTagsHandler {
                 continue;
             }
 
-            repository
-                .set_photo_tags(photo_id, &refs, Some(current_user_id))
+            tag_repo
+                .set_photo_tags(photo_id, &refs)
                 .await
                 .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
             updated += 1;
@@ -720,237 +554,5 @@ impl HttpHandler for UpdatePhotoTagsHandler {
         Ok(ResponseValue::new(Json(
             serde_json::json!({ "updated": updated }),
         )))
-    }
-}
-
-impl PhotoController {
-    fn is_admin(context: &HttpContext) -> bool {
-        context
-            .get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().contains("admin"))
-            .unwrap_or(false)
-    }
-
-    fn is_viewer(context: &HttpContext) -> bool {
-        context
-            .get::<IdentityContext>()
-            .map(|ctx| {
-                let identity = ctx.identity();
-                let roles = identity.claims().roles();
-                roles.contains("viewer") && !roles.contains("admin")
-            })
-            .unwrap_or(false)
-    }
-
-    async fn viewer_hidden_tags(context: &HttpContext) -> Result<HashSet<String>, PipelineError> {
-        if !Self::is_viewer(context) {
-            return Ok(HashSet::new());
-        }
-        let settings = context.service::<SettingService>()?;
-        settings.viewer_hidden_tags().await
-    }
-
-    async fn remove_photo_files(context: &HttpContext, photo: &Photo) -> u32 {
-        let mut deleted = Self::remove_file_if_exists(Path::new(&photo.path));
-
-        let Some(hash) = photo
-            .hash
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-        else {
-            return deleted;
-        };
-
-        if hash.len() < 4 {
-            return deleted;
-        }
-
-        match context.get_preview_root_by_storage(photo.storage_id).await {
-            Ok(preview_root) => {
-                deleted += Self::remove_hashed_file(&preview_root, hash, "jpg");
-            }
-            Err(err) => {
-                log::warn!(
-                    "Failed to resolve preview root for photo {}: {}",
-                    photo.id,
-                    err
-                );
-            }
-        }
-
-        match context
-            .get_thumbnail_root_by_storage(photo.storage_id)
-            .await
-        {
-            Ok(thumbnail_root) => {
-                deleted += Self::remove_hashed_file(&thumbnail_root, hash, "webp");
-                deleted += Self::remove_hashed_file(&thumbnail_root, hash, "jpg");
-            }
-            Err(err) => {
-                log::warn!(
-                    "Failed to resolve thumbnail root for photo {}: {}",
-                    photo.id,
-                    err
-                );
-            }
-        }
-
-        deleted
-    }
-
-    fn remove_hashed_file(root: &Path, hash: &str, extension: &str) -> u32 {
-        let path = root
-            .join(&hash[0..2])
-            .join(&hash[2..4])
-            .join(format!("{hash}.{extension}"));
-        Self::remove_file_if_exists(&path)
-    }
-
-    fn remove_file_if_exists(path: &Path) -> u32 {
-        if !path.exists() {
-            return 0;
-        }
-
-        match std::fs::remove_file(path) {
-            Ok(_) => 1,
-            Err(err) => {
-                log::warn!("Failed to delete file {}: {:?}", path.display(), err);
-                0
-            }
-        }
-    }
-
-    async fn resolve_upload_storage(
-        context: &HttpContext,
-        storage_id: Option<&str>,
-    ) -> Result<StorageLocation, PipelineError> {
-        let storage_repo = context.service::<Repository<StorageLocation>>()?;
-        let locations = storage_repo
-            .query(Query::<StorageLocation>::new())
-            .await
-            .map_err(|_| PipelineError::message("Failed to load storage locations"))?
-            .items;
-
-        if locations.is_empty() {
-            return Err(PipelineError::message("No storage location configured"));
-        }
-
-        if let Some(requested_storage_id) = storage_id {
-            let requested_storage_id = Uuid::parse_str(requested_storage_id)
-                .map_err(|_| PipelineError::message("Invalid storage location id"))?;
-            let selected = locations
-                .into_iter()
-                .find(|location| location.id == requested_storage_id)
-                .ok_or_else(|| PipelineError::message("Requested storage location not found"))?;
-            return Ok(selected);
-        }
-
-        locations
-            .iter()
-            .find(|location| location.is_default)
-            .cloned()
-            .or_else(|| locations.into_iter().next())
-            .ok_or_else(|| PipelineError::message("No storage location configured"))
-    }
-
-    fn filter_photo_page_for_viewer(
-        page: Page<Photo>,
-        hidden_tags: &HashSet<String>,
-        photo_tags: &HashMap<Uuid, Vec<String>>,
-    ) -> Page<Photo> {
-        if hidden_tags.is_empty() {
-            return page;
-        }
-
-        let items = Self::filter_photos_for_viewer(page.items, hidden_tags, photo_tags);
-        Page::new(items, page.total, page.page, page.page_size)
-    }
-
-    fn filter_photos_for_viewer(
-        photos: Vec<Photo>,
-        hidden_tags: &HashSet<String>,
-        photo_tags: &HashMap<Uuid, Vec<String>>,
-    ) -> Vec<Photo> {
-        if hidden_tags.is_empty() {
-            return photos;
-        }
-
-        photos
-            .into_iter()
-            .filter(|photo| {
-                let tags = photo_tags.get(&photo.id);
-                !Self::photo_has_hidden_tag(tags, hidden_tags)
-            })
-            .collect()
-    }
-
-    fn filter_photo_locs_for_viewer(
-        photos: Vec<PhotoLoc>,
-        hidden_tags: &HashSet<String>,
-        photo_tags: &HashMap<Uuid, Vec<String>>,
-    ) -> Vec<PhotoLoc> {
-        if hidden_tags.is_empty() {
-            return photos;
-        }
-
-        photos
-            .into_iter()
-            .filter(|photo| {
-                let tags = photo_tags.get(&photo.photo.id);
-                !Self::photo_has_hidden_tag(tags, hidden_tags)
-            })
-            .collect()
-    }
-
-    fn photo_has_hidden_tag(tags: Option<&Vec<String>>, hidden_tags: &HashSet<String>) -> bool {
-        tags.map(|items| {
-            items
-                .iter()
-                .any(|tag| hidden_tags.contains(&tag.trim().to_lowercase()))
-        })
-        .unwrap_or(false)
-    }
-
-    fn collect_photo_ids(photos: &[Photo]) -> Vec<Uuid> {
-        photos.iter().map(|photo| photo.id).collect()
-    }
-
-    fn collect_photo_loc_ids(photos: &[PhotoLoc]) -> Vec<Uuid> {
-        photos.iter().map(|photo| photo.photo.id).collect()
-    }
-
-    fn attach_tags_to_page(
-        page: Page<Photo>,
-        photo_tags: &HashMap<Uuid, Vec<String>>,
-    ) -> Page<PhotoWithTags> {
-        let items = page
-            .items
-            .into_iter()
-            .map(|photo| {
-                let tags = photo_tags.get(&photo.id).cloned().unwrap_or_default();
-                PhotoWithTags { photo, tags }
-            })
-            .collect();
-        Page::new(items, page.total, page.page, page.page_size)
-    }
-
-    fn attach_tags_to_locs(
-        photos: Vec<PhotoLoc>,
-        photo_tags: &HashMap<Uuid, Vec<String>>,
-    ) -> Vec<PhotoLocWithTags> {
-        photos
-            .into_iter()
-            .map(|photo_loc| {
-                let tags = photo_tags
-                    .get(&photo_loc.photo.id)
-                    .cloned()
-                    .unwrap_or_default();
-                PhotoLocWithTags {
-                    loc: photo_loc,
-                    tags,
-                }
-            })
-            .collect()
     }
 }

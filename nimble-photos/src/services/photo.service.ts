@@ -398,7 +398,7 @@ export class PhotoService {
 
   getPhotosWithGps(page = 1, pageSize = 100): Observable<{ page: number, pageSize: number, total: number, items: PhotoLoc[] }> {
     return this.http
-      .get<PagedModel<PhotoLocResponse>>(`${this.apiBase}/photos/with-gps/${page}/${pageSize}`)
+      .get<PagedModel<PhotoLocResponse>>(`${this.apiBase}/photos/gps/${page}/${pageSize}`)
       .pipe(
         map((response) => ({
           page: response.page,

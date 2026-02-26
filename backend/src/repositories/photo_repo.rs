@@ -1,7 +1,9 @@
 use async_trait::async_trait;
+use serde::Deserialize;
 use std::path::Path;
 use uuid::Uuid;
 
+use crate::dtos::photo_dtos::{PhotoGroup, PhotoLoc, TimelineGroup};
 use crate::entities::album_photo::AlbumPhoto;
 use crate::entities::exif::ExifModel;
 use crate::entities::photo::Photo;
@@ -41,6 +43,22 @@ pub trait PhotoRepositoryExtensions {
         photo: &Photo,
         context: &HttpContext,
     ) -> Result<(), PipelineError>;
+
+    async fn get_years(&self) -> Result<Vec<String>, PipelineError>;
+
+    async fn get_year_offset(&self, year: &str) -> Result<u32, PipelineError>;
+
+    async fn photos_with_gps(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<PhotoLoc>, PipelineError>;
+
+    async fn build_timeline(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<TimelineGroup>, PipelineError>;
 }
 
 #[async_trait]
@@ -145,5 +163,166 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         let _ = file_service.remove_file(&preview_path);
 
         Ok(())
+    }
+
+    async fn get_years(&self) -> Result<Vec<String>, PipelineError> {
+        #[derive(Deserialize)]
+        struct YearRow {
+            year: String,
+        }
+
+        let sql = format!(
+            r#"
+            SELECT DISTINCT to_char(p.day_date, 'YYYY') as year
+            FROM photos p
+            ORDER BY year DESC
+        "#
+        );
+
+        let rows = self
+            .raw_query::<YearRow>(&sql, &[])
+            .await
+            .map_err(|e| PipelineError::message(&format!("failed to load years: {:?}", e)))?;
+
+        Ok(rows.into_iter().map(|row| row.year).collect())
+    }
+
+    async fn get_year_offset(&self, year: &str) -> Result<u32, PipelineError> {
+        #[derive(Deserialize)]
+        struct OffsetRow {
+            offset: i64,
+        }
+
+        let sql = format!(
+            r#"
+            WITH day_groups AS (
+                SELECT DISTINCT to_char(p.day_date, 'YYYY-MM-DD') as day
+                FROM photos p
+            )
+            SELECT count(*) as offset
+            FROM day_groups
+            WHERE day > $1
+        "#
+        );
+
+        let search_start = format!("{}-12-31", year);
+        let rows = self
+            .raw_query::<OffsetRow>(&sql, &[Value::String(search_start)])
+            .await
+            .map_err(|e| PipelineError::message(&format!("failed to load year offset: {:?}", e)))?;
+        let offset = rows.first().map(|row| row.offset).unwrap_or(0);
+        Ok(offset.max(0) as u32)
+    }
+
+    async fn photos_with_gps(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<PhotoLoc>, PipelineError> {
+        let sql = format!(
+            r#"
+            SELECT
+                p.id, p.storage_id, p.path, p.name, p.format, p.hash, p.size,
+                p.created_at, p.updated_at, p.date_imported, p.date_taken,
+                p.metadata_extracted, p.is_raw,
+                CASE
+                    WHEN e.orientation IN (5, 6, 7, 8) THEN
+                        COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
+                    ELSE
+                        COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
+                END as width,
+                CASE
+                    WHEN e.orientation IN (5, 6, 7, 8) THEN
+                        COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
+                    ELSE
+                        COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
+                END as height,
+                p.day_date,
+                p.sort_date,
+                e.gps_latitude as lat,
+                e.gps_longitude as lon
+            FROM photos p
+            JOIN exifs e ON p.id = e.image_id
+            WHERE
+                e.gps_latitude IS NOT NULL
+                AND e.gps_longitude IS NOT NULL
+                AND e.gps_latitude <> 0
+                AND e.gps_longitude <> 0
+            ORDER BY p.sort_date DESC
+            LIMIT $1 OFFSET $2
+        "#
+        );
+
+        let rows = self
+            .raw_query::<PhotoLoc>(&sql, &[Value::Int(limit as i64), Value::Int(offset as i64)])
+            .await
+            .map_err(|e| {
+                PipelineError::message(&format!("failed to load photos with GPS: {:?}", e))
+            })?;
+
+        Ok(rows)
+    }
+
+    async fn build_timeline(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<TimelineGroup>, PipelineError> {
+        let sql = format!(
+            r#"
+            WITH target_days AS (
+                SELECT DISTINCT
+                    p.day_date
+                FROM photos p
+                ORDER BY p.day_date DESC
+                LIMIT $1 OFFSET $2
+            )
+            SELECT
+                to_char(td.day_date, 'YYYY-MM-DD') AS day,
+                p_agg.total_count,
+                p_agg.photos_payload
+            FROM target_days td
+            LEFT JOIN LATERAL (
+                SELECT
+                    count(*) AS total_count,
+                    json_agg(
+                        json_build_object(
+                            'id', dp.id,
+                            'hash', COALESCE(dp.hash, ''),
+                            'width', dp.width,
+                            'height', dp.height,
+                            'name', dp.name
+                        )
+                    ) AS photos_payload
+                FROM (
+                    SELECT p.id, p.hash, p.width, p.height, p.name
+                    FROM photos p
+                    WHERE p.day_date = td.day_date
+                    ORDER BY p.sort_date DESC
+                ) dp
+            ) p_agg ON true
+            ORDER BY td.day_date DESC;
+        "#
+        );
+
+        let groups = self
+            .raw_query::<PhotoGroup>(&sql, &[Value::Int(limit as i64), Value::Int(offset as i64)])
+            .await
+            .map_err(|e| PipelineError::message(&format!("failed to load timeline: {:?}", e)))?;
+
+        let mut timeline = Vec::new();
+        for group in groups {
+            timeline.push(TimelineGroup {
+                title: group.day,
+                photos: Page::new(
+                    group.photos_payload,
+                    group.total_count as u64,
+                    1,
+                    group.total_count as u32,
+                ),
+            });
+        }
+
+        Ok(timeline)
     }
 }

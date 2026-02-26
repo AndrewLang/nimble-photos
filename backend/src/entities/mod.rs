@@ -15,7 +15,6 @@ use user_settings::UserSettings;
 use uuid_id::EnsureUuidIdHooks;
 
 use crate::entities::album_hooks::AlbumHooks;
-use crate::repositories::photo::PhotoRepository;
 use anyhow::{Result, anyhow};
 #[cfg(feature = "postgres")]
 use nimble_web::data::postgres::PostgresEntity;
@@ -156,14 +155,6 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let pool = p.get::<PgPool>();
             let provider = PostgresProvider::<Photo>::new((*pool).clone());
             Repository::<Photo>::new(Box::new(provider))
-        });
-
-        builder.register_singleton(|p| {
-            let pool = p.get::<PgPool>();
-            let repo: Box<dyn PhotoRepository> = Box::new(
-                crate::repositories::photo::PostgresPhotoRepository::new((*pool).clone()),
-            );
-            repo
         });
 
         builder.register_singleton(|p| {
@@ -347,12 +338,11 @@ async fn migrate_album_rules_json(pool: &sqlx::PgPool) -> Result<()> {
         return Ok(());
     }
 
-    let rows = sqlx::query(
-        "SELECT id, rules_json, create_date FROM albums WHERE rules_json IS NOT NULL",
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(|e| anyhow!("Failed to fetch album rules_json rows: {}", e))?;
+    let rows =
+        sqlx::query("SELECT id, rules_json, create_date FROM albums WHERE rules_json IS NOT NULL")
+            .fetch_all(pool)
+            .await
+            .map_err(|e| anyhow!("Failed to fetch album rules_json rows: {}", e))?;
 
     for row in rows {
         let album_id: uuid::Uuid = row

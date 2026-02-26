@@ -1,12 +1,27 @@
 use crate::entities::photo::{Photo, PhotoViewModel};
 use nimble_web::data::paging::Page;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Clone)]
+pub enum TagRef {
+    Id(Uuid),
+    Name(String),
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimelineGroup {
     pub title: String,
     pub photos: Page<PhotoViewModel>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhotoGroup {
+    pub day: String,
+    pub total_count: i64,
+    pub photos_payload: Vec<PhotoViewModel>,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]

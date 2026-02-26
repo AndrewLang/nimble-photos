@@ -20,6 +20,7 @@ use crate::entities::photo::Photo;
 use crate::entities::photo_browse::BrowseOptions;
 use crate::entities::photo_browse::BrowseRequest;
 use crate::entities::storage_location::StorageLocation;
+use crate::entities::user_settings::UserSettings;
 use crate::models::setting_consts::SettingConsts;
 use crate::repositories::photo_repo::PhotoRepositoryExtensions;
 use crate::services::SettingService;
@@ -42,6 +43,7 @@ pub trait HttpContextExtensions {
     fn param(&self, key: &str) -> Result<String, PipelineError>;
     fn id(&self, key: &str) -> Result<Uuid, PipelineError>;
     fn body_bytes(&self) -> Result<Vec<u8>, PipelineError>;
+    async fn current_user_display_name(&self) -> Result<String, PipelineError>;
     async fn can_upload_photos(&self) -> Result<bool, PipelineError>;
     async fn can_access_dashboard(&self) -> Result<bool, PipelineError>;
     async fn can_update_setting(&self, key: &str) -> Result<bool, PipelineError>;
@@ -235,6 +237,18 @@ impl HttpContextExtensions for HttpContext {
             .to_string();
         Uuid::parse_str(&subject)
             .map_err(|_| PipelineError::message("Invalid identity: user ID is not valid"))
+    }
+
+    async fn current_user_display_name(&self) -> Result<String, PipelineError> {
+        let user_id = self.current_user_id()?;
+        let settings_repo = self.service::<Repository<UserSettings>>()?;
+        let display_name = settings_repo
+            .get(&user_id)
+            .await
+            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
+            .map(|settings| settings.display_name)
+            .unwrap_or_else(|| "Anonymous".to_string());
+        Ok(display_name)
     }
 
     fn extract_api_key(&self) -> Result<String, PipelineError> {
