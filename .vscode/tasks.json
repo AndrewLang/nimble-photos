@@ -2,11 +2,15 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "cargo build",
+            "label": "backend: build debug",
             "type": "shell",
             "command": "cargo",
             "args": [
-                "build"
+                "build",
+                "--package",
+                "nimble-photos",
+                "--bin",
+                "nimble-photos"
             ],
             "options": {
                 "cwd": "${workspaceFolder}/backend"
@@ -14,6 +18,24 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
+            },
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "backend: run",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--package",
+                "nimble-photos",
+                "--bin",
+                "nimble-photos"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
             },
             "problemMatcher": [
                 "$rustc"

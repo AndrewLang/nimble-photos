@@ -1,17 +1,23 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Backend",
+            "name": "Debug Backend (LLDB)",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/backend/target/debug/nimble-photos.exe",
             "args": [],
-            "cwd": "${workspaceFolder}/backend/target/debug",
-            "preLaunchTask": "cargo build"
+            "cwd": "${workspaceFolder}/backend",
+            "terminal": "integrated",
+            "env": {
+                "RUST_LOG": "debug",
+                "RUST_BACKTRACE": "1",
+                "Nimble_Photo_Url": "0.0.0.0:5151"
+            },
+            "sourceLanguages": [
+                "rust"
+            ],
+            "preLaunchTask": "backend: build debug"
         }
     ]
 }

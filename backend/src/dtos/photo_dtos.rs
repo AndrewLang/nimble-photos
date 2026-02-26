@@ -21,6 +21,7 @@ pub struct TimelineGroup {
 pub struct PhotoGroup {
     pub day: String,
     pub total_count: i64,
+    #[serde(default)]
     pub photos_payload: Vec<PhotoViewModel>,
 }
 

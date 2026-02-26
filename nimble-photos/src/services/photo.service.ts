@@ -184,7 +184,7 @@ export class PhotoService {
     }
 
     return this.http
-      .get<{ title: string; photos: PagedModel<PhotoResponse> }[]>(`${this.apiBase}/photos/timeline/${page}/${pageSize}`)
+      .get<{ title: string; photos: PagedModel<PhotoResponse> }[]>(`${this.apiBase}/timeline/${page}/${pageSize}`)
       .pipe(
         map((groups) =>
           groups.map((g) => ({
@@ -245,13 +245,13 @@ export class PhotoService {
   }
 
   getTimelineYears(): Observable<string[]> {
-    return this.http.get<string[]>(`${this.apiBase}/photos/timeline/years`).pipe(
+    return this.http.get<string[]>(`${this.apiBase}/timeline/years`).pipe(
       catchError(() => of([]))
     );
   }
 
   getTimelineYearOffset(year: string): Observable<number> {
-    return this.http.get<number>(`${this.apiBase}/photos/timeline/year-offset/${year}`).pipe(
+    return this.http.get<number>(`${this.apiBase}/timeline/year-offset/${year}`).pipe(
       catchError(() => of(0))
     );
   }

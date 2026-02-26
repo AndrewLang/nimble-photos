@@ -10,6 +10,7 @@ use nimble_web::*;
 use photo::Photo;
 use photo_comment::PhotoComment;
 use setting::Setting;
+use timeline::TimelineDay;
 use user::User;
 use user_settings::UserSettings;
 use uuid_id::EnsureUuidIdHooks;
@@ -39,6 +40,7 @@ pub mod photo_tag;
 pub mod setting;
 pub mod storage_location;
 pub mod tag;
+pub mod timeline;
 pub mod user;
 pub mod user_settings;
 pub mod uuid_id;
@@ -98,6 +100,9 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             EntityOperation::Update,
         ],
     );
+    builder
+        .use_entity_with_operations::<TimelineDay>(&[EntityOperation::List, EntityOperation::Get]);
+
     #[cfg(not(feature = "postgres"))]
     {
         builder.register_singleton(|_| {
@@ -143,6 +148,10 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         builder.register_singleton(|_| {
             let provider = MemoryRepository::<Setting>::new();
             Repository::<Setting>::new(Box::new(provider))
+        });
+        builder.register_singleton(|_| {
+            let provider = MemoryRepository::<TimelineDay>::new();
+            Repository::<TimelineDay>::new(Box::new(provider))
         });
     }
 
@@ -216,6 +225,11 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
             let provider = PostgresProvider::<Setting>::new((*pool).clone());
             Repository::<Setting>::new(Box::new(provider))
         });
+        builder.register_singleton(|p| {
+            let pool = p.get::<PgPool>();
+            let provider = PostgresProvider::<TimelineDay>::new((*pool).clone());
+            Repository::<TimelineDay>::new(Box::new(provider))
+        });
     }
 
     builder
@@ -242,6 +256,7 @@ pub async fn migrate_entities(app: &Application) -> Result<()> {
         migrate_entity::<AlbumComment>(app).await?;
         migrate_entity::<AlbumPhoto>(app).await?;
         migrate_entity::<Setting>(app).await?;
+        migrate_entity::<TimelineDay>(app).await?;
 
         let pool = app
             .services()
@@ -291,6 +306,7 @@ pub async fn ensure_supporting_schema(pool: &sqlx::PgPool) -> Result<()> {
         "ALTER TABLE clientstorages ADD CONSTRAINT clientstorages_pkey PRIMARY KEY (id)",
         "CREATE UNIQUE INDEX IF NOT EXISTS ux_clientstorages_client_storage ON clientstorages (client_id, storage_id)",
         "CREATE INDEX IF NOT EXISTS idx_photos_day_taken ON photos (day_date DESC, date_taken DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_timeline_days_day_date_year ON timeline_days (day_date, year)",
         "CREATE INDEX IF NOT EXISTS idx_photos_hash ON photos(hash)",
         "CREATE INDEX IF NOT EXISTS idx_photos_storage ON photos(storage_id)",
         "CREATE INDEX IF NOT EXISTS idx_exifs_image_id ON exifs (image_id)",

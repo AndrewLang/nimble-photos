@@ -300,64 +300,6 @@ impl HttpHandler for PreviewHandler {
     }
 }
 
-struct TimelineHandler;
-
-#[async_trait]
-#[get("/api/photos/timeline/{page}/{pageSize}")]
-impl HttpHandler for TimelineHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context.service::<Repository<Photo>>()?;
-
-        let page: u32 = context.page().unwrap_or(1);
-        let page_size: u32 = context.page_size().unwrap_or(20);
-
-        let limit = page_size;
-        let offset = if page > 0 { (page - 1) * limit } else { 0 };
-
-        let timeline = repository
-            .build_timeline(limit, offset)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-
-        Ok(ResponseValue::json(timeline))
-    }
-}
-
-struct TimelineYearsHandler;
-
-#[async_trait]
-#[get("/api/photos/timeline/years")]
-impl HttpHandler for TimelineYearsHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context.service::<Repository<Photo>>()?;
-
-        let years = repository
-            .get_years()
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-
-        Ok(ResponseValue::json(years))
-    }
-}
-
-struct YearOffsetHandler;
-
-#[async_trait]
-#[get("/api/photos/timeline/year-offset/{year}")]
-impl HttpHandler for YearOffsetHandler {
-    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let repository = context.service::<Repository<Photo>>()?;
-        let year = context.param("year")?;
-
-        let offset = repository
-            .get_year_offset(&year)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-
-        Ok(ResponseValue::new(Json(offset)))
-    }
-}
-
 struct MapPhotosHandler;
 
 #[async_trait]

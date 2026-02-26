@@ -8,6 +8,7 @@ pub mod httpcontext_extensions;
 pub mod photo_controller;
 pub mod storage_controller;
 pub mod tag_controller;
+pub mod timeline_controller;
 
 use admin_user_controller::AdminUserController;
 use album_controller::AlbumController;
@@ -17,7 +18,6 @@ use client_controller::ClientHandlers;
 use dashboard_controller::DashboardController;
 use nimble_web::*;
 use photo_controller::PhotoController;
-use storage_controller::StorageHandlers;
 use tag_controller::TagController;
 
 pub fn register_controllers(builder: &mut AppBuilder) -> &mut AppBuilder {
@@ -29,8 +29,7 @@ pub fn register_controllers(builder: &mut AppBuilder) -> &mut AppBuilder {
         .use_controller::<TagController>()
         .use_controller::<DashboardController>()
         .use_controller::<AlbumController>()
-        .use_controller::<AssetsController>()
-        .use_controller::<StorageHandlers>();
+        .use_controller::<AssetsController>();
 
     builder
 }

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use serde::Deserialize;
 use std::path::Path;
 use uuid::Uuid;
@@ -7,6 +8,7 @@ use crate::dtos::photo_dtos::{PhotoGroup, PhotoLoc, TimelineGroup};
 use crate::entities::album_photo::AlbumPhoto;
 use crate::entities::exif::ExifModel;
 use crate::entities::photo::Photo;
+use crate::entities::photo::PhotoViewModel;
 use crate::entities::photo_comment::PhotoComment;
 use crate::entities::storage_location::StorageLocation;
 use crate::models::setting_consts::SettingConsts;
@@ -53,6 +55,9 @@ pub trait PhotoRepositoryExtensions {
         limit: u32,
         offset: u32,
     ) -> Result<Vec<PhotoLoc>, PipelineError>;
+
+    async fn photos_for_days(&self, days: Vec<String>)
+    -> Result<Vec<TimelineGroup>, PipelineError>;
 
     async fn build_timeline(
         &self,
@@ -279,12 +284,12 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
             )
             SELECT
                 to_char(td.day_date, 'YYYY-MM-DD') AS day,
-                p_agg.total_count,
-                p_agg.photos_payload
+                p_agg.totalCount,
+                p_agg.photosPayload
             FROM target_days td
             LEFT JOIN LATERAL (
                 SELECT
-                    count(*) AS total_count,
+                    count(*) AS totalCount,
                     json_agg(
                         json_build_object(
                             'id', dp.id,
@@ -293,7 +298,7 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
                             'height', dp.height,
                             'name', dp.name
                         )
-                    ) AS photos_payload
+                    ) AS photosPayload
                 FROM (
                     SELECT p.id, p.hash, p.width, p.height, p.name
                     FROM photos p
@@ -324,5 +329,66 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         }
 
         Ok(timeline)
+    }
+
+    async fn photos_for_days(
+        &self,
+        days: Vec<String>,
+    ) -> Result<Vec<TimelineGroup>, PipelineError> {
+        log::info!("Loading photos for days: {:?}", days.clone());
+        let day_dates: Vec<NaiveDate> = days
+            .iter()
+            .map(|d| {
+                NaiveDate::parse_from_str(d, "%Y-%m-%d")
+                    .map_err(|e| PipelineError::message(&format!("invalid day '{}': {}", d, e)))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let query = QueryBuilder::<Photo>::new()
+            .filter(
+                "day_date",
+                FilterOperator::In,
+                Value::List(day_dates.into_iter().map(Value::Date).collect()),
+            )
+            .sort_desc("sort_date")
+            .build();
+        log::info!("Query: {:?}", query);
+
+        let photos = self.all(query).await.map_err(|e| {
+            PipelineError::message(&format!("failed to load photos for days: {:?}", e))
+        })?;
+
+        let mut groups: Vec<TimelineGroup> = Vec::new();
+
+        for day in days {
+            let day_photos: Vec<Photo> = photos
+                .iter()
+                .filter(|p| p.day_date.format("%Y-%m-%d").to_string() == day)
+                .cloned()
+                .collect();
+            let length = day_photos.len();
+
+            let group = TimelineGroup {
+                title: day.clone(),
+                photos: Page::new(
+                    day_photos
+                        .into_iter()
+                        .map(|p| PhotoViewModel {
+                            id: p.id,
+                            hash: p.hash.unwrap_or_default(),
+                            width: p.width,
+                            height: p.height,
+                            name: p.name,
+                        })
+                        .collect(),
+                    length as u64,
+                    1,
+                    length as u32,
+                ),
+            };
+            groups.push(group);
+        }
+
+        Ok(groups)
     }
 }

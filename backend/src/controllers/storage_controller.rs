@@ -12,23 +12,13 @@ use crate::repositories::storage_repo::StorageRepositoryExtensions;
 use crate::repositories::validation::StringValidations;
 
 use nimble_web::DataProvider;
-use nimble_web::controller::controller::Controller;
 use nimble_web::data::repository::Repository;
 use nimble_web::endpoint::http_handler::HttpHandler;
-use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
 use nimble_web::{delete, get, post, put};
-
-pub struct StorageHandlers;
-
-impl Controller for StorageHandlers {
-    fn routes() -> Vec<EndpointRoute> {
-        vec![]
-    }
-}
 
 struct DisksHandler;
 
