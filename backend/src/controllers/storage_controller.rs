@@ -39,23 +39,10 @@ impl HttpHandler for ListStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repo = context.service::<Repository<StorageLocation>>()?;
         let locations = repo.load_storages().await?;
-        let disks = repo.list_disks();
 
-        let response = locations
-            .into_iter()
-            .map(|location| {
-                let disk = repo.find_disk(&location.path, &disks);
-                StorageLocationResponse {
-                    id: location.id.to_string(),
-                    label: location.label,
-                    path: location.path,
-                    is_default: location.is_default,
-                    created_at: location.created_at,
-                    category_template: location.category_template,
-                    disk,
-                }
-            })
-            .collect::<Vec<_>>();
+        let response = repo
+            .to_storage_responses(locations)
+            .map_err(|_| PipelineError::message("failed to load storage settings"))?;
 
         Ok(ResponseValue::json(response))
     }
@@ -111,6 +98,7 @@ impl HttpHandler for CreateStorageHandler {
             label: label_value.to_string(),
             path: full_path_value,
             is_default,
+            readonly: false,
             created_at: Utc::now().to_rfc3339(),
             category_template: payload
                 .category_template
@@ -222,23 +210,9 @@ impl HttpHandler for UpdateStorageHandler {
             .map_err(|_| PipelineError::message("failed to save storage settings"))?;
 
         let locations = repository.load_storages().await?;
-        let disks = repository.list_disks();
-
-        let response = locations
-            .into_iter()
-            .map(|location| {
-                let disk = repository.find_disk(&location.path, &disks);
-                StorageLocationResponse {
-                    id: location.id.to_string(),
-                    label: location.label,
-                    path: location.path,
-                    is_default: location.is_default,
-                    created_at: location.created_at,
-                    category_template: location.category_template,
-                    disk,
-                }
-            })
-            .collect::<Vec<_>>();
+        let response = repository
+            .to_storage_responses(locations)
+            .map_err(|_| PipelineError::message("failed to load storage settings"))?;
 
         Ok(ResponseValue::json(response))
     }
@@ -273,23 +247,9 @@ impl HttpHandler for DefaultStorageHandler {
             .map_err(|_| PipelineError::message("failed to save storage settings"))?;
 
         let locations = storage_repo.load_storages().await?;
-        let disks = storage_repo.list_disks();
-
-        let response = locations
-            .into_iter()
-            .map(|location| {
-                let disk = storage_repo.find_disk(&location.path, &disks);
-                StorageLocationResponse {
-                    id: location.id.to_string(),
-                    label: location.label,
-                    path: location.path,
-                    is_default: location.is_default,
-                    created_at: location.created_at,
-                    category_template: location.category_template,
-                    disk,
-                }
-            })
-            .collect::<Vec<_>>();
+        let response = storage_repo
+            .to_storage_responses(locations)
+            .map_err(|_| PipelineError::message("failed to load storage settings"))?;
 
         Ok(ResponseValue::json(response))
     }
@@ -334,23 +294,9 @@ impl HttpHandler for DeleteStorageHandler {
                 locations = repository.load_storages().await?;
             }
         }
-        let disks = repository.list_disks();
-
-        let response = locations
-            .into_iter()
-            .map(|location| {
-                let disk = repository.find_disk(&location.path, &disks);
-                StorageLocationResponse {
-                    id: location.id.to_string(),
-                    label: location.label,
-                    path: location.path,
-                    is_default: location.is_default,
-                    created_at: location.created_at,
-                    category_template: location.category_template,
-                    disk,
-                }
-            })
-            .collect::<Vec<_>>();
+        let response = repository
+            .to_storage_responses(locations)
+            .map_err(|_| PipelineError::message("failed to load storage settings"))?;
 
         Ok(ResponseValue::json(response))
     }

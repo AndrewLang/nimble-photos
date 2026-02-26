@@ -154,7 +154,7 @@ export class JustifiedGalleryComponent implements OnInit, AfterViewInit {
     });
 
     private currentPage = 1;
-    private readonly pageSize = 2;
+    private readonly pageSize = 10;
     private hasMore = true;
     private isRestoring = false;
     private lastSelectedIndex: number | null = null;

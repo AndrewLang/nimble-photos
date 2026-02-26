@@ -16,11 +16,13 @@ use user_settings::UserSettings;
 use uuid_id::EnsureUuidIdHooks;
 
 use crate::entities::album_hooks::AlbumHooks;
+#[cfg(feature = "postgres")]
+use crate::models::setting_consts::SettingConsts;
 use anyhow::{Result, anyhow};
 #[cfg(feature = "postgres")]
 use nimble_web::data::postgres::PostgresEntity;
-#[cfg(feature = "postgres")]
-use sqlx::Row;
+
+use std::path::{Path, PathBuf};
 
 pub use storage_location::StorageLocation;
 
@@ -305,6 +307,8 @@ pub async fn ensure_supporting_schema(pool: &sqlx::PgPool) -> Result<()> {
         "ALTER TABLE clientstorages DROP CONSTRAINT IF EXISTS clientstorages_pkey",
         "ALTER TABLE clientstorages ADD CONSTRAINT clientstorages_pkey PRIMARY KEY (id)",
         "CREATE UNIQUE INDEX IF NOT EXISTS ux_clientstorages_client_storage ON clientstorages (client_id, storage_id)",
+        "ALTER TABLE storages ADD COLUMN IF NOT EXISTS readonly BOOLEAN NOT NULL DEFAULT false",
+        "UPDATE storages SET readonly = true WHERE id = '00000000-0000-0000-0000-000000000001'::uuid",
         "CREATE INDEX IF NOT EXISTS idx_photos_day_taken ON photos (day_date DESC, date_taken DESC)",
         "CREATE INDEX IF NOT EXISTS idx_timeline_days_day_date_year ON timeline_days (day_date, year)",
         "CREATE INDEX IF NOT EXISTS idx_photos_hash ON photos(hash)",
@@ -333,82 +337,55 @@ pub async fn ensure_supporting_schema(pool: &sqlx::PgPool) -> Result<()> {
             .map_err(|err| anyhow!("Failed to execute SQL '{}': {}", sql, err))?;
     }
 
-    migrate_album_rules_json(pool).await?;
+    ensure_default_storage(pool).await?;
 
     Ok(())
 }
 
 #[cfg(feature = "postgres")]
-async fn migrate_album_rules_json(pool: &sqlx::PgPool) -> Result<()> {
-    let has_rules_json: bool = sqlx::query_scalar(
-        "SELECT EXISTS (
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_name = 'albums' AND column_name = 'rules_json'
-        )",
-    )
-    .fetch_one(pool)
-    .await
-    .map_err(|e| anyhow!("Failed to check albums.rules_json: {}", e))?;
-    if !has_rules_json {
-        return Ok(());
-    }
-
-    let rows =
-        sqlx::query("SELECT id, rules_json, create_date FROM albums WHERE rules_json IS NOT NULL")
-            .fetch_all(pool)
-            .await
-            .map_err(|e| anyhow!("Failed to fetch album rules_json rows: {}", e))?;
-
-    for row in rows {
-        let album_id: uuid::Uuid = row
-            .try_get("id")
-            .map_err(|e| anyhow!("Failed to read album id: {}", e))?;
-        let rules_json: Option<String> = row
-            .try_get("rules_json")
-            .map_err(|e| anyhow!("Failed to read rules_json: {}", e))?;
-        let create_date: Option<chrono::DateTime<chrono::Utc>> = row
-            .try_get("create_date")
-            .map_err(|e| anyhow!("Failed to read create_date: {}", e))?;
-        let created_at = create_date.unwrap_or_else(chrono::Utc::now);
-        let Some(raw) = rules_json else {
-            continue;
-        };
-
-        let parsed = serde_json::from_str::<serde_json::Value>(&raw);
-        let photo_ids = parsed
-            .ok()
-            .and_then(|value| value.get("photoIds").cloned())
-            .and_then(|value| value.as_array().cloned())
-            .unwrap_or_default();
-
-        for photo in photo_ids {
-            let Some(photo_id) = photo.as_str() else {
-                continue;
-            };
-            let Ok(photo_id) = uuid::Uuid::parse_str(photo_id) else {
-                continue;
-            };
-
-            sqlx::query(
-                "INSERT INTO album_photos (id, album_id, photo_id, created_at)
-                 VALUES ($1, $2, $3, $4)
-                 ON CONFLICT (album_id, photo_id) DO NOTHING",
-            )
-            .bind(uuid::Uuid::new_v4())
-            .bind(album_id)
-            .bind(photo_id)
-            .bind(created_at.clone())
-            .execute(pool)
-            .await
-            .map_err(|e| anyhow!("Failed to migrate album photo mapping: {}", e))?;
+fn default_storage_root() -> PathBuf {
+    if cfg!(windows) {
+        if let Ok(user_profile) = std::env::var("USERPROFILE") {
+            return Path::new(&user_profile)
+                .join("AppData")
+                .join("Local")
+                .join("photon");
         }
     }
 
-    sqlx::query("ALTER TABLE albums DROP COLUMN IF EXISTS rules_json")
-        .execute(pool)
+    PathBuf::from("./previews")
+}
+
+#[cfg(feature = "postgres")]
+async fn ensure_default_storage(pool: &sqlx::PgPool) -> Result<()> {
+    let readonly_id = SettingConsts::DEFAULT_STORAGE_ID.clone();
+    let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM storages WHERE id = $1)")
+        .bind(readonly_id)
+        .fetch_one(pool)
         .await
-        .map_err(|e| anyhow!("Failed to drop albums.rules_json: {}", e))?;
+        .map_err(|e| anyhow!("Failed to check default storage existence: {}", e))?;
+
+    if exists {
+        return Ok(());
+    }
+
+    let path = default_storage_root().to_string_lossy().to_string();
+    let created_at = chrono::Utc::now().to_rfc3339();
+
+    sqlx::query(
+        "INSERT INTO storages (id, label, path, is_default, readonly, created_at, category_template)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)",
+    )
+    .bind(readonly_id)
+    .bind("Preview Cache")
+    .bind(path)
+    .bind(false)
+    .bind(true)
+    .bind(created_at)
+    .bind("{year}/{date:%Y-%m-%d}/{fileName}")
+    .execute(pool)
+    .await
+    .map_err(|e| anyhow!("Failed to create default storage: {}", e))?;
 
     Ok(())
 }

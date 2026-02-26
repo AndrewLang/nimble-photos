@@ -55,3 +55,29 @@ FROM timeline_days
 WHERE year = 2025
 ORDER BY day_date DESC
 LIMIT 1;
+
+--- Initialize timeline from photos table
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+INSERT INTO timeline_days (
+    id,
+    day_date,
+    year,
+    month,
+    total_count,
+    min_sort_date,
+    max_sort_date
+)
+SELECT
+    gen_random_uuid() AS id,
+    p.day_date,
+    EXTRACT(YEAR FROM p.day_date)::int,
+    EXTRACT(MONTH FROM p.day_date)::int,
+    COUNT(*)::int,
+    MIN(p.sort_date),
+    MAX(p.sort_date)
+FROM photos p
+WHERE p.day_date IS NOT NULL
+GROUP BY p.day_date
+ORDER BY p.day_date;
+

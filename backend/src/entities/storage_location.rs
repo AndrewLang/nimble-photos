@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use uuid::Uuid;
 
+use crate::models::setting_consts::SettingConsts;
+
 #[cfg(feature = "postgres")]
 use {
     nimble_web::data::postgres::PostgresEntity,
@@ -19,6 +21,8 @@ pub struct StorageLocation {
     pub label: String,
     pub path: String,
     pub is_default: bool,
+    #[serde(default)]
+    pub readonly: bool,
     pub created_at: String,
     #[serde(default = "StorageLocation::default_category_template")]
     pub category_template: String,
@@ -69,6 +73,7 @@ impl PostgresEntity for StorageLocation {
             "label",
             "path",
             "is_default",
+            "readonly",
             "created_at",
             "category_template",
         ]
@@ -80,6 +85,7 @@ impl PostgresEntity for StorageLocation {
             Value::String(self.label.clone()),
             Value::String(self.path.clone()),
             Value::Bool(self.is_default),
+            Value::Bool(self.readonly),
             Value::String(self.created_at.clone()),
             Value::String(self.category_template.clone()),
         ]
@@ -90,6 +96,7 @@ impl PostgresEntity for StorageLocation {
             "label",
             "path",
             "is_default",
+            "readonly",
             "created_at",
             "category_template",
         ]
@@ -100,6 +107,7 @@ impl PostgresEntity for StorageLocation {
             Value::String(self.label.clone()),
             Value::String(self.path.clone()),
             Value::Bool(self.is_default),
+            Value::Bool(self.readonly),
             Value::String(self.created_at.clone()),
             Value::String(self.category_template.clone()),
         ]
@@ -111,6 +119,9 @@ impl PostgresEntity for StorageLocation {
             ColumnDef::new("label", ColumnType::Text).not_null(),
             ColumnDef::new("path", ColumnType::Text).not_null(),
             ColumnDef::new("is_default", ColumnType::Boolean)
+                .not_null()
+                .default("false"),
+            ColumnDef::new("readonly", ColumnType::Boolean)
                 .not_null()
                 .default("false"),
             ColumnDef::new("created_at", ColumnType::Text).not_null(),

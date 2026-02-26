@@ -186,17 +186,24 @@ impl HttpHandler for ThumbnailHandler {
             .get(&photo.storage_id)
             .await
             .map_err(|_| PipelineError::message("Storage location not found"))?
-            .ok_or_else(|| PipelineError::message("Storage is not found"))?;
+            .ok_or_else(|| {
+                PipelineError::message(&format!("Storage is not found: {}", photo.storage_id))
+            })?;
 
         let file_service = context.service::<FileService>()?;
         let root = Path::new(&storage.path).join(SettingConsts::THUMBNAIL_FOLDER);
 
-        let full_path = file_service.path_for_hash(root, &hash, SettingConsts::THUMBNAIL_FORMAT);
+        let thumb_path = file_service.path_for_hash(root, &hash, SettingConsts::THUMBNAIL_FORMAT);
 
-        log::debug!(
-            "Thumbnail path resolved to: {}",
-            full_path.to_string_lossy()
-        );
+        let full_path = if thumb_path.exists() {
+            thumb_path
+        } else {
+            log::debug!(
+                "Thumbnail file not found at {}, falling back to original image",
+                thumb_path.display()
+            );
+            PathBuf::from(&photo.path)
+        };
 
         Ok(ResponseValue::new(
             FileResponse::from_path(full_path)

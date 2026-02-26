@@ -3,18 +3,23 @@ use sysinfo::Disks;
 use uuid::Uuid;
 
 use crate::entities::client_storage::ClientStorage;
-use crate::entities::storage_location::{DiskInfo, StorageLocation};
+use crate::entities::storage_location::{DiskInfo, StorageLocation, StorageLocationResponse};
+use crate::models::setting_consts::SettingConsts;
 
-use nimble_web::DataProvider;
 use nimble_web::data::query::{Query, Value};
 use nimble_web::data::repository::Repository;
 use nimble_web::pipeline::pipeline::PipelineError;
+use nimble_web::{DataProvider, FilterOperator, QueryBuilder};
 
 #[async_trait]
 pub trait StorageRepositoryExtensions {
     fn list_disks(&self) -> Vec<DiskInfo>;
     fn disk_sort_key(&self, mount_point: &str) -> (u8, String);
     fn find_disk(&self, path: &str, disks: &[DiskInfo]) -> Option<DiskInfo>;
+    fn to_storage_responses(
+        &self,
+        locations: Vec<StorageLocation>,
+    ) -> Result<Vec<StorageLocationResponse>, PipelineError>;
     async fn load_storages(&self) -> Result<Vec<StorageLocation>, PipelineError>;
     async fn find_storage_by_path(
         &self,
@@ -67,12 +72,41 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
             .cloned()
     }
 
+    fn to_storage_responses(
+        &self,
+        locations: Vec<StorageLocation>,
+    ) -> Result<Vec<StorageLocationResponse>, PipelineError> {
+        let disks = self.list_disks();
+        let responses = locations
+            .into_iter()
+            .map(|location| {
+                let disk = self.find_disk(&location.path, &disks);
+                StorageLocationResponse {
+                    id: location.id.to_string(),
+                    label: location.label,
+                    path: location.path,
+                    is_default: location.is_default,
+                    created_at: location.created_at,
+                    category_template: location.category_template,
+                    disk,
+                }
+            })
+            .collect::<Vec<_>>();
+        Ok(responses)
+    }
+
     async fn load_storages(&self) -> Result<Vec<StorageLocation>, PipelineError> {
+        let query = QueryBuilder::<StorageLocation>::new()
+            .filter(
+                "id",
+                FilterOperator::Ne,
+                Value::Uuid(SettingConsts::DEFAULT_STORAGE_ID),
+            )
+            .build();
         let locations = self
-            .query(Query::<StorageLocation>::new())
+            .all(query)
             .await
-            .map_err(|_| PipelineError::message("failed to load storage settings"))?
-            .items;
+            .map_err(|_| PipelineError::message("failed to load storage settings"))?;
         Ok(locations)
     }
 

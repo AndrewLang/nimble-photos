@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 pub struct SettingConsts;
 
 impl SettingConsts {
@@ -10,4 +12,6 @@ impl SettingConsts {
     pub const PREVIEW_CONTENT_TYPE: &'static str = "image/jpeg";
 
     pub const DEFAULT_HTTP_IMAGE_CACHE_HEADER: &'static str = "public, max-age=31536000, immutable";
+
+    pub const DEFAULT_STORAGE_ID: Uuid = Uuid::from_u128(0x00000000000000000000000000000001);
 }
