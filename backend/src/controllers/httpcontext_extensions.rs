@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use chrono::Utc;
 use nimble_web::DataProvider;
+use nimble_web::RequestBody;
 use nimble_web::data::query::{Filter, FilterOperator, Query, Value};
 use nimble_web::data::repository::Repository;
 use nimble_web::http::context::HttpContext;
@@ -19,6 +20,7 @@ use crate::entities::photo::Photo;
 use crate::entities::photo_browse::BrowseOptions;
 use crate::entities::photo_browse::BrowseRequest;
 use crate::entities::storage_location::StorageLocation;
+use crate::models::setting_consts::SettingConsts;
 use crate::repositories::photo_repo::PhotoRepositoryExtensions;
 use crate::services::SettingService;
 
@@ -26,7 +28,6 @@ use crate::services::SettingService;
 pub trait HttpContextExtensions {
     fn require(&self, permission: Permission) -> Result<(), PipelineError>;
     fn require_admin(&self) -> Result<(), PipelineError>;
-    fn route_uuid(&self, key: &str) -> Result<Uuid, PipelineError>;
     fn current_user_id(&self) -> Result<Uuid, PipelineError>;
     fn extract_api_key(&self) -> Result<String, PipelineError>;
     fn parse_browse_request(&self) -> Result<BrowseRequest, PipelineError>;
@@ -40,6 +41,8 @@ pub trait HttpContextExtensions {
     fn page_size(&self) -> Result<u32, PipelineError>;
     fn param(&self, key: &str) -> Result<String, PipelineError>;
     fn id(&self, key: &str) -> Result<Uuid, PipelineError>;
+    fn body_bytes(&self) -> Result<Vec<u8>, PipelineError>;
+    async fn can_upload_photos(&self) -> Result<bool, PipelineError>;
     async fn can_access_dashboard(&self) -> Result<bool, PipelineError>;
     async fn can_update_setting(&self, key: &str) -> Result<bool, PipelineError>;
     async fn viewer_hidden_tags(&self) -> Result<HashSet<String>, PipelineError>;
@@ -94,14 +97,6 @@ impl HttpContextExtensions for HttpContext {
             return Err(PipelineError::message("forbidden"));
         }
         Ok(())
-    }
-
-    fn route_uuid(&self, key: &str) -> Result<Uuid, PipelineError> {
-        let raw = self
-            .route()
-            .and_then(|route| route.params().get(key))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-        Uuid::parse_str(raw).map_err(|_| PipelineError::message("invalid uuid"))
     }
 
     fn parse_browse_request(&self) -> Result<BrowseRequest, PipelineError> {
@@ -256,6 +251,39 @@ impl HttpContextExtensions for HttpContext {
             .map_err(|_| PipelineError::message("invalid apiKey encoding"))
     }
 
+    fn body_bytes(&self) -> Result<Vec<u8>, PipelineError> {
+        match self.request().body() {
+            RequestBody::Empty => Ok(Vec::new()),
+            RequestBody::Text(text) => Ok(text.as_bytes().to_vec()),
+            RequestBody::Bytes(bytes) => Ok(bytes.clone()),
+            RequestBody::Stream(stream) => {
+                let mut guard = stream
+                    .lock()
+                    .map_err(|_| PipelineError::message("request body stream lock error"))?;
+                let mut collected = Vec::<u8>::new();
+                loop {
+                    let next_chunk = guard
+                        .read_chunk()
+                        .map_err(|error| PipelineError::message(&error.to_string()))?;
+                    match next_chunk {
+                        Some(chunk) => collected.extend_from_slice(&chunk),
+                        None => break,
+                    }
+                }
+                Ok(collected)
+            }
+        }
+    }
+
+    async fn can_upload_photos(&self) -> Result<bool, PipelineError> {
+        let roles = self
+            .get::<IdentityContext>()
+            .map(|ctx| ctx.identity().claims().roles().clone())
+            .unwrap_or_default();
+        self.service::<SettingService>()?
+            .can_upload_photos(&roles)
+            .await
+    }
     async fn can_access_dashboard(&self) -> Result<bool, PipelineError> {
         let roles = self
             .get::<IdentityContext>()
@@ -481,7 +509,9 @@ impl HttpContextExtensions for HttpContext {
             .await
             .map_err(|_| PipelineError::message("failed to load storage location"))?
             .ok_or_else(|| PipelineError::message("storage location not found"))?;
-        Ok(storage.normalized_path().join(".thumbnails"))
+        Ok(storage
+            .normalized_path()
+            .join(SettingConsts::THUMBNAIL_FOLDER))
     }
 
     async fn get_thumbnail_roots(&self) -> Result<Vec<PathBuf>, PipelineError> {
@@ -489,7 +519,9 @@ impl HttpContextExtensions for HttpContext {
         if let Ok(storage_repo) = self.service::<Repository<StorageLocation>>() {
             if let Ok(page) = storage_repo.query(Query::<StorageLocation>::new()).await {
                 for location in page.items {
-                    let path = location.normalized_path().join(".thumbnails");
+                    let path = location
+                        .normalized_path()
+                        .join(SettingConsts::THUMBNAIL_FOLDER);
                     if !roots.contains(&path) {
                         roots.push(path);
                     }
@@ -498,10 +530,11 @@ impl HttpContextExtensions for HttpContext {
         }
 
         let config = self.config();
+        let default_legacy_base = format!("./{}", SettingConsts::THUMBNAIL_FOLDER);
         let legacy_base = config
             .get("thumbnail.base.path")
             .or_else(|| config.get("thumbnail.basepath"))
-            .unwrap_or("./.thumbnails");
+            .unwrap_or(default_legacy_base.as_str());
         let legacy_path = Path::new(legacy_base).to_path_buf();
         if !roots.contains(&legacy_path) {
             roots.push(legacy_path);

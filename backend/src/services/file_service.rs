@@ -49,4 +49,20 @@ impl FileService {
         }
         Ok(segments.join("/"))
     }
+
+    pub fn remove_file(&self, path: &Path) -> Result<bool> {
+        if path.exists() {
+            fs::remove_file(path)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn path_for_hash<P: AsRef<Path>>(&self, base: P, hash: &str, extension: &str) -> PathBuf {
+        base.as_ref()
+            .join(&hash[0..2])
+            .join(&hash[2..4])
+            .join(format!("{}.{extension}", hash))
+    }
 }

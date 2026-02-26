@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::result::Result;
@@ -10,14 +10,19 @@ use uuid::Uuid;
 
 use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::dtos::photo_comment_dto::PhotoCommentDto;
-use crate::dtos::photo_dtos::{PhotoLoc, PhotoLocWithTags, PhotoWithTags};
+use crate::dtos::photo_dtos::{
+    DeletePhotosPayload, PhotoLoc, PhotoLocWithTags, PhotoWithTags, UpdatePhotoTagsPayload,
+    UploadFileResponse, UploadPhotosResponse,
+};
 use crate::entities::StorageLocation;
 use crate::entities::exif::ExifModel;
 use crate::entities::photo::Photo;
 use crate::entities::photo_comment::PhotoComment;
 use crate::entities::user_settings::UserSettings;
+use crate::models::setting_consts::SettingConsts;
 use crate::repositories::photo::{PhotoRepository, TagRef};
 use crate::repositories::photo_repo::PhotoRepositoryExtensions;
+use crate::services::file_service::FileService;
 use crate::services::{ImageProcessPipeline, PhotoUploadService, PreviewExtractor, SettingService};
 
 use nimble_web::DataProvider;
@@ -28,13 +33,13 @@ use nimble_web::data::query::{Filter, FilterOperator, Query, Sort, SortDirection
 use nimble_web::endpoint::http_handler::HttpHandler;
 use nimble_web::endpoint::route::EndpointRoute;
 use nimble_web::http::context::HttpContext;
-use nimble_web::http::request_body::RequestBody;
 use nimble_web::identity::context::IdentityContext;
 use nimble_web::pipeline::pipeline::PipelineError;
 use nimble_web::result::FileResponse;
 use nimble_web::result::Json;
 use nimble_web::result::into_response::ResponseValue;
 use nimble_web::security::policy::Policy;
+use nimble_web::{delete, get, post, put};
 
 const MAX_COMMENT_LENGTH: usize = 1024;
 
@@ -42,50 +47,8 @@ pub struct PhotoController;
 
 impl Controller for PhotoController {
     fn routes() -> Vec<EndpointRoute> {
-        vec![
-            EndpointRoute::get("/api/photos/thumbnail/{hash}", ThumbnailHandler).build(),
-            EndpointRoute::get("/api/photos/preview/{hash}", PreviewHandler).build(),
-            EndpointRoute::get("/api/photos/timeline/{page}/{pageSize}", TimelineHandler).build(),
-            EndpointRoute::get("/api/photos/timeline/years", TimelineYearsHandler).build(),
-            EndpointRoute::get("/api/photos/timeline/year-offset/{year}", YearOffsetHandler)
-                .build(),
-            EndpointRoute::get("/api/photos/with-gps/{page}/{pageSize}", MapPhotosHandler).build(),
-            EndpointRoute::post("/api/photos", UploadPhotosHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-            EndpointRoute::delete("/api/photos", DeletePhotosHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-            EndpointRoute::get("/api/photos", PhotosQueryHandler).build(),
-            EndpointRoute::get("/api/photos/{id}/metadata", PhotoMetadataHandler).build(),
-            EndpointRoute::get("/api/photos/tags", PhotoTagsHandler).build(),
-            EndpointRoute::put("/api/photos/tags", UpdatePhotoTagsHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-            EndpointRoute::get("/api/photos/comments/{id}", PhotoCommentsHandler).build(),
-            EndpointRoute::post("/api/photos/comments/{id}", CreatePhotoCommentHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
-        ]
+        vec![]
     }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct UploadFileResponse {
-    file_name: String,
-    relative_path: String,
-    byte_size: usize,
-    content_type: Option<String>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct UploadPhotosResponse {
-    storage_id: String,
-    storage_path: String,
-    uploaded_count: usize,
-    files: Vec<UploadFileResponse>,
 }
 
 struct UploadPhotosHandler;
@@ -94,7 +57,7 @@ struct UploadPhotosHandler;
 impl HttpHandler for UploadPhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let settings = context.service::<SettingService>()?;
-        if !PhotoController::can_upload_photos(context, &settings).await? {
+        if !context.can_upload_photos().await? {
             context.response_mut().set_status(403);
             return Ok(ResponseValue::empty());
         }
@@ -109,7 +72,7 @@ impl HttpHandler for UploadPhotosHandler {
         let content_type_header = upload_service
             .require_content_type(context.request().headers().get("content-type"))
             .map_err(|error| PipelineError::message(&error.to_string()))?;
-        let request_body = PhotoController::read_request_body_bytes(context)?;
+        let request_body = context.body_bytes()?;
         let files = upload_service
             .parse_multipart_files(content_type_header, request_body)
             .await
@@ -119,9 +82,14 @@ impl HttpHandler for UploadPhotosHandler {
             return Err(PipelineError::message("No files found in upload request"));
         }
 
-        let storage_query_id = context.request().query_param("storageId");
-        let storage =
-            PhotoController::resolve_upload_storage(context, storage_query_id.as_deref()).await?;
+        let storage_query_id = context.id("storageId")?;
+        let storage_repo = context.service::<Repository<StorageLocation>>()?;
+        let storage = storage_repo
+            .get(&storage_query_id)
+            .await
+            .map_err(|_| PipelineError::message("Storage location not found"))?
+            .ok_or_else(|| PipelineError::message("Storage is not found"))?;
+
         let saved_files = upload_service
             .persist_to_storage_temp(Path::new(&storage.path), files)
             .await
@@ -156,15 +124,10 @@ impl HttpHandler for UploadPhotosHandler {
     }
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct DeletePhotosPayload {
-    photo_ids: Vec<String>,
-}
-
 struct DeletePhotosHandler;
 
 #[async_trait]
+#[delete("/api/photos", policy = Policy::Authenticated)]
 impl HttpHandler for DeletePhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload = context
@@ -176,10 +139,8 @@ impl HttpHandler for DeletePhotosHandler {
         }
 
         let photo_repo = context.service::<Repository<Photo>>()?;
-        let exif_repo = context.service::<Repository<ExifModel>>()?;
 
         let mut deleted = 0u32;
-        let mut files_deleted = 0u32;
 
         for raw_photo_id in payload.photo_ids {
             let photo_id = Uuid::parse_str(raw_photo_id.trim())
@@ -193,38 +154,18 @@ impl HttpHandler for DeletePhotosHandler {
                 continue;
             };
 
-            files_deleted += PhotoController::remove_photo_files(context, &photo).await;
-
-            let mut exif_query = Query::<ExifModel>::new();
-            exif_query.filters.push(Filter {
-                field: "image_id".to_string(),
-                operator: FilterOperator::Eq,
-                value: Value::Uuid(photo.id),
-            });
-            let exif_rows = exif_repo
-                .query(exif_query)
+            deleted += photo_repo
+                .delete_file(&photo, context)
                 .await
-                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
-                .items;
-
-            for exif in exif_rows {
-                let _ = exif_repo
-                    .delete(&exif.id)
-                    .await
-                    .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-            }
-
-            let removed = photo_repo
-                .delete(&photo.id)
-                .await
-                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-            if removed {
-                deleted += 1;
-            }
+                .map_err(|e| {
+                    PipelineError::message(&format!("failed to delete photo files: {:?}", e))
+                })
+                .map(|_| 1u32)
+                .unwrap_or(0u32);
         }
 
         Ok(ResponseValue::new(Json(
-            serde_json::json!({ "deleted": deleted, "filesDeleted": files_deleted }),
+            serde_json::json!({ "deleted": deleted }),
         )))
     }
 }
@@ -232,48 +173,40 @@ impl HttpHandler for DeletePhotosHandler {
 struct ThumbnailHandler;
 
 #[async_trait]
+#[get("/api/photos/thumbnail/{hash}")]
 impl HttpHandler for ThumbnailHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let hash = context.hash()?;
+        let photo_repo = context.service::<Repository<Photo>>()?;
+        let photo = photo_repo
+            .find_by_hash(&hash)
+            .await?
+            .ok_or_else(|| PipelineError::message("thumbnail not found"))?;
 
-        log::debug!("Serving thumbnail for hash: {}", hash);
+        let storage_repo = context.service::<Repository<StorageLocation>>()?;
+        let storage = storage_repo
+            .get(&photo.storage_id)
+            .await
+            .map_err(|_| PipelineError::message("Storage location not found"))?
+            .ok_or_else(|| PipelineError::message("Storage is not found"))?;
 
-        let thumbnail_roots = context.get_thumbnail_roots().await?;
+        let file_service = context.service::<FileService>()?;
+        let root = Path::new(&storage.path).join(SettingConsts::THUMBNAIL_FOLDER);
 
-        let mut resolved: Option<(PathBuf, &'static str)> = None;
-        for root in &thumbnail_roots {
-            let jpeg_path = root
-                .join(&hash[0..2])
-                .join(&hash[2..4])
-                .join(format!("{hash}.jpg"));
-            if jpeg_path.exists() {
-                resolved = Some((jpeg_path, "image/jpeg"));
-                break;
-            }
-
-            let webp_path = root
-                .join(&hash[0..2])
-                .join(&hash[2..4])
-                .join(format!("{hash}.webp"));
-
-            if webp_path.exists() {
-                resolved = Some((webp_path, "image/webp"));
-                break;
-            }
-        }
-
-        let (resolved_path, content_type) =
-            resolved.ok_or_else(|| PipelineError::message("thumbnail not found"))?;
+        let full_path = file_service.path_for_hash(root, &hash, SettingConsts::THUMBNAIL_FORMAT);
 
         log::debug!(
             "Thumbnail path resolved to: {}",
-            resolved_path.to_string_lossy()
+            full_path.to_string_lossy()
         );
 
         Ok(ResponseValue::new(
-            FileResponse::from_path(resolved_path)
-                .with_content_type(content_type)
-                .with_header("Cache-Control", "public, max-age=31536000, immutable"),
+            FileResponse::from_path(full_path)
+                .with_content_type(SettingConsts::THUMBNAIL_CONTENT_TYPE)
+                .with_header(
+                    "Cache-Control",
+                    SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
+                ),
         ))
     }
 }
@@ -336,35 +269,35 @@ impl PreviewHandler {
 }
 
 #[async_trait]
+#[get("/api/photos/preview/{hash}")]
 impl HttpHandler for PreviewHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let hash = context.hash()?;
-        log::debug!("Serving preview for hash: {}", hash);
-
         let photo_repo = context.service::<Repository<Photo>>()?;
         let photo = photo_repo
             .find_by_hash(&hash)
             .await?
-            .ok_or_else(|| PipelineError::message("preview not found"))?;
+            .ok_or_else(|| PipelineError::message("Preview not found"))?;
 
-        let mut resolved: Option<(PathBuf, &'static str)> = None;
-        let jpeg_path = context.get_preview_path(&hash).await?;
+        let storage_repo = context.service::<Repository<StorageLocation>>()?;
+        let storage = storage_repo
+            .get(&photo.storage_id)
+            .await
+            .map_err(|_| PipelineError::message("Storage location not found"))?
+            .ok_or_else(|| PipelineError::message("Storage is not found"))?;
 
-        if jpeg_path.exists() {
-            resolved = Some((jpeg_path, "image/jpeg"));
-        }
+        let file_service = context.service::<FileService>()?;
+        let root = Path::new(&storage.path).join(SettingConsts::PREVIEW_FOLDER);
 
-        if resolved.is_none() {
-            resolved = self.build_preview(context, &photo, &hash).await?;
-        }
-
-        let (resolved_path, content_type) =
-            resolved.ok_or_else(|| PipelineError::message("preview not found"))?;
+        let full_path = file_service.path_for_hash(root, &hash, SettingConsts::PREVIEW_FORMAT);
 
         Ok(ResponseValue::new(
-            FileResponse::from_path(resolved_path)
-                .with_content_type(content_type)
-                .with_header("Cache-Control", "public, max-age=31536000, immutable"),
+            FileResponse::from_path(full_path)
+                .with_content_type(SettingConsts::PREVIEW_CONTENT_TYPE)
+                .with_header(
+                    "Cache-Control",
+                    SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
+                ),
         ))
     }
 }
@@ -372,6 +305,7 @@ impl HttpHandler for PreviewHandler {
 struct TimelineHandler;
 
 #[async_trait]
+#[get("/api/photos/timeline/{page}/{pageSize}")]
 impl HttpHandler for TimelineHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context
@@ -406,29 +340,9 @@ impl HttpHandler for TimelineHandler {
         let offset = if page > 0 { (page - 1) * limit } else { 0 };
 
         let timeline = repository
-            .get_timeline(limit, offset, PhotoController::is_admin(context))
+            .get_timeline(limit, offset, context.is_admin())
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
-
-        let _hidden_tags = PhotoController::viewer_hidden_tags(context).await?;
-        // let timeline = timeline
-        //     .into_iter()
-        //     .map(|group| {
-        //         let page = group.photos;
-        //         let filtered = PhotoController::filter_photos_for_viewer(page.items, &hidden_tags)
-        //             .into_iter()
-        //             .filter(|photo| {
-        //                 PhotoController::photo_matches_search_tags(photo, &search_tags, match_all)
-        //             })
-        //             .collect::<Vec<_>>();
-        //         let filtered_total = filtered.len() as u64;
-        //         TimelineGroup {
-        //             title: group.title,
-        //             photos: Page::new(filtered, filtered_total, page.page, page.page_size),
-        //         }
-        //     })
-        //     .filter(|group| !group.photos.items.is_empty())
-        //     .collect::<Vec<_>>();
 
         Ok(ResponseValue::new(Json(timeline)))
     }
@@ -437,6 +351,7 @@ impl HttpHandler for TimelineHandler {
 struct TimelineYearsHandler;
 
 #[async_trait]
+#[get("/api/photos/timeline/years")]
 impl HttpHandler for TimelineYearsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context
@@ -445,7 +360,7 @@ impl HttpHandler for TimelineYearsHandler {
             .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
 
         let years = repository
-            .get_years(PhotoController::is_admin(context))
+            .get_years(context.is_admin())
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
@@ -456,6 +371,7 @@ impl HttpHandler for TimelineYearsHandler {
 struct YearOffsetHandler;
 
 #[async_trait]
+#[get("/api/photos/timeline/year-offset/{year}")]
 impl HttpHandler for YearOffsetHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context
@@ -469,7 +385,7 @@ impl HttpHandler for YearOffsetHandler {
             .ok_or_else(|| PipelineError::message("year parameter missing"))?;
 
         let offset = repository
-            .get_year_offset(year, PhotoController::is_admin(context))
+            .get_year_offset(year, context.is_admin())
             .await
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
@@ -480,13 +396,14 @@ impl HttpHandler for YearOffsetHandler {
 struct MapPhotosHandler;
 
 #[async_trait]
+#[get("/api/photos/with-gps/{page}/{pageSize}")]
 impl HttpHandler for MapPhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context
             .services()
             .resolve::<Box<dyn PhotoRepository>>()
             .ok_or_else(|| PipelineError::message("PhotoRepository not found"))?;
-        let is_admin = PhotoController::is_admin(context);
+        let is_admin = context.is_admin();
 
         let route_params = context.route().map(|r| r.params());
 
@@ -529,6 +446,7 @@ impl HttpHandler for MapPhotosHandler {
 struct PhotosQueryHandler;
 
 #[async_trait]
+#[get("/api/photos")]
 impl HttpHandler for PhotosQueryHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context
@@ -597,6 +515,7 @@ struct CreatePhotoCommentPayload {
 struct PhotoCommentsHandler;
 
 #[async_trait]
+#[get("/api/photos/comments/{id}")]
 impl HttpHandler for PhotoCommentsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let photo_id_param = context
@@ -638,6 +557,7 @@ impl HttpHandler for PhotoCommentsHandler {
 struct CreatePhotoCommentHandler;
 
 #[async_trait]
+#[post("/api/photos/comments/{id}")]
 impl HttpHandler for CreatePhotoCommentHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload = context
@@ -729,16 +649,10 @@ impl HttpHandler for PhotoMetadataHandler {
     }
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct UpdatePhotoTagsPayload {
-    photo_ids: Vec<String>,
-    tags: Vec<String>,
-}
-
 struct PhotoTagsHandler;
 
 #[async_trait]
+#[get("/api/photos/tags")]
 impl HttpHandler for PhotoTagsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context.service::<Box<dyn PhotoRepository>>()?;
@@ -754,6 +668,7 @@ impl HttpHandler for PhotoTagsHandler {
 struct UpdatePhotoTagsHandler;
 
 #[async_trait]
+#[put("/api/photos/tags")]
 impl HttpHandler for UpdatePhotoTagsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload = context
@@ -835,45 +750,14 @@ impl PhotoController {
         settings.viewer_hidden_tags().await
     }
 
-    async fn can_upload_photos(
-        context: &HttpContext,
-        service: &SettingService,
-    ) -> Result<bool, PipelineError> {
-        let roles = context
-            .get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().clone())
-            .unwrap_or_default();
-        service.can_upload_photos(&roles).await
-    }
-
-    fn read_request_body_bytes(context: &HttpContext) -> Result<Vec<u8>, PipelineError> {
-        match context.request().body() {
-            RequestBody::Empty => Ok(Vec::new()),
-            RequestBody::Text(text) => Ok(text.as_bytes().to_vec()),
-            RequestBody::Bytes(bytes) => Ok(bytes.clone()),
-            RequestBody::Stream(stream) => {
-                let mut guard = stream
-                    .lock()
-                    .map_err(|_| PipelineError::message("request body stream lock error"))?;
-                let mut collected = Vec::<u8>::new();
-                loop {
-                    let next_chunk = guard
-                        .read_chunk()
-                        .map_err(|error| PipelineError::message(&error.to_string()))?;
-                    match next_chunk {
-                        Some(chunk) => collected.extend_from_slice(&chunk),
-                        None => break,
-                    }
-                }
-                Ok(collected)
-            }
-        }
-    }
-
     async fn remove_photo_files(context: &HttpContext, photo: &Photo) -> u32 {
         let mut deleted = Self::remove_file_if_exists(Path::new(&photo.path));
 
-        let Some(hash) = photo.hash.as_deref().map(str::trim).filter(|value| !value.is_empty())
+        let Some(hash) = photo
+            .hash
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
         else {
             return deleted;
         };
@@ -895,7 +779,10 @@ impl PhotoController {
             }
         }
 
-        match context.get_thumbnail_root_by_storage(photo.storage_id).await {
+        match context
+            .get_thumbnail_root_by_storage(photo.storage_id)
+            .await
+        {
             Ok(thumbnail_root) => {
                 deleted += Self::remove_hashed_file(&thumbnail_root, hash, "webp");
                 deleted += Self::remove_hashed_file(&thumbnail_root, hash, "jpg");

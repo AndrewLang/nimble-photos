@@ -1,6 +1,7 @@
 use super::image_process_context::ImageProcessContext;
 use super::image_process_step::ImageProcessStep;
 use crate::entities::{exif::ExifModel, photo::Photo};
+use crate::models::setting_consts::SettingConsts;
 use crate::repositories::photo_repo::PhotoRepositoryExtensions;
 use crate::services::exif_service::ExifService;
 use crate::services::hash_service::HashService;
@@ -184,7 +185,7 @@ impl ImageProcessStep for GenerateThumbnailStep {
             .payload()
             .storage
             .normalized_path()
-            .join(".thumbnails");
+            .join(SettingConsts::THUMBNAIL_FOLDER);
         let hash = context
             .get_by_alias::<String>(ImageProcessKeys::HASH)
             .ok_or_else(|| anyhow!("hash not found"))?;

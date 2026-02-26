@@ -34,3 +34,34 @@ pub struct PhotoLocWithTags {
     pub loc: PhotoLoc,
     pub tags: Vec<String>,
 }
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadFileResponse {
+    pub file_name: String,
+    pub relative_path: String,
+    pub byte_size: usize,
+    pub content_type: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadPhotosResponse {
+    pub storage_id: String,
+    pub storage_path: String,
+    pub uploaded_count: usize,
+    pub files: Vec<UploadFileResponse>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletePhotosPayload {
+    pub photo_ids: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePhotoTagsPayload {
+    pub photo_ids: Vec<String>,
+    pub tags: Vec<String>,
+}
