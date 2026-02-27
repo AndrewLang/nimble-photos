@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use nimble_web::entity::hooks::{EntityHooks, RequestContext};
-use nimble_web::result::{HttpError, Result as HttpResult};
+use nimble_web::{EntityHooks, RequestContext};
+use nimble_web::{HttpError, Result as HttpResult};
 use std::marker::PhantomData;
 use uuid::Uuid;
 

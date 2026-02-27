@@ -1,6 +1,6 @@
 use nimble_photos::controllers::admin_user_controller::AdminUserController;
 use nimble_web::Controller;
-use nimble_web::security::policy::Policy;
+use nimble_web::Policy;
 
 #[test]
 fn routes_require_authenticated() {

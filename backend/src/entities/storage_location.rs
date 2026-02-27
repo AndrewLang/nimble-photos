@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use crate::models::setting_consts::SettingConsts;
-
 #[cfg(feature = "postgres")]
 use {
     nimble_web::data::postgres::PostgresEntity,

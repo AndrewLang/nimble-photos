@@ -1,15 +1,15 @@
 use async_trait::async_trait;
 
-use nimble_web::data::repository::Repository;
-use nimble_web::endpoint::http_handler::HttpHandler;
+use nimble_web::HttpContext;
+use nimble_web::HttpHandler;
+use nimble_web::PipelineError;
+use nimble_web::Repository;
+use nimble_web::ResponseValue;
 use nimble_web::get;
-use nimble_web::http::context::HttpContext;
-use nimble_web::pipeline::pipeline::PipelineError;
-use nimble_web::result::into_response::ResponseValue;
 
 use crate::controllers::httpcontext_extensions::HttpContextExtensions;
-use crate::entities::photo::Photo;
-use crate::entities::timeline::TimelineDay;
+use crate::entities::Photo;
+use crate::entities::TimelineDay;
 use crate::repositories::photo_repo::PhotoRepositoryExtensions;
 use crate::repositories::timeline_repo::TimelineRepositoryExtensions;
 

@@ -2,11 +2,11 @@ use async_trait::async_trait;
 use nimble_web::DataProvider;
 
 use crate::dtos::timeline_dtos::TimelineYearDays;
-use crate::entities::timeline::TimelineDay;
+use crate::entities::TimelineDay;
 
-use nimble_web::data::query_builder::QueryBuilder;
-use nimble_web::data::repository::Repository;
-use nimble_web::pipeline::pipeline::PipelineError;
+use nimble_web::PipelineError;
+use nimble_web::QueryBuilder;
+use nimble_web::Repository;
 
 #[async_trait]
 pub trait TimelineRepositoryExtensions {

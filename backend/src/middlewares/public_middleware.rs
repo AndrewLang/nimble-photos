@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use nimble_web::http::context::HttpContext;
-use nimble_web::identity::context::IdentityContext;
+use nimble_web::HttpContext;
+use nimble_web::IdentityContext;
+use nimble_web::PipelineError;
 use nimble_web::pipeline::middleware::Middleware;
 use nimble_web::pipeline::next::Next;
-use nimble_web::pipeline::pipeline::PipelineError;
 use std::collections::HashSet;
 
 use crate::controllers::httpcontext_extensions::HttpContextExtensions;

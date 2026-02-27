@@ -13,15 +13,15 @@ use crate::entities::{user::User, user_settings::UserSettings};
 use crate::services::{AuthService, SettingService};
 use serde_json::json;
 
-use nimble_web::controller::controller::Controller;
-use nimble_web::data::provider::DataProvider;
-use nimble_web::data::repository::Repository;
-use nimble_web::endpoint::http_handler::HttpHandler;
-use nimble_web::endpoint::route::EndpointRoute;
-use nimble_web::http::context::HttpContext;
-use nimble_web::pipeline::pipeline::PipelineError;
-use nimble_web::result::into_response::ResponseValue;
-use nimble_web::security::policy::Policy;
+use nimble_web::Controller;
+use nimble_web::DataProvider;
+use nimble_web::EndpointRoute;
+use nimble_web::HttpContext;
+use nimble_web::HttpHandler;
+use nimble_web::PipelineError;
+use nimble_web::Policy;
+use nimble_web::Repository;
+use nimble_web::ResponseValue;
 
 pub struct AuthController;
 

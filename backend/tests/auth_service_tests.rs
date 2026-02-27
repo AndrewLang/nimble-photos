@@ -4,13 +4,13 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use nimble_web::config::Configuration;
-use nimble_web::data::memory_repository::MemoryRepository;
-use nimble_web::data::paging::Page;
+use nimble_web::Configuration;
+use nimble_web::MemoryRepository;
+use nimble_web::Page;
+use nimble_web::Repository;
 use nimble_web::data::provider::{DataProvider, DataResult};
 use nimble_web::data::query::{Query, Value};
-use nimble_web::data::repository::Repository;
-use nimble_web::security::token::{JwtTokenService, TokenService};
+use nimble_web::{JwtTokenService, TokenService};
 use uuid::Uuid;
 
 use nimble_photos::entities::{user::User, user_settings::UserSettings};

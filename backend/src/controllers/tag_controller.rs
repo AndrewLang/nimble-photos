@@ -1,5 +1,5 @@
-use nimble_web::controller::controller::Controller;
-use nimble_web::endpoint::route::EndpointRoute;
+use nimble_web::Controller;
+use nimble_web::EndpointRoute;
 
 pub struct TagController;
 

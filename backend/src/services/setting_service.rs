@@ -7,8 +7,8 @@ use crate::dtos::dashboard_settings_dto::{SettingDto, SettingOptionDto, SettingS
 use crate::entities::setting::{Setting, SettingValueType};
 
 use nimble_web::DataProvider;
-use nimble_web::data::repository::Repository;
-use nimble_web::pipeline::pipeline::PipelineError;
+use nimble_web::PipelineError;
+use nimble_web::Repository;
 
 pub struct SettingKeys;
 

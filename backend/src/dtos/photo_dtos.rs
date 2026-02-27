@@ -1,5 +1,5 @@
 use crate::entities::photo::{Photo, PhotoViewModel};
-use nimble_web::data::paging::Page;
+use nimble_web::Page;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

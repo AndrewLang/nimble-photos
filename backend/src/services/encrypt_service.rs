@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce, aead::Aead};
-use nimble_web::config::Configuration;
+use nimble_web::Configuration;
 use rand::RngExt;
 
 #[derive(Clone)]

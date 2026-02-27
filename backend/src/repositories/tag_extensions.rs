@@ -2,10 +2,10 @@ use crate::dtos::photo_dtos::TagRef;
 use crate::entities::tag::Tag;
 
 use async_trait::async_trait;
-use serde::Deserialize;
+use nimble_web::PipelineError;
+use nimble_web::Repository;
 use nimble_web::data::query::Value;
-use nimble_web::data::repository::Repository;
-use nimble_web::pipeline::pipeline::PipelineError;
+use serde::Deserialize;
 use std::collections::BTreeMap;
 use uuid::Uuid;
 

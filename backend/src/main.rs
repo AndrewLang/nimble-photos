@@ -13,8 +13,8 @@ use entities::{migrate_entities, register_entities};
 use middlewares::public_middleware::PublicAccessMiddleware;
 use middlewares::static_file_middleware::StaticFileMiddleware;
 use nimble_web::AppBuilder;
-use nimble_web::app::application::AppError;
-use nimble_web::middleware::cors::CorsMiddleware;
+use nimble_web::AppError;
+use nimble_web::CorsMiddleware;
 use services::register_services;
 
 #[tokio::main]

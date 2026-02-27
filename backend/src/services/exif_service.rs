@@ -1,4 +1,4 @@
-use crate::entities::exif::ExifModel;
+use crate::entities::ExifModel;
 use crate::models::exif_tool::ExifTool;
 use crate::services::image_process_constants::ImageProcessKeys;
 

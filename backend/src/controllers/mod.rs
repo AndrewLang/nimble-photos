@@ -16,7 +16,7 @@ use assets_controller::AssetsController;
 use auth_controller::AuthController;
 use client_controller::ClientHandlers;
 use dashboard_controller::DashboardController;
-use nimble_web::*;
+use nimble_web::AppBuilder;
 use photo_controller::PhotoController;
 use tag_controller::TagController;
 

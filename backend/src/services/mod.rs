@@ -43,10 +43,10 @@ use std::sync::Arc;
 
 use crate::entities::{setting::Setting, user::User, user_settings::UserSettings};
 use nimble_web::AppBuilder;
-use nimble_web::config::Configuration;
-use nimble_web::data::repository::Repository;
-use nimble_web::security::token::JwtTokenService;
-use nimble_web::security::token::TokenService;
+use nimble_web::Configuration;
+use nimble_web::JwtTokenService;
+use nimble_web::Repository;
+use nimble_web::TokenService;
 use sqlx::PgPool;
 
 pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {

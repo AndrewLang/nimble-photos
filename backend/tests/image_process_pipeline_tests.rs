@@ -11,12 +11,12 @@ use nimble_photos::services::image_pipeline::{
 };
 use nimble_photos::services::photo_upload_service::StoredUploadFile;
 use nimble_photos::services::{PreviewExtractor, ThumbnailExtractor};
+use nimble_web::Configuration;
 use nimble_web::DataProvider;
+use nimble_web::MemoryRepository;
+use nimble_web::QueryBuilder;
+use nimble_web::Repository;
 use nimble_web::ServiceContainer;
-use nimble_web::config::Configuration;
-use nimble_web::data::memory_repository::MemoryRepository;
-use nimble_web::data::query_builder::QueryBuilder;
-use nimble_web::data::repository::Repository;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};

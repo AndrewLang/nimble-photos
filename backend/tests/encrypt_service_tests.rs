@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use nimble_web::config::Configuration;
+use nimble_web::Configuration;
 
 use nimble_photos::services::EncryptService;
 

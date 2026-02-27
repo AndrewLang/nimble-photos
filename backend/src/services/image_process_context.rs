@@ -1,7 +1,7 @@
 use super::image_pipeline::ImageProcessPayload;
 use crate::models::property_map::PropertyMap;
 
-use nimble_web::di::ServiceProvider;
+use nimble_web::ServiceProvider;
 
 use std::any::Any;
 use std::path::{Path, PathBuf};

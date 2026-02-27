@@ -12,9 +12,9 @@ use crate::dtos::photo_dtos::TagRef;
 use crate::dtos::photo_dtos::{
     DeletePhotosPayload, UpdatePhotoTagsPayload, UploadFileResponse, UploadPhotosResponse,
 };
+use crate::entities::Photo;
+use crate::entities::PhotoComment;
 use crate::entities::StorageLocation;
-use crate::entities::photo::Photo;
-use crate::entities::photo_comment::PhotoComment;
 use crate::entities::tag::Tag;
 use crate::models::setting_consts::SettingConsts;
 use crate::models::string_id::ToUuid;
@@ -23,19 +23,19 @@ use crate::repositories::tag_extensions::TagRepositoryExtensions;
 use crate::services::file_service::FileService;
 use crate::services::{ImageProcessPipeline, PhotoUploadService, PreviewExtractor, SettingService};
 
+use nimble_web::Controller;
+use nimble_web::EndpointRoute;
+use nimble_web::FileResponse;
+use nimble_web::HttpContext;
+use nimble_web::HttpHandler;
+use nimble_web::IdentityContext;
+use nimble_web::Json;
+use nimble_web::Page;
+use nimble_web::PipelineError;
+use nimble_web::Policy;
 use nimble_web::Repository;
-use nimble_web::controller::controller::Controller;
-use nimble_web::data::paging::Page;
+use nimble_web::ResponseValue;
 use nimble_web::data::query::{FilterOperator, Value};
-use nimble_web::endpoint::http_handler::HttpHandler;
-use nimble_web::endpoint::route::EndpointRoute;
-use nimble_web::http::context::HttpContext;
-use nimble_web::identity::context::IdentityContext;
-use nimble_web::pipeline::pipeline::PipelineError;
-use nimble_web::result::FileResponse;
-use nimble_web::result::Json;
-use nimble_web::result::into_response::ResponseValue;
-use nimble_web::security::policy::Policy;
 use nimble_web::{DataProvider, QueryBuilder};
 use nimble_web::{delete, get, post, put};
 

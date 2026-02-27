@@ -10,8 +10,8 @@ use crate::services::photo_upload_service::StoredUploadFile;
 use crate::services::task_descriptor::TaskDescriptor;
 
 use anyhow::Result;
-use nimble_web::config::Configuration;
-use nimble_web::di::ServiceProvider;
+use nimble_web::Configuration;
+use nimble_web::ServiceProvider;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 

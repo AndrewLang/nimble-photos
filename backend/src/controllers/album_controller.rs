@@ -1,10 +1,10 @@
 use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::dtos::album_comment_dto::AlbumCommentDto;
-use crate::entities::album::Album;
-use crate::entities::album_comment::AlbumComment;
-use crate::entities::album_photo::AlbumPhoto;
-use crate::entities::photo::Photo;
-use crate::entities::user_settings::UserSettings;
+use crate::entities::Album;
+use crate::entities::AlbumComment;
+use crate::entities::AlbumPhoto;
+use crate::entities::Photo;
+use crate::entities::UserSettings;
 use crate::repositories::album_extensions::AlbumPhotoExtensions;
 use crate::repositories::photo_repo::PhotoRepositoryExtensions;
 
@@ -13,18 +13,18 @@ use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
 
-use nimble_web::controller::controller::Controller;
-use nimble_web::data::provider::DataProvider;
+use nimble_web::Controller;
+use nimble_web::DataProvider;
+use nimble_web::EndpointRoute;
+use nimble_web::HttpContext;
+use nimble_web::HttpHandler;
+use nimble_web::Json;
+use nimble_web::PipelineError;
+use nimble_web::Policy;
+use nimble_web::QueryBuilder;
+use nimble_web::Repository;
+use nimble_web::ResponseValue;
 use nimble_web::data::query::{FilterOperator, Value};
-use nimble_web::data::query_builder::QueryBuilder;
-use nimble_web::data::repository::Repository;
-use nimble_web::endpoint::http_handler::HttpHandler;
-use nimble_web::endpoint::route::EndpointRoute;
-use nimble_web::http::context::HttpContext;
-use nimble_web::pipeline::pipeline::PipelineError;
-use nimble_web::result::Json;
-use nimble_web::result::into_response::ResponseValue;
-use nimble_web::security::policy::Policy;
 use nimble_web::{delete, get, post, put};
 
 pub struct AlbumController;

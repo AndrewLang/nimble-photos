@@ -9,13 +9,27 @@ use nimble_photos::dtos::user_profile_dto::UserProfileDto;
 use nimble_photos::entities::{user::User, user_settings::UserSettings};
 
 use nimble_photos::services::{AuthService, EncryptService};
-use nimble_web::data::memory_repository::MemoryRepository;
-use nimble_web::data::paging::Page;
+use nimble_web::AuthenticationMiddleware;
+use nimble_web::AuthorizationMiddleware;
+use nimble_web::Configuration;
+use nimble_web::ControllerInvokerMiddleware;
+use nimble_web::DefaultRouter;
+use nimble_web::EndpointExecutionMiddleware;
+use nimble_web::EndpointRegistry;
+use nimble_web::HttpContext;
+use nimble_web::HttpRequest;
+use nimble_web::MemoryRepository;
+use nimble_web::Page;
+use nimble_web::Pipeline;
+use nimble_web::Repository;
+use nimble_web::RequestBody;
+use nimble_web::ResponseBody;
+use nimble_web::Router;
+use nimble_web::RoutingMiddleware;
+use nimble_web::ServiceContainer;
 use nimble_web::data::provider::{DataProvider, DataResult};
 use nimble_web::data::query::{Query, Value};
-use nimble_web::data::repository::Repository;
-use nimble_web::security::token::{JwtTokenService, TokenService};
-use nimble_web::*;
+use nimble_web::{JwtTokenService, TokenService};
 
 const TEST_USER_ID_STR: &str = "00000000-0000-0000-0000-000000000001";
 
@@ -74,8 +88,8 @@ impl DataProvider<User> for InMemoryUserProvider {
     }
 }
 
-use nimble_web::identity::claims::Claims;
-use nimble_web::identity::user::UserIdentity;
+use nimble_web::Claims;
+use nimble_web::UserIdentity;
 
 #[test]
 fn login_returns_token() {
@@ -165,7 +179,7 @@ fn login_returns_token() {
     assert_eq!(context.response().status(), 200);
 
     match context.response().body() {
-        nimble_web::http::response_body::ResponseBody::Text(json) => {
+        ResponseBody::Text(json) => {
             let resp: serde_json::Value = serde_json::from_str(json).unwrap();
             assert!(resp.get("accessToken").is_some());
             assert!(resp.get("refreshToken").is_some());
@@ -291,8 +305,5 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
     })
     .unwrap();
 
-    assert_eq!(
-        context.response().body(),
-        &nimble_web::http::response_body::ResponseBody::Text(expected)
-    );
+    assert_eq!(context.response().body(), &ResponseBody::Text(expected));
 }
