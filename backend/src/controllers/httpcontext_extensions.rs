@@ -205,9 +205,11 @@ impl HttpContextExtensions for HttpContext {
     fn id(&self, key: &str) -> Result<Uuid, PipelineError> {
         let id = self
             .route()
-            .and_then(|route| route.params().get(key))
-            .ok_or_else(|| PipelineError::message("id parameter missing"))?;
-        Uuid::parse_str(id).map_err(|_| PipelineError::message("invalid album id"))
+            .and_then(|route| route.params().get(key).cloned())
+            .or_else(|| self.request().query_params().get(key).cloned())
+            .ok_or_else(|| PipelineError::message(&format!("{} parameter missing", key)))?;
+
+        Uuid::parse_str(&id).map_err(|_| PipelineError::message(&format!("Invalid uuid: {}", id)))
     }
 
     fn page(&self) -> Result<u32, PipelineError> {
@@ -399,8 +401,7 @@ impl HttpContextExtensions for HttpContext {
     }
 
     async fn get_preview_root(&self, hash: &str) -> Result<PathBuf, PipelineError> {
-        let preview_storage_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")
-            .map_err(|_| PipelineError::message("invalid preview storage id"))?;
+        let preview_storage_id = SettingConsts::DEFAULT_STORAGE_ID;
         let preview_root = self.default_preview_root();
 
         if let Ok(storage_repo) = self.service::<Repository<StorageLocation>>() {

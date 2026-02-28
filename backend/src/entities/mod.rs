@@ -69,7 +69,12 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         EntityOperation::Get,
         EntityOperation::Update,
     ]);
-    builder.use_entity_with_operations::<Photo>(&EntityOperation::all());
+    builder.use_entity_with_operations::<Photo>(&[
+        EntityOperation::List,
+        EntityOperation::Get,
+        EntityOperation::Update,
+        EntityOperation::Delete,
+    ]);
     builder.use_entity_with_hooks_and_policy(
         AlbumHooks::new(),
         &[

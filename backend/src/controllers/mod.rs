@@ -18,6 +18,7 @@ use client_controller::ClientHandlers;
 use dashboard_controller::DashboardController;
 use nimble_web::AppBuilder;
 use photo_controller::PhotoController;
+use storage_controller::StorageController;
 use tag_controller::TagController;
 
 pub fn register_controllers(builder: &mut AppBuilder) -> &mut AppBuilder {
@@ -29,7 +30,8 @@ pub fn register_controllers(builder: &mut AppBuilder) -> &mut AppBuilder {
         .use_controller::<TagController>()
         .use_controller::<DashboardController>()
         .use_controller::<AlbumController>()
-        .use_controller::<AssetsController>();
+        .use_controller::<AssetsController>()
+        .use_controller::<StorageController>();
 
     builder
 }

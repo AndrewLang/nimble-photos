@@ -52,6 +52,7 @@ impl Controller for PhotoController {
 struct UploadPhotosHandler;
 
 #[async_trait]
+#[post("/api/photos", policy = Policy::Authenticated)]
 impl HttpHandler for UploadPhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let settings = context.service::<SettingService>()?;
@@ -65,6 +66,7 @@ impl HttpHandler for UploadPhotosHandler {
             context.response_mut().set_status(403);
             return Ok(ResponseValue::empty());
         }
+        log::info!("Processing photo upload request");
 
         let upload_service = context.service::<PhotoUploadService>()?;
         let content_type_header = upload_service
@@ -80,10 +82,10 @@ impl HttpHandler for UploadPhotosHandler {
             return Err(PipelineError::message("No files found in upload request"));
         }
 
-        let storage_query_id = context.id("storageId")?;
+        let storage_id = context.id("storageId")?;
         let storage_repo = context.service::<Repository<StorageLocation>>()?;
         let storage = storage_repo
-            .get(&storage_query_id)
+            .get(&storage_id)
             .await
             .map_err(|_| PipelineError::message("Storage location not found"))?
             .ok_or_else(|| PipelineError::message("Storage is not found"))?;
@@ -165,6 +167,34 @@ impl HttpHandler for DeletePhotosHandler {
         Ok(ResponseValue::new(Json(
             serde_json::json!({ "deleted": deleted }),
         )))
+    }
+}
+
+struct ThumbnailByStorageHandler;
+
+#[async_trait]
+#[get("/api/photos/thumbnail/{storage_id}/{hash}")]
+impl HttpHandler for ThumbnailByStorageHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let storage_id = context.id("storage_id")?;
+        let hash = context.hash()?;
+
+        let file_service = context.service::<FileService>()?;
+        let root = context.get_thumbnail_root_by_storage(storage_id).await?;
+        let thumb_path = file_service.path_for_hash(root, &hash, SettingConsts::THUMBNAIL_FORMAT);
+
+        if !thumb_path.exists() {
+            return Err(PipelineError::message("thumbnail not found"));
+        }
+
+        Ok(ResponseValue::new(
+            FileResponse::from_path(thumb_path)
+                .with_content_type(SettingConsts::THUMBNAIL_CONTENT_TYPE)
+                .with_header(
+                    "Cache-Control",
+                    SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
+                ),
+        ))
     }
 }
 
@@ -270,6 +300,93 @@ impl PreviewHandler {
         }
 
         Ok(None)
+    }
+}
+
+struct PreviewByStorageHandler;
+#[async_trait]
+#[get("/api/photos/preview/{storage_id}/{hash}")]
+impl HttpHandler for PreviewByStorageHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let storage_id = context.id("storage_id")?;
+        let hash = context.hash()?;
+
+        let preview_path = context
+            .get_preview_path_by_storage(storage_id, &hash)
+            .await?;
+        if preview_path.exists() {
+            return Ok(ResponseValue::new(
+                FileResponse::from_path(preview_path)
+                    .with_content_type(SettingConsts::PREVIEW_CONTENT_TYPE)
+                    .with_header(
+                        "Cache-Control",
+                        SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
+                    ),
+            ));
+        }
+
+        let photo_repo = context.service::<Repository<Photo>>()?;
+        let query = QueryBuilder::<Photo>::new()
+            .filter("storage_id", FilterOperator::Eq, Value::Uuid(storage_id))
+            .filter("hash", FilterOperator::Eq, Value::String(hash.clone()))
+            .page(1, 1)
+            .build();
+
+        let photo = photo_repo
+            .query(query)
+            .await
+            .map_err(|_| PipelineError::message("failed to load photo"))?
+            .items
+            .into_iter()
+            .next()
+            .ok_or_else(|| PipelineError::message("preview not found"))?;
+
+        let source_path = PathBuf::from(&photo.path);
+        if !source_path.exists() {
+            return Err(PipelineError::message("preview source not found"));
+        }
+
+        let output_path = context
+            .get_preview_path_by_storage(storage_id, &hash)
+            .await?;
+        let extractor = context.service::<PreviewExtractor>()?;
+        let output_path_clone = output_path.clone();
+        let source_path_clone = source_path.clone();
+        let enqueue_at = Instant::now();
+
+        let generated = task::spawn_blocking(move || {
+            let started_at = Instant::now();
+            let queue_wait = started_at.duration_since(enqueue_at);
+            let extract_started = Instant::now();
+            let result = extractor.extract_to(source_path_clone, &output_path_clone);
+            let extract_elapsed = extract_started.elapsed();
+
+            (result, queue_wait, extract_elapsed)
+        })
+        .await
+        .ok()
+        .and_then(|(result, queue_wait, extract_elapsed)| {
+            log::debug!(
+                "Preview (storage-specific) timing for hash {}: queue_wait={:?}, extract={:?}",
+                hash,
+                queue_wait,
+                extract_elapsed
+            );
+            result.ok()
+        });
+
+        let resolved_path = generated
+            .filter(|path| path.exists())
+            .ok_or_else(|| PipelineError::message("preview not found"))?;
+
+        Ok(ResponseValue::new(
+            FileResponse::from_path(resolved_path)
+                .with_content_type(SettingConsts::PREVIEW_CONTENT_TYPE)
+                .with_header(
+                    "Cache-Control",
+                    SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
+                ),
+        ))
     }
 }
 

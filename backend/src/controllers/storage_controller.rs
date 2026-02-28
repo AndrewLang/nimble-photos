@@ -4,14 +4,20 @@ use std::fs;
 use std::path::Path;
 use uuid::Uuid;
 
+use crate::controllers::httpcontext_extensions::HttpContextExtensions;
 use crate::entities::StorageLocation;
+use crate::entities::photo_browse::BrowseResponse;
+use crate::entities::photo_cursor::PhotoCursor;
 use crate::entities::storage_location::{
     CreateStoragePayload, StorageLocationResponse, UpdateStoragePayload,
 };
 use crate::repositories::storage_repo::StorageRepositoryExtensions;
 use crate::repositories::validation::StringValidations;
+use crate::services::BrowseService;
 
+use nimble_web::Controller;
 use nimble_web::DataProvider;
+use nimble_web::EndpointRoute;
 use nimble_web::HttpContext;
 use nimble_web::HttpHandler;
 use nimble_web::PipelineError;
@@ -19,6 +25,14 @@ use nimble_web::Policy;
 use nimble_web::Repository;
 use nimble_web::ResponseValue;
 use nimble_web::{delete, get, post, put};
+
+pub struct StorageController;
+
+impl Controller for StorageController {
+    fn routes() -> Vec<EndpointRoute> {
+        vec![]
+    }
+}
 
 struct DisksHandler;
 
@@ -36,6 +50,23 @@ struct ListStorageHandler;
 #[async_trait]
 #[get("/api/storage/locations", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for ListStorageHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let repo = context.service::<Repository<StorageLocation>>()?;
+        let locations = repo.load_storages().await?;
+
+        let response = repo
+            .to_storage_responses(locations)
+            .map_err(|_| PipelineError::message("failed to load storage settings"))?;
+
+        Ok(ResponseValue::json(response))
+    }
+}
+
+struct ListStorageLegacyHandler;
+
+#[async_trait]
+#[get("/api/storage/list", policy = Policy::InRole("admin".to_string()))]
+impl HttpHandler for ListStorageLegacyHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repo = context.service::<Repository<StorageLocation>>()?;
         let locations = repo.load_storages().await?;
@@ -297,6 +328,70 @@ impl HttpHandler for DeleteStorageHandler {
         let response = repository
             .to_storage_responses(locations)
             .map_err(|_| PipelineError::message("failed to load storage settings"))?;
+
+        Ok(ResponseValue::json(response))
+    }
+}
+
+struct BrowseStorageHandler;
+
+#[async_trait]
+#[get("/api/storage/{storageId}/browse")]
+impl HttpHandler for BrowseStorageHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let storage_id = context.route_storage_id()?;
+        let request = context.parse_browse_request()?;
+        let path_segments = request.path_segments().map_err(|_| {
+            context.response_mut().set_status(400);
+            PipelineError::message("invalid browse path")
+        })?;
+
+        let repository = context.service::<Repository<StorageLocation>>()?;
+        let storage = repository
+            .get(&storage_id)
+            .await
+            .map_err(|_| PipelineError::message("failed to load storage settings"))?
+            .ok_or_else(|| {
+                context.response_mut().set_status(404);
+                PipelineError::message("storage not found")
+            })?;
+
+        let client_id = context.current_client_id().await?;
+        let browse_options = context
+            .load_client_storage_settings(client_id, storage.id)
+            .await?;
+
+        let cursor = match request.cursor.as_deref() {
+            Some(raw) if !raw.trim().is_empty() => Some(
+                PhotoCursor::decode(raw).map_err(|_| PipelineError::message("invalid cursor"))?,
+            ),
+            _ => None,
+        };
+
+        let page_size = request.page_size.unwrap_or(50);
+        let browse_service = context.service::<BrowseService>()?;
+        let response: BrowseResponse = browse_service
+            .browse(
+                &storage.id,
+                &path_segments,
+                &browse_options,
+                page_size,
+                cursor,
+            )
+            .await
+            .map_err(|err| {
+                let message = err.to_string();
+                if message.contains("invalid browse path depth")
+                    || message.contains("invalid digit found in string")
+                    || message.contains("input contains invalid characters")
+                    || message.contains("trailing input")
+                    || message.contains("input is out of range")
+                {
+                    context.response_mut().set_status(400);
+                    return PipelineError::message("invalid browse path");
+                }
+                PipelineError::message(&message)
+            })?;
 
         Ok(ResponseValue::json(response))
     }
