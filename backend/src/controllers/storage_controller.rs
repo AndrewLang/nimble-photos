@@ -345,6 +345,7 @@ impl HttpHandler for BrowseStorageHandler {
             context.response_mut().set_status(400);
             PipelineError::message("invalid browse path")
         })?;
+        let start = std::time::Instant::now();
 
         let repository = context.service::<Repository<StorageLocation>>()?;
         let storage = repository
@@ -393,6 +394,7 @@ impl HttpHandler for BrowseStorageHandler {
                 PipelineError::message(&message)
             })?;
 
+        log::info!("Browse storage completed - elapsed: {:?}", start.elapsed());
         Ok(ResponseValue::json(response))
     }
 }

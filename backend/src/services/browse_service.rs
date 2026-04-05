@@ -27,6 +27,14 @@ impl BrowseService {
         page_size: i64,
         cursor: Option<PhotoCursor>,
     ) -> Result<BrowseResponse> {
+        log::info!(
+            "Browsing storage_id={}, path_segments={:?}, options={:?}, page_size={}, cursor={:?}",
+            storage_id,
+            path_segments,
+            options,
+            page_size,
+            cursor
+        );
         let depth = path_segments.len();
         if depth > options.dimensions.len() {
             return Err(anyhow!("invalid browse path depth"));
@@ -144,6 +152,7 @@ impl BrowseService {
 
         let order_dir = BrowseDimensionSqlAdapter::order_direction(&options.sort_direction);
 
+        let start = std::time::Instant::now();
         let mut cursor_values: Option<(DateTime<Utc>, Uuid)> = None;
         if let Some(cursor_value) = cursor {
             let condition = if order_dir == "DESC" {
@@ -168,13 +177,21 @@ impl BrowseService {
 
         let normalized_size = page_size.clamp(1, 200);
         let sql = format!(
-            "SELECT p.id, p.name AS file_name, COALESCE(p.hash, '') AS hash, p.date_taken, p.width, p.height, p.sort_date
+            "SELECT p.id, p.storage_id, p.name AS file_name, COALESCE(p.hash, '') AS hash, p.date_taken, p.width, p.height, p.sort_date
              FROM photos p
              WHERE {}
              ORDER BY p.sort_date {order_dir}, p.id {order_dir}
              LIMIT ${}",
             where_clauses.join(" AND "),
             param_index
+        );
+        log::info!(
+            "Browse photos SQL: {}, storage_id={}, params={:?}, cursor={:?}, limit={}",
+            sql,
+            storage_id,
+            params,
+            cursor_values,
+            normalized_size + 1
         );
 
         let mut query = sqlx::query(&sql).bind(*storage_id);
@@ -190,6 +207,8 @@ impl BrowseService {
         query = query.bind(normalized_size + 1);
 
         let rows = query.fetch_all(&*self.pool).await?;
+        log::info!("Browse photos returned {} rows", rows.len());
+
         let has_next = rows.len() as i64 > normalized_size;
         let rows = if has_next {
             rows.into_iter()
@@ -204,6 +223,7 @@ impl BrowseService {
             let sort_date: DateTime<Utc> = row.try_get("sort_date")?;
             let photo = BrowsePhoto {
                 id: row.try_get("id")?,
+                storage_id: row.try_get("storage_id")?,
                 file_name: row.try_get("file_name")?,
                 hash: row.try_get("hash")?,
                 date_taken: row.try_get("date_taken")?,
@@ -225,7 +245,8 @@ impl BrowseService {
             None
         };
 
-        let photos = entries.into_iter().map(|(photo, _)| photo).collect();
+        let photos: Vec<BrowsePhoto> = entries.into_iter().map(|(photo, _)| photo).collect();
+        log::info!("Photos {} - elapsed: {:?}", photos.len(), start.elapsed());
 
         Ok(BrowseResponse {
             node_type: BrowseNodeType::Photos,

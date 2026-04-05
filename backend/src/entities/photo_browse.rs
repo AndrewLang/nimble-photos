@@ -13,6 +13,7 @@ pub enum BrowseNodeType {
 #[serde(rename_all = "camelCase")]
 pub struct BrowsePhoto {
     pub id: Uuid,
+    pub storage_id: Uuid,
     pub file_name: String,
     pub hash: String,
     pub date_taken: Option<DateTime<Utc>>,
