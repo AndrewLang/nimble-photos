@@ -1,21 +1,7 @@
-use crate::dtos::auth_dtos::LoginResponse;
-use crate::entities::User;
-use crate::entities::UserSettings;
-use crate::services::EncryptService;
+use crate::prelude::*;
 use chrono::{Duration, Utc};
-use nimble_web::Claims;
-use nimble_web::DataProvider;
-use nimble_web::PageRequest;
-use nimble_web::PipelineError;
 #[cfg(feature = "postgres")]
-use nimble_web::QueryBuilder;
-use nimble_web::Repository;
-use nimble_web::TokenService;
-use nimble_web::UserIdentity;
-#[cfg(feature = "postgres")]
-use nimble_web::data::query::FilterOperator;
-use nimble_web::data::query::Query;
-use nimble_web::data::query::Value;
+use crate::prelude::QueryBuilder;
 use std::sync::Arc;
 use uuid::Uuid;
 

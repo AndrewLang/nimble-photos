@@ -4,22 +4,7 @@ use serde::Deserialize;
 use std::path::Path;
 use uuid::Uuid;
 
-use crate::dtos::photo_dtos::{PhotoGroup, PhotoLoc, TimelineGroup};
-use crate::entities::AlbumPhoto;
-use crate::entities::ExifModel;
-use crate::entities::Photo;
-use crate::entities::PhotoComment;
-use crate::entities::PhotoViewModel;
-use crate::entities::storage_location::StorageLocation;
-use crate::models::setting_consts::SettingConsts;
-use crate::services::FileService;
-
-use nimble_web::Page;
-use nimble_web::PipelineError;
-use nimble_web::QueryBuilder;
-use nimble_web::Repository;
-use nimble_web::data::query::{FilterOperator, Value};
-use nimble_web::{DataProvider, HttpContext};
+use crate::prelude::*;
 
 #[async_trait]
 pub trait PhotoRepositoryExtensions {

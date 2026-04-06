@@ -4,24 +4,8 @@ use chrono::Utc;
 #[cfg(feature = "testbot")]
 use serde::{Deserialize, Serialize};
 
-use crate::controllers::httpcontext_extensions::HttpContextExtensions;
-use crate::dtos::auth_dtos::{
-    LoginRequest, LogoutRequest, RefreshTokenRequest, RegisterRequest, RegistrationStatusResponse,
-};
-use crate::dtos::user_profile_dto::UserProfileDto;
-use crate::entities::{user::User, user_settings::UserSettings};
-use crate::services::{AuthService, SettingService};
+use crate::prelude::*;
 use serde_json::json;
-
-use nimble_web::Controller;
-use nimble_web::DataProvider;
-use nimble_web::EndpointRoute;
-use nimble_web::HttpContext;
-use nimble_web::HttpHandler;
-use nimble_web::PipelineError;
-use nimble_web::Policy;
-use nimble_web::Repository;
-use nimble_web::ResponseValue;
 
 pub struct AuthController;
 

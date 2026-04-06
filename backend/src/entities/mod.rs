@@ -1,4 +1,5 @@
 pub use album::Album;
+pub use album::AlbumKind;
 pub use album_comment::AlbumComment;
 pub use album_photo::AlbumPhoto;
 pub use client::Client;
@@ -9,13 +10,25 @@ use nimble_web::MemoryRepository;
 use nimble_web::{AppBuilder, Application, EntityOperation, Policy, Repository};
 pub use photo::Photo;
 pub use photo::PhotoViewModel;
+pub use photo_browse::{
+    BrowseDimension, BrowseNodeType, BrowseOptions, BrowsePhoto, BrowseRequest, BrowseResponse,
+    SortDirection, StorageFolder,
+};
 pub use photo_comment::PhotoComment;
+pub use photo_cursor::PhotoCursor;
+pub use photo_tag::PhotoTag;
+pub use permission::Permission;
 pub use setting::Setting;
 pub use setting::SettingValueType;
+pub use storage_location::{
+    CreateStoragePayload, DiskInfo, StorageLocation, StorageLocationResponse,
+    UpdateClientStorageSettingsPayload, UpdateStoragePayload,
+};
+pub use tag::Tag;
 pub use timeline::TimelineDay;
 pub use user::User;
 pub use user_settings::UserSettings;
-use uuid_id::EnsureUuidIdHooks;
+pub use uuid_id::{EnsureUuidIdHooks, HasOptionalUuidId};
 
 use crate::entities::album_hooks::AlbumHooks;
 #[cfg(feature = "postgres")]
@@ -27,9 +40,6 @@ use nimble_web::PostgresProvider;
 use nimble_web::data::postgres::PostgresEntity;
 
 use std::path::{Path, PathBuf};
-
-pub use storage_location::StorageLocation;
-
 pub mod album;
 pub mod album_comment;
 pub mod album_hooks;

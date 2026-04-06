@@ -1,10 +1,7 @@
 use async_trait::async_trait;
-use nimble_web::HttpContext;
-use nimble_web::PipelineError;
-use nimble_web::pipeline::middleware::Middleware;
-use nimble_web::pipeline::next::Next;
-use nimble_web::{FileResponse, IntoResponse};
 use std::path::{Component, Path, PathBuf};
+
+use crate::prelude::*;
 
 pub struct StaticFileMiddleware {
     root: PathBuf,

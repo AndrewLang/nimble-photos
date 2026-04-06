@@ -1,16 +1,9 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
-use nimble_web::DataProvider;
-use nimble_web::PipelineError;
-use nimble_web::QueryBuilder;
-use nimble_web::Repository;
-use nimble_web::data::query::{FilterOperator, Value};
 use uuid::Uuid;
 
-use crate::entities::Album;
-use crate::entities::AlbumComment;
-use crate::entities::AlbumPhoto;
+use crate::prelude::*;
 
 #[async_trait]
 pub trait AlbumExtensions {}

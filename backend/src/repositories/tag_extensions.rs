@@ -1,13 +1,9 @@
-use crate::dtos::photo_dtos::TagRef;
-use crate::entities::tag::Tag;
-
 use async_trait::async_trait;
-use nimble_web::PipelineError;
-use nimble_web::Repository;
-use nimble_web::data::query::Value;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use uuid::Uuid;
+
+use crate::prelude::*;
 
 #[async_trait]
 pub trait TagRepositoryExtensions {

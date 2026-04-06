@@ -1,17 +1,6 @@
 use async_trait::async_trait;
 
-use crate::controllers::httpcontext_extensions::HttpContextExtensions;
-use crate::dtos::admin_user_dto::UpdateUserRolesRequest;
-use crate::services::AdminUserService;
-
-use nimble_web::Controller;
-use nimble_web::EndpointRoute;
-use nimble_web::HttpContext;
-use nimble_web::HttpHandler;
-use nimble_web::PipelineError;
-use nimble_web::Policy;
-use nimble_web::ResponseValue;
-use nimble_web::{get, put};
+use crate::prelude::*;
 
 pub struct AdminUserController;
 

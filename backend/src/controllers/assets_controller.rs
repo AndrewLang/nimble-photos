@@ -1,16 +1,7 @@
 use async_trait::async_trait;
 use std::path::Path;
 
-use nimble_web::Controller;
-use nimble_web::EndpointRoute;
-use nimble_web::FileResponse;
-use nimble_web::HttpContext;
-use nimble_web::HttpHandler;
-use nimble_web::PipelineError;
-use nimble_web::ResponseValue;
-use nimble_web::get;
-
-use crate::controllers::httpcontext_extensions::HttpContextExtensions;
+use crate::prelude::*;
 
 pub struct AssetsController;
 

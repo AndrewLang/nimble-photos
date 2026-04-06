@@ -6,28 +6,7 @@ use serde::Serialize;
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::controllers::httpcontext_extensions::HttpContextExtensions;
-use crate::dtos::client_dto::{RegisterClientRequest, RegisterClientResponse};
-use crate::entities::Client;
-use crate::entities::ClientStorage;
-use crate::entities::StorageLocation;
-use crate::entities::storage_location::UpdateClientStorageSettingsPayload;
-use crate::models::setting_consts::SettingConsts;
-use crate::services::EncryptService;
-use crate::services::SettingService;
-
-use nimble_web::Controller;
-use nimble_web::DataProvider;
-use nimble_web::EndpointRoute;
-use nimble_web::HttpContext;
-use nimble_web::HttpHandler;
-use nimble_web::PipelineError;
-use nimble_web::Policy;
-use nimble_web::Query;
-use nimble_web::Repository;
-use nimble_web::ResponseValue;
-use nimble_web::Value;
-use nimble_web::{QueryBuilder, delete, get, post, put};
+use crate::prelude::*;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,21 +1,6 @@
 #![allow(dead_code)]
 
-mod controllers;
-mod dtos;
-mod entities;
-mod middlewares;
-mod models;
-mod repositories;
-mod services;
-
-use controllers::register_controllers;
-use entities::{migrate_entities, register_entities};
-use middlewares::public_middleware::PublicAccessMiddleware;
-use middlewares::static_file_middleware::StaticFileMiddleware;
-use nimble_web::AppBuilder;
-use nimble_web::AppError;
-use nimble_web::CorsMiddleware;
-use services::register_services;
+use nimble_photos::prelude::*;
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), AppError> {

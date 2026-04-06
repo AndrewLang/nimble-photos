@@ -4,27 +4,7 @@ use std::fs;
 use std::path::Path;
 use uuid::Uuid;
 
-use crate::controllers::httpcontext_extensions::HttpContextExtensions;
-use crate::entities::StorageLocation;
-use crate::entities::photo_browse::BrowseResponse;
-use crate::entities::photo_cursor::PhotoCursor;
-use crate::entities::storage_location::{
-    CreateStoragePayload, StorageLocationResponse, UpdateStoragePayload,
-};
-use crate::repositories::storage_repo::StorageRepositoryExtensions;
-use crate::repositories::validation::StringValidations;
-use crate::services::BrowseService;
-
-use nimble_web::Controller;
-use nimble_web::DataProvider;
-use nimble_web::EndpointRoute;
-use nimble_web::HttpContext;
-use nimble_web::HttpHandler;
-use nimble_web::PipelineError;
-use nimble_web::Policy;
-use nimble_web::Repository;
-use nimble_web::ResponseValue;
-use nimble_web::{delete, get, post, put};
+use crate::prelude::*;
 
 pub struct StorageController;
 

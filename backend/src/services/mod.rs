@@ -30,11 +30,17 @@ pub use exif_service::ExifService;
 pub use file_service::FileService;
 pub use hash_service::HashService;
 pub use id_generation_service::IdGenerationService;
+pub use image_categorizer::{
+    CategorizeRequest, CategorizeResult, ImageCategorizer, TemplateCategorizer,
+};
 pub use image_pipeline::ImageProcessPipeline;
 pub use image_pipeline::ImageProcessPipelineContext;
 pub use photo_service::PhotoService;
 pub use photo_upload_service::PhotoUploadService;
+pub use photo_upload_service::StoredUploadFile;
+pub use photo_upload_service::UploadFilePayload;
 pub use preview_extractor::PreviewExtractor;
+pub use setting_service::SettingKeys;
 pub use setting_service::SettingService;
 pub use task_descriptor::TaskDescriptor;
 pub use thumbnail_extractor::ThumbnailExtractor;

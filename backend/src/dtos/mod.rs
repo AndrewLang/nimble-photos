@@ -7,3 +7,21 @@ pub mod photo_comment_dto;
 pub mod photo_dtos;
 pub mod timeline_dtos;
 pub mod user_profile_dto;
+
+pub use admin_user_dto::{AdminUserDto, UpdateUserRolesRequest};
+pub use album_comment_dto::AlbumCommentDto;
+pub use auth_dtos::{
+    ChangePasswordRequest, LoginRequest, LoginResponse, LogoutRequest, RefreshTokenRequest,
+    RegisterRequest, RegistrationStatusResponse, ResetPasswordRequest, VerifyEmailRequest,
+};
+pub use client_dto::{RegisterClientRequest, RegisterClientResponse};
+pub use dashboard_settings_dto::{
+    LogoUploadRequest, SettingDto, SettingOptionDto, SettingSection, UpdateSettingPayload,
+};
+pub use photo_comment_dto::PhotoCommentDto;
+pub use photo_dtos::{
+    DeletePhotosPayload, PhotoGroup, PhotoLoc, PhotoLocWithTags, PhotoWithTags, TagRef,
+    TimelineGroup, UpdatePhotoTagsPayload, UploadFileResponse, UploadPhotosResponse,
+};
+pub use timeline_dtos::TimelineYearDays;
+pub use user_profile_dto::UserProfileDto;

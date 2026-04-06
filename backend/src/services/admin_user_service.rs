@@ -1,13 +1,7 @@
 use std::sync::Arc;
 use uuid::Uuid;
 
-use nimble_web::DataProvider;
-use nimble_web::PipelineError;
-use nimble_web::Repository;
-use nimble_web::data::query::Query;
-
-use crate::dtos::admin_user_dto::AdminUserDto;
-use crate::entities::User;
+use crate::prelude::*;
 
 pub struct AdminUserService {
     repo: Arc<Repository<User>>,

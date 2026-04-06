@@ -1,17 +1,6 @@
 use async_trait::async_trait;
 
-use nimble_web::HttpContext;
-use nimble_web::HttpHandler;
-use nimble_web::PipelineError;
-use nimble_web::Repository;
-use nimble_web::ResponseValue;
-use nimble_web::get;
-
-use crate::controllers::httpcontext_extensions::HttpContextExtensions;
-use crate::entities::Photo;
-use crate::entities::TimelineDay;
-use crate::repositories::photo_repo::PhotoRepositoryExtensions;
-use crate::repositories::timeline_repo::TimelineRepositoryExtensions;
+use crate::prelude::*;
 
 struct TimelineYearsHandler;
 

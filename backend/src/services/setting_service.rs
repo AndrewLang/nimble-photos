@@ -3,12 +3,7 @@ use serde_json::{Value as JsonValue, json};
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
-use crate::dtos::dashboard_settings_dto::{SettingDto, SettingOptionDto, SettingSection};
-use crate::entities::setting::{Setting, SettingValueType};
-
-use nimble_web::DataProvider;
-use nimble_web::PipelineError;
-use nimble_web::Repository;
+use crate::prelude::*;
 
 pub struct SettingKeys;
 

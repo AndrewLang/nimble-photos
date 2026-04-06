@@ -10,16 +10,18 @@ pub mod storage_controller;
 pub mod tag_controller;
 pub mod timeline_controller;
 
-use admin_user_controller::AdminUserController;
-use album_controller::AlbumController;
-use assets_controller::AssetsController;
-use auth_controller::AuthController;
-use client_controller::ClientHandlers;
-use dashboard_controller::DashboardController;
 use nimble_web::AppBuilder;
-use photo_controller::PhotoController;
-use storage_controller::StorageController;
-use tag_controller::TagController;
+
+pub use admin_user_controller::AdminUserController;
+pub use album_controller::AlbumController;
+pub use assets_controller::AssetsController;
+pub use auth_controller::AuthController;
+pub use client_controller::ClientHandlers;
+pub use dashboard_controller::DashboardController;
+pub use httpcontext_extensions::HttpContextExtensions;
+pub use photo_controller::PhotoController;
+pub use storage_controller::StorageController;
+pub use tag_controller::TagController;
 
 pub fn register_controllers(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder

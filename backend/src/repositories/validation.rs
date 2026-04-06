@@ -1,4 +1,4 @@
-use nimble_web::PipelineError;
+use crate::prelude::*;
 
 pub trait StringValidations {
     fn should_not_empty(self, field_name: &str) -> Result<Self, PipelineError>

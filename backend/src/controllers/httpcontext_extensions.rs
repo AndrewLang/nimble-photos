@@ -3,27 +3,10 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use chrono::Utc;
-use nimble_web::DataProvider;
-use nimble_web::HttpContext;
-use nimble_web::IdentityContext;
-use nimble_web::PipelineError;
-use nimble_web::Repository;
-use nimble_web::RequestBody;
-use nimble_web::data::query::{Filter, FilterOperator, Query, Value};
 use urlencoding::decode;
 use uuid::Uuid;
 
-use crate::entities::Client;
-use crate::entities::ClientStorage;
-use crate::entities::Photo;
-use crate::entities::UserSettings;
-use crate::entities::permission::Permission;
-use crate::entities::photo_browse::BrowseOptions;
-use crate::entities::photo_browse::BrowseRequest;
-use crate::entities::storage_location::StorageLocation;
-use crate::models::setting_consts::SettingConsts;
-use crate::repositories::photo_repo::PhotoRepositoryExtensions;
-use crate::services::SettingService;
+use crate::prelude::*;
 
 #[async_trait]
 pub trait HttpContextExtensions {
