@@ -1,7 +1,9 @@
+import { logger } from "./logger";
 import { Photo } from "./photo";
 
 export class PhotoMetadataProcessor {
     buildMetadataSections(p?: Photo | null): { title: string; fields: { label: string; value: string }[] }[] {
+        logger.debug('Building metadata sections for photo', p);
         if (!p || !p.metadata) {
             return [];
         }

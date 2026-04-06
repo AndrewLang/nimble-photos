@@ -52,8 +52,11 @@ export class PhotoService {
 
   getPhotoMetadata(id: string): Observable<PhotoMetadata | null> {
     return this.http
-      .get<PhotoMetadata | null>(`${this.apiBase}/photos/${id}/metadata`)
-      .pipe(catchError(() => of(null)));
+      .get<PhotoMetadata | null>(`${this.apiBase}/photos/metadata/${id}`)
+      .pipe(
+        map((metadata) => this.asRecord(metadata) as PhotoMetadata | null),
+        catchError(() => of(null))
+      );
   }
 
   getAlbumComments(albumId: string): Observable<PagedModel<AlbumComment>> {
@@ -84,8 +87,16 @@ export class PhotoService {
 
   getPhotoComments(photoId: string): Observable<PhotoComment[]> {
     return this.http
-      .get<PhotoComment[]>(`${this.apiBase}/photos/comments/${photoId}`)
-      .pipe(catchError(() => of([])));
+      .get<PhotoComment[] | PagedModel<PhotoComment>>(`${this.apiBase}/photos/comments/${photoId}/1/100`)
+      .pipe(
+        map((response) => {
+          if (Array.isArray(response)) {
+            return response;
+          }
+          return this.asArray(response?.items);
+        }),
+        catchError(() => of([]))
+      );
   }
 
   createPhotoComment(photoId: string, comment: string): Observable<PhotoComment> {
@@ -133,7 +144,7 @@ export class PhotoService {
 
   getPreviewPath(photo: Photo): string {
     if (photo.hash) {
-      return `${this.apiBase}/photos/preview/${photo.hash}`;
+      return `${this.apiBase}/photos/preview/${photo.storageId}/${photo.hash}`;
     }
 
     return photo.path;
@@ -148,8 +159,9 @@ export class PhotoService {
       return this.getAlbumPhotos(albumId, 1, 400).pipe(
         map((page) => {
           if (!page) return { prevId: null, nextId: null };
-          const index = page.items.findIndex((photo) => photo.id === id);
-          return this.resolveAdjacent(page.items.map(p => p.id), index);
+          const items = this.asArray(page.items);
+          const index = items.findIndex((photo) => photo.id === id);
+          return this.resolveAdjacent(items.map(p => p.id), index);
         })
       );
     }
@@ -165,8 +177,9 @@ export class PhotoService {
 
     return source$.pipe(
       map(ids => {
-        const index = ids.indexOf(id);
-        return this.resolveAdjacent(ids, index);
+        const safeIds = this.asArray(ids);
+        const index = safeIds.indexOf(id);
+        return this.resolveAdjacent(safeIds, index);
       })
     );
   }
@@ -187,21 +200,22 @@ export class PhotoService {
       .get<{ title: string; photos: PagedModel<PhotoResponse> }[]>(`${this.apiBase}/timeline/${page}/${pageSize}`)
       .pipe(
         map((groups) =>
-          groups.map((g) => ({
+          this.asArray(groups).map((g) => ({
             title: g.title,
             photos: this.mapPhotoPage(g.photos),
           }))
         ),
         tap(groups => {
+          const safeGroups = this.asArray(groups);
           if (page === 1) {
-            this.timelineCache = groups;
-            this.timelinePhotoIds = groups.flatMap(g => g.photos.items.map(p => p.id));
+            this.timelineCache = safeGroups;
+            this.timelinePhotoIds = safeGroups.flatMap(g => this.asArray(g?.photos?.items).map(p => p.id));
           } else {
             if (this.timelineCache) {
-              this.timelineCache.push(...groups);
+              this.timelineCache.push(...safeGroups);
             }
             if (this.timelinePhotoIds) {
-              this.timelinePhotoIds.push(...groups.flatMap(g => g.photos.items.map(p => p.id)));
+              this.timelinePhotoIds.push(...safeGroups.flatMap(g => this.asArray(g?.photos?.items).map(p => p.id)));
             }
           }
         }),
@@ -225,7 +239,7 @@ export class PhotoService {
       map(results => {
         const allGroups: GroupedPhotos[] = [];
         for (const groups of results) {
-          allGroups.push(...groups.map((g) => ({
+          allGroups.push(...this.asArray(groups).map((g) => ({
             title: g.title,
             photos: this.mapPhotoPage(g.photos),
           })));
@@ -237,7 +251,7 @@ export class PhotoService {
           this.timelineCache.push(...allGroups);
         }
         if (this.timelinePhotoIds) {
-          this.timelinePhotoIds.push(...allGroups.flatMap(g => g.photos.items.map(p => p.id)));
+          this.timelinePhotoIds.push(...allGroups.flatMap(g => this.asArray(g?.photos?.items).map(p => p.id)));
         }
       }),
       catchError(() => of([]))
@@ -349,11 +363,12 @@ export class PhotoService {
   }
 
   private mapPhotoPage(response: PagedModel<PhotoResponse>): PagedPhotos {
+    const items = this.asArray(response?.items);
     return {
-      page: response.page,
-      pageSize: response.pageSize,
-      total: response.total,
-      items: response.items.map((dto) => this.mapPhoto(dto)),
+      page: response?.page ?? 1,
+      pageSize: response?.pageSize ?? items.length,
+      total: response?.total ?? items.length,
+      items: items.map((dto) => this.mapPhoto(dto)),
     };
   }
 
@@ -424,5 +439,16 @@ export class PhotoService {
     }
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+
+  private asArray<T>(value: T[] | null | undefined): T[] {
+    return Array.isArray(value) ? value : [];
+  }
+
+  private asRecord<T>(value: T | null | undefined): T | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return null;
+    }
+    return value;
   }
 }

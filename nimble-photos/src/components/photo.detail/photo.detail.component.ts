@@ -2,12 +2,13 @@
 import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { first } from 'rxjs';
+import { logger } from '../../models/logger';
 import { Photo } from '../../models/photo';
 import { PhotoMetadataProcessor } from '../../models/photo.metadata';
 import { AuthService } from '../../services/auth.service';
 import { PhotoService } from '../../services/photo.service';
-import { PhotoCommentComponent } from './photo.comment.component';
 import { SvgComponent } from '../svg/svg.component';
+import { PhotoCommentComponent } from './photo.comment.component';
 
 @Component({
     selector: 'mtx-photo-detail',
@@ -97,8 +98,21 @@ export class PhotoDetailComponent implements OnInit {
         return this.previewSrc() ?? this.photoService.getPreviewPath(this.photo()!);
     }
 
-    metadataSections(p?: Photo | null): { title: string; fields: { label: string; value: string }[] }[] {
-        return this.photoMetadata.buildMetadataSections(p);
+    metadataSections(photo?: Photo | null): { title: string; fields: { label: string; value: string }[] }[] {
+        if (photo && !photo?.metadata) {
+            this.photoService.getPhotoMetadata(photo.id)
+                .pipe(first())
+                .subscribe(metadata => {
+                    this.photo.update(current =>
+                        current ? { ...current, metadata: metadata ?? undefined } : current
+                    );
+
+                    logger.debug('Loaded metadata for photo', photo?.id, metadata);
+                });
+        }
+        let metadata = this.photoMetadata.buildMetadataSections(photo);
+        logger.debug('Built metadata sections', metadata);
+        return metadata;
     }
 
     private buildDefaultReturnUrl(albumId: string | null): string {
@@ -157,9 +171,22 @@ export class PhotoDetailComponent implements OnInit {
     }
 
     private fetchAdjacents(id: string): void {
+        logger.debug('Fetching adjacent', id)
         this.photoService.getAdjacentPhotos(id, this.albumId || undefined)
             .pipe(first())
-            .subscribe(adj => this.adjacents.set(adj));
+            .subscribe({
+                next: adj => {
+                    logger.debug('Received adjacent', adj)
+                    this.adjacents.set({
+                        prevId: adj?.prevId ?? null,
+                        nextId: adj?.nextId ?? null,
+                    });
+                },
+                error: err => {
+                    logger.error('Failed to fetch adjacent photos', err);
+                    this.adjacents.set({ prevId: null, nextId: null });
+                }
+            });
     }
 
     private loadPhotoMetadata(photoId: string): void {
@@ -172,5 +199,4 @@ export class PhotoDetailComponent implements OnInit {
                 this.metadataExpanded.set(false);
             });
     }
-
 }

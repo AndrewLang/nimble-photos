@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, input, OnInit, signal } from '@angular/core';
 import { catchError, first, of } from 'rxjs';
+import { logger } from '../../models/logger';
 import { PhotoComment } from '../../models/photo';
 import { AsyncLoader } from '../../models/resource.loader';
 import { SettingNames } from '../../models/setting.names';
@@ -109,9 +110,12 @@ export class PhotoCommentComponent implements OnInit {
     }
 
     private loadComments(photoId: string): void {
-        this.comments.load(() =>
-            this.photoService.getPhotoComments(photoId),
-            () => this.isLoading.set(false),
+        this.comments.load(
+            () => this.photoService.getPhotoComments(photoId),
+            (result) => {
+                logger.debug('Loaded comments for photo', photoId, result);
+                this.isLoading.set(false);
+            },
             'Failed to load comments.'
         );
     }

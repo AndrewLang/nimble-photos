@@ -438,7 +438,6 @@ impl HttpHandler for PhotoCommentsHandler {
         let page_size: u32 = context.page_size().unwrap_or(50);
 
         let repository = context.service::<Repository<PhotoComment>>()?;
-
         let query = QueryBuilder::<PhotoComment>::new()
             .filter("photo_id", FilterOperator::Eq, Value::Uuid(photo_id))
             .sort_desc("created_at")
@@ -589,5 +588,22 @@ impl HttpHandler for UpdatePhotoTagsHandler {
         Ok(ResponseValue::new(Json(
             serde_json::json!({ "updated": updated }),
         )))
+    }
+}
+
+struct GetMetadataHandler;
+
+#[async_trait]
+#[get("/api/photos/metadata/{id}")]
+impl HttpHandler for GetMetadataHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let photo_id = context.id("id")?;
+        let exif_repo = context.service::<Repository<ExifModel>>()?;
+        let metadata = exif_repo
+            .get_by("image_id", Value::Uuid(photo_id))
+            .await
+            .map_err(|e| PipelineError::message(&format!("failed to get exif record: {:?}", e)))?;
+
+        Ok(ResponseValue::json(metadata))
     }
 }
