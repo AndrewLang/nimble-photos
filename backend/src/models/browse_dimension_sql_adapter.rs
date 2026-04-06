@@ -19,44 +19,33 @@ impl BrowseDimensionSqlAdapter {
 
     pub fn group_select(&self) -> (&'static str, &'static str) {
         match self.dimension {
-            BrowseDimension::Year => (
-                "EXTRACT(YEAR FROM COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC')::int AS folder",
-                "EXTRACT(YEAR FROM COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC')::int",
-            ),
+            BrowseDimension::Year => ("p.year AS folder", "p.year"),
             BrowseDimension::Date => (
-                "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS folder",
-                "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD')",
+                "concat(p.year::text, '-', p.month_day) AS folder",
+                "concat(p.year::text, '-', p.month_day)",
             ),
             BrowseDimension::Month => (
-                "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM') AS folder",
-                "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM')",
+                "concat(p.year::text, '-', split_part(p.month_day, '-', 1)) AS folder",
+                "concat(p.year::text, '-', split_part(p.month_day, '-', 1))",
             ),
-            BrowseDimension::Camera => ("p.camera_model AS folder", "p.camera_model"),
+            BrowseDimension::Camera => ("COALESCE(p.model, p.make) AS folder", "COALESCE(p.model, p.make)"),
             BrowseDimension::Rating => ("p.rating AS folder", "p.rating"),
         }
     }
 
     pub fn filter_clause(&self, param_index: usize) -> String {
         match self.dimension {
-            BrowseDimension::Year => {
-                format!(
-                    "EXTRACT(YEAR FROM COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC')::int = ${}",
-                    param_index
-                )
-            }
+            BrowseDimension::Year => format!("p.year = ${}", param_index),
             BrowseDimension::Date => {
-                format!(
-                    "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD') = ${}",
-                    param_index
-                )
+                format!("concat(p.year::text, '-', p.month_day) = ${}", param_index)
             }
             BrowseDimension::Month => {
                 format!(
-                    "to_char(COALESCE(p.date_taken, p.created_at) AT TIME ZONE 'UTC', 'YYYY-MM') = ${}",
+                    "concat(p.year::text, '-', split_part(p.month_day, '-', 1)) = ${}",
                     param_index
                 )
             }
-            BrowseDimension::Camera => format!("p.camera_model = ${}", param_index),
+            BrowseDimension::Camera => format!("COALESCE(p.model, p.make) = ${}", param_index),
             BrowseDimension::Rating => format!("p.rating = ${}", param_index),
         }
     }

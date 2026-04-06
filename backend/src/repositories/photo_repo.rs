@@ -163,8 +163,9 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
 
         let sql = format!(
             r#"
-            SELECT DISTINCT to_char(p.day_date, 'YYYY') as year
+            SELECT DISTINCT p.year::text as year
             FROM photos p
+            WHERE p.year IS NOT NULL
             ORDER BY year DESC
         "#
         );
@@ -186,18 +187,20 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         let sql = format!(
             r#"
             WITH day_groups AS (
-                SELECT DISTINCT to_char(p.day_date, 'YYYY-MM-DD') as day
+                SELECT DISTINCT p.day_date as day
                 FROM photos p
             )
             SELECT count(*) as offset
             FROM day_groups
-            WHERE day > $1
+            WHERE EXTRACT(YEAR FROM day)::int > $1
         "#
         );
 
-        let search_start = format!("{}-12-31", year);
+        let search_year = year
+            .parse::<i32>()
+            .map_err(|e| PipelineError::message(&format!("invalid year '{}': {}", year, e)))?;
         let rows = self
-            .raw_query::<OffsetRow>(&sql, &[Value::String(search_start)])
+            .raw_query::<OffsetRow>(&sql, &[Value::Int(search_year as i64)])
             .await
             .map_err(|e| PipelineError::message(&format!("failed to load year offset: {:?}", e)))?;
         let offset = rows.first().map(|row| row.offset).unwrap_or(0);
@@ -212,23 +215,7 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         let sql = format!(
             r#"
             SELECT
-                p.id, p.storage_id, p.path, p.name, p.format, p.hash, p.size,
-                p.created_at, p.updated_at, p.date_imported, p.date_taken,
-                p.metadata_extracted, p.is_raw,
-                CASE
-                    WHEN e.orientation IN (5, 6, 7, 8) THEN
-                        COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
-                    ELSE
-                        COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
-                END as width,
-                CASE
-                    WHEN e.orientation IN (5, 6, 7, 8) THEN
-                        COALESCE(NULLIF(p.width, 0), NULLIF(e.pixel_x_dimension, 0), NULLIF(e.image_width, 0))
-                    ELSE
-                        COALESCE(NULLIF(p.height, 0), NULLIF(e.pixel_y_dimension, 0), NULLIF(e.image_length, 0))
-                END as height,
-                p.day_date,
-                p.sort_date,
+                p.*,
                 e.gps_latitude as lat,
                 e.gps_longitude as lon
             FROM photos p

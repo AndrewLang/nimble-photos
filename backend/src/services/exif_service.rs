@@ -118,12 +118,22 @@ impl ExifService {
             max_aperture_value: self.f32_from_field(fields, Tag::MaxApertureValue.to_string()),
             brightness_value: self.f32_from_field(fields, Tag::BrightnessValue.to_string()),
             shutter_speed_value: self.f32_from_field(fields, Tag::ShutterSpeedValue.to_string()),
+            iso: self
+                .u32_from_field(fields, "PhotographicSensitivity".to_string())
+                .or_else(|| self.u32_from_field(fields, "ISO".to_string())),
             focal_length: self.f32_from_field(fields, Tag::FocalLength.to_string()),
             image_width: image_width,
             image_length: image_length,
             pixel_x_dimension: self.u32_from_field(fields, Tag::PixelXDimension.to_string()),
             pixel_y_dimension: self.u32_from_field(fields, Tag::PixelYDimension.to_string()),
             orientation: orientation,
+            rating: self
+                .u32_from_field(fields, "Rating".to_string())
+                .map(|value| value as u8),
+            label: self.text_from_field(fields, "Label".to_string()),
+            flagged: self
+                .u32_from_field(fields, "Flagged".to_string())
+                .map(|value| value as i8),
             datetime: self.text_from_field(fields, Tag::DateTime.to_string()),
             datetime_original: self.text_from_field(fields, Tag::DateTimeOriginal.to_string()),
             datetime_digitized: self.text_from_field(fields, Tag::DateTimeDigitized.to_string()),

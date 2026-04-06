@@ -335,6 +335,14 @@ impl ExifModel {
         self.image_length.or(self.pixel_y_dimension)
     }
 
+    pub fn get_aperture(&self) -> Option<f32> {
+        self.f_number.or(self.aperture_value)
+    }
+
+    pub fn get_iso(&self) -> Option<u32> {
+        self.iso.or(self.photographic_sensitivity)
+    }
+
     fn parse_exif_timestamp(raw: &str) -> Option<DateTime<Utc>> {
         let trimmed = raw.trim();
         if trimmed.is_empty() {

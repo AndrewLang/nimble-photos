@@ -13,7 +13,7 @@ use crate::services::{PreviewExtractor, ThumbnailExtractor};
 
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use nimble_web::Repository;
 use nimble_web::ServiceProvider;
 use std::path::{Path, PathBuf};
@@ -360,6 +360,8 @@ impl ImageProcessStep for PersistMetadataStep {
             .or_else(|| exif.get_date_taken());
         let sort_date = date_taken.unwrap_or(now);
         let day_date: NaiveDate = sort_date.date_naive();
+        let year = Some(sort_date.year());
+        let month_day = Some(sort_date.format("%m-%d").to_string());
 
         let photo = Photo {
             id: Uuid::new_v4(),
@@ -377,7 +379,21 @@ impl ImageProcessStep for PersistMetadataStep {
             updated_at: Some(now),
             date_imported: Some(now),
             date_taken,
+            year,
+            month_day,
             metadata_extracted: Some(true),
+            artist: exif.artist.clone(),
+            make: exif.make.clone(),
+            model: exif.model.clone(),
+            lens_make: exif.lens_make.clone(),
+            lens_model: exif.lens_model.clone(),
+            exposure_time: exif.exposure_time.clone(),
+            iso: exif.get_iso(),
+            aperture: exif.get_aperture(),
+            focal_length: exif.focal_length,
+            label: exif.label.clone(),
+            rating: exif.rating,
+            flagged: exif.flagged,
             is_raw: Some(
                 ImageProcessKeys::RAW_EXTENSIONS
                     .iter()
@@ -385,6 +401,7 @@ impl ImageProcessStep for PersistMetadataStep {
             ),
             width: exif.get_width(),
             height: exif.get_height(),
+            orientation: exif.orientation,
             day_date,
             sort_date,
         };

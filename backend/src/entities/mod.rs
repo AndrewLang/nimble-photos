@@ -327,8 +327,62 @@ pub async fn ensure_supporting_schema(pool: &sqlx::PgPool) -> Result<()> {
         "ALTER TABLE clientstorages ADD CONSTRAINT clientstorages_pkey PRIMARY KEY (id)",
         "CREATE UNIQUE INDEX IF NOT EXISTS ux_clientstorages_client_storage ON clientstorages (client_id, storage_id)",
         "ALTER TABLE storages ADD COLUMN IF NOT EXISTS readonly BOOLEAN NOT NULL DEFAULT false",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS year INTEGER",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS month_day TEXT",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS artist TEXT",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS make TEXT",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS model TEXT",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS lens_make TEXT",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS lens_model TEXT",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS exposure_time TEXT",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS iso INTEGER",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS aperture REAL",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS focal_length REAL",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS label TEXT",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS rating INTEGER",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS flagged INTEGER",
+        "ALTER TABLE photos ADD COLUMN IF NOT EXISTS orientation INTEGER",
         "UPDATE storages SET readonly = true WHERE id = '00000000-0000-0000-0000-000000000001'::uuid",
+        r#"UPDATE photos p
+           SET
+               year = COALESCE(p.year, EXTRACT(YEAR FROM COALESCE(p.date_taken, p.created_at, p.sort_date) AT TIME ZONE 'UTC')::int),
+               month_day = COALESCE(p.month_day, to_char(COALESCE(p.date_taken, p.created_at, p.sort_date) AT TIME ZONE 'UTC', 'MM-DD')),
+               sort_date = COALESCE(p.sort_date, COALESCE(p.date_taken, p.created_at, NOW())),
+               day_date = COALESCE(p.day_date, (COALESCE(p.date_taken, p.created_at, p.sort_date, NOW()) AT TIME ZONE 'UTC')::date)"#,
+        r#"UPDATE photos p
+           SET
+               artist = COALESCE(p.artist, e.artist),
+               make = COALESCE(p.make, e.make),
+               model = COALESCE(p.model, e.model),
+               lens_make = COALESCE(p.lens_make, e.lens_make),
+               lens_model = COALESCE(p.lens_model, e.lens_model),
+               exposure_time = COALESCE(p.exposure_time, e.exposure_time),
+               iso = COALESCE(p.iso, e.iso, e.photographic_sensitivity),
+               aperture = COALESCE(p.aperture, e.f_number, e.aperture_value),
+               focal_length = COALESCE(p.focal_length, e.focal_length),
+               label = COALESCE(p.label, e.label),
+               rating = COALESCE(p.rating, e.rating),
+               flagged = COALESCE(p.flagged, e.flagged),
+               orientation = COALESCE(p.orientation, e.orientation),
+               width = COALESCE(
+                   p.width,
+                   CASE
+                       WHEN e.orientation IN (5, 6, 7, 8) THEN COALESCE(e.pixel_y_dimension, e.image_length)
+                       ELSE COALESCE(e.pixel_x_dimension, e.image_width)
+                   END
+               ),
+               height = COALESCE(
+                   p.height,
+                   CASE
+                       WHEN e.orientation IN (5, 6, 7, 8) THEN COALESCE(e.pixel_x_dimension, e.image_width)
+                       ELSE COALESCE(e.pixel_y_dimension, e.image_length)
+                   END
+               ),
+               metadata_extracted = COALESCE(p.metadata_extracted, true)
+           FROM exifs e
+           WHERE e.image_id = p.id"#,
         "CREATE INDEX IF NOT EXISTS idx_photos_day_taken ON photos (day_date DESC, date_taken DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_photos_year ON photos (year DESC)",
         "CREATE INDEX IF NOT EXISTS idx_timeline_days_day_date_year ON timeline_days (day_date, year)",
         "CREATE INDEX IF NOT EXISTS idx_photos_hash ON photos(hash)",
         "CREATE INDEX IF NOT EXISTS idx_photos_storage ON photos(storage_id)",
