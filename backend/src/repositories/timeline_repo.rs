@@ -7,6 +7,7 @@ pub trait TimelineRepositoryExtensions {
     async fn get_years(&self) -> Result<Vec<i32>, PipelineError>;
     async fn get_yeardays(&self) -> Result<Vec<TimelineYearDays>, PipelineError>;
     async fn get_days(&self, limit: u32, offset: u32) -> Result<Vec<TimelineDay>, PipelineError>;
+    async fn sync(&self) -> Result<(), PipelineError>;
 }
 
 #[async_trait]
@@ -60,5 +61,36 @@ impl TimelineRepositoryExtensions for Repository<TimelineDay> {
             .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(days_page.items)
+    }
+
+    async fn sync(&self) -> Result<(), PipelineError> {
+        let sql = r#"
+            INSERT INTO timeline_days (
+                id,
+                day_date,
+                year,
+                month,
+                total_count,
+                min_sort_date,
+                max_sort_date
+            )
+            SELECT
+                gen_random_uuid() AS id,
+                p.day_date,
+                EXTRACT(YEAR FROM p.day_date)::int,
+                EXTRACT(MONTH FROM p.day_date)::int,
+                COUNT(*)::int,
+                MIN(p.sort_date),
+                MAX(p.sort_date)
+            FROM photos p
+            WHERE p.day_date IS NOT NULL
+            GROUP BY p.day_date
+            ORDER BY p.day_date;
+        "#;
+        self.execute(sql, &[]).await.map_err(|e| {
+            PipelineError::message(&format!("failed to sync timeline days: {:?}", e))
+        })?;
+
+        Ok(())
     }
 }

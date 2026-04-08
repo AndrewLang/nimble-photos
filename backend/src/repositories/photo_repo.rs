@@ -308,6 +308,10 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         days: Vec<String>,
     ) -> Result<Vec<TimelineGroup>, PipelineError> {
         log::info!("Loading photos for days: {:?}", days.clone());
+        if days.is_empty() {
+            return Ok(Vec::new());
+        }
+
         let day_dates: Vec<NaiveDate> = days
             .iter()
             .map(|d| {
