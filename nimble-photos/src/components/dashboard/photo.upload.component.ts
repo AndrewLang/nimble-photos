@@ -7,6 +7,7 @@ import { StorageLocation } from '../../models/storage.model';
 import { DialogService } from '../../services/dialog.service';
 import { PhotoService } from '../../services/photo.service';
 import { StorageService } from '../../services/storage.service';
+import { SpinnerComponent } from '../spinner/spinner.component';
 import { StorageSelectorComponent } from '../storage/storage.selector.component';
 import { SvgComponent } from '../svg/svg.component';
 
@@ -14,7 +15,7 @@ import { SvgComponent } from '../svg/svg.component';
 @Component({
     selector: 'mtx-photo-upload',
     templateUrl: 'photo.upload.component.html',
-    imports: [RouterModule, SvgComponent, FormatSizePipe],
+    imports: [RouterModule, SvgComponent, FormatSizePipe, SpinnerComponent],
 })
 export class PhotoUploadComponent implements OnInit {
     readonly supportedExtensions = [
@@ -37,6 +38,7 @@ export class PhotoUploadComponent implements OnInit {
     readonly totalSelectedBytes = computed(() => {
         return this.selectedFiles().reduce((sum, file) => sum + file.size, 0);
     });
+
     readonly hasEnoughSpace = computed(() => {
         const storage = this.selectedStorage();
         if (!storage?.disk) {
@@ -44,6 +46,7 @@ export class PhotoUploadComponent implements OnInit {
         }
         return this.totalSelectedBytes() <= storage.disk.availableBytes;
     });
+
     readonly canSubmitUpload = computed(() => {
         return this.canUpload() && this.hasEnoughSpace();
     });

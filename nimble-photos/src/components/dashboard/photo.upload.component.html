@@ -74,6 +74,11 @@
         </div>
     </div>
 
+    @if(uploading()) {
+    <div class="mt-6 flex items-center justify-center">
+        <mtx-spinner [size]="64" label="Uploading..." [showLabel]="true" />
+    </div>
+    } @else {
     <label class="mt-6 block">
         <input type="file" multiple class="hidden" #fileInput [disabled]="!canUpload()"
             accept=".jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.tiff,.bmp,.raw,.dng" (change)="onFileSelected($event)" />
@@ -87,6 +92,7 @@
             <p class="text-xs text-slate-400 mt-1">or click to browse</p>
         </div>
     </label>
+    }
 
     @if (!canUpload()) {
     <div class="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-200">
