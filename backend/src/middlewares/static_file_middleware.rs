@@ -1,6 +1,3 @@
-use async_trait::async_trait;
-use std::path::{Component, Path, PathBuf};
-
 use crate::prelude::*;
 
 pub struct StaticFileMiddleware {

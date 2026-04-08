@@ -19,7 +19,8 @@ use nimble_web::ServiceProvider;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::task;
-use uuid::Uuid;
+
+use crate::prelude::*;
 
 pub(super) struct ExtractExifStep {
     services: Arc<ServiceProvider>,

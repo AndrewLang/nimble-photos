@@ -1,9 +1,6 @@
-use crate::prelude::*;
-use chrono::{Duration, Utc};
 #[cfg(feature = "postgres")]
 use crate::prelude::QueryBuilder;
-use std::sync::Arc;
-use uuid::Uuid;
+use crate::prelude::*;
 
 pub struct AuthService {
     repo: Arc<Repository<User>>,

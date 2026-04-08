@@ -1,5 +1,4 @@
-use nimble_web::Controller;
-use nimble_web::EndpointRoute;
+use crate::prelude::*;
 
 pub struct TagController;
 

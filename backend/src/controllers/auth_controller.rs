@@ -1,11 +1,9 @@
-use async_trait::async_trait;
 use chrono::Utc;
 
 #[cfg(feature = "testbot")]
 use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
-use serde_json::json;
 
 pub struct AuthController;
 

@@ -1,8 +1,5 @@
 use super::uuid_id::HasOptionalUuidId;
-use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
-use nimble_web::Entity;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use crate::prelude::*;
 
 #[cfg(feature = "postgres")]
 use {

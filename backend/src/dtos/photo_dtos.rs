@@ -1,7 +1,5 @@
 use crate::entities::photo::{Photo, PhotoViewModel};
-use nimble_web::Page;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use crate::prelude::*;
 
 #[derive(Debug, Clone)]
 pub enum TagRef {

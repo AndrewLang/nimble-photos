@@ -1,10 +1,6 @@
-use async_trait::async_trait;
-use nimble_web::{EntityHooks, RequestContext};
-use nimble_web::{HttpError, Result as HttpResult};
-use std::marker::PhantomData;
-use uuid::Uuid;
-
+use crate::prelude::*;
 use crate::services::IdGenerationService;
+use std::marker::PhantomData;
 
 pub trait HasOptionalUuidId {
     fn current_id(&self) -> Option<Uuid>;

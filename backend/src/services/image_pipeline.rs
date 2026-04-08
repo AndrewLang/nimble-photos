@@ -10,12 +10,8 @@ use crate::services::image_process_steps::{
 use crate::services::photo_upload_service::StoredUploadFile;
 use crate::services::task_descriptor::TaskDescriptor;
 
+use crate::prelude::*;
 use anyhow::Result;
-use nimble_web::Configuration;
-use nimble_web::ServiceProvider;
-use serde_json::{Value as JsonValue, json};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct ImageProcessPipelineContext {

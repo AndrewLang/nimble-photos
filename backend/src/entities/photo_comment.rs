@@ -1,9 +1,6 @@
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use crate::prelude::*;
 
 use crate::entities::uuid_id::HasOptionalUuidId;
-use nimble_web::Entity;
 
 #[cfg(feature = "postgres")]
 use {

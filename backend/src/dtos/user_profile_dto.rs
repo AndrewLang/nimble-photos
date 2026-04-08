@@ -1,7 +1,5 @@
 use crate::entities::{user::User, user_settings::UserSettings};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
+use crate::prelude::*;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserProfileDto {

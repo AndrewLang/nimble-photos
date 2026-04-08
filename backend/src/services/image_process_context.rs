@@ -1,11 +1,6 @@
 use super::image_pipeline::ImageProcessPayload;
 use crate::models::property_map::PropertyMap;
-
-use nimble_web::ServiceProvider;
-
-use std::any::Any;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use crate::prelude::*;
 
 pub struct ImageProcessContext {
     payload: ImageProcessPayload,
