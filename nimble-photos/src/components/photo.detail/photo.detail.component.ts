@@ -6,6 +6,7 @@ import { logger } from '../../models/logger';
 import { Photo } from '../../models/photo';
 import { PhotoMetadataProcessor } from '../../models/photo.metadata';
 import { AuthService } from '../../services/auth.service';
+import { LocalSettingService } from '../../services/local.setting.service';
 import { PhotoService } from '../../services/photo.service';
 import { SvgComponent } from '../svg/svg.component';
 import { PhotoCommentComponent } from './photo.comment.component';
@@ -37,6 +38,7 @@ export class PhotoDetailComponent implements OnInit {
     private readonly router = inject(Router);
     readonly authService = inject(AuthService);
     private readonly photoService = inject(PhotoService);
+    private readonly localSettingService = inject(LocalSettingService);
 
     private readonly photoMetadata = new PhotoMetadataProcessor();
 
@@ -53,6 +55,9 @@ export class PhotoDetailComponent implements OnInit {
                 this.fetchPhoto(id);
             }
         });
+
+        this.metadataExpanded.set(this.localSettingService.get('photo.detail.metadata.visible', false));
+        this.sidebarHidden.set(this.localSettingService.get('photo.detail.sidebar.hidden', false));
     }
 
     @HostListener('window:keydown', ['$event'])
@@ -72,10 +77,12 @@ export class PhotoDetailComponent implements OnInit {
 
     toggleMetadata(): void {
         this.metadataExpanded.update(value => !value);
+        this.localSettingService.set('photo.detail.metadata.visible', this.metadataExpanded());
     }
 
     toggleSidebar(): void {
         this.sidebarHidden.update(value => !value);
+        this.localSettingService.set('photo.detail.sidebar.hidden', this.sidebarHidden());
     }
 
     navigateToPhoto(id: string): void {
@@ -196,7 +203,6 @@ export class PhotoDetailComponent implements OnInit {
                 this.photo.update(current =>
                     current ? { ...current, metadata: metadata ?? undefined } : current
                 );
-                this.metadataExpanded.set(false);
             });
     }
 }
