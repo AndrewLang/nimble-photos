@@ -79,15 +79,14 @@
         <mtx-spinner [size]="64" label="Uploading..." [showLabel]="true" />
     </div>
     } @else {
-    <label class="mt-6 block">
+    <label class="mt-6 block" id="fileSelector">
         <input type="file" multiple class="hidden" #fileInput [disabled]="!canUpload()"
             accept=".jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.tiff,.bmp,.raw,.dng" (change)="onFileSelected($event)" />
         <div id="file-drop"
             class="mt-4 flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center transition-all cursor-pointer"
             [class.border-indigo-400]="isDragActive()" [class.bg-indigo-500/10]="isDragActive()"
             [class.border-white/10]="!isDragActive()" [class.bg-slate-950/50]="!isDragActive()"
-            (click)="fileInput.click()" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
-            (drop)="onDrop($event)">
+            (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
             <p class="text-sm font-semibold text-white">Drop files here</p>
             <p class="text-xs text-slate-400 mt-1">or click to browse</p>
         </div>
