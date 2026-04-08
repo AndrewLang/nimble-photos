@@ -24,6 +24,7 @@ async fn main() -> std::result::Result<(), AppError> {
 
     log::info!("Starting application...");
     let app = builder.build();
+    let _ = app.services().get::<PhotoService>();
 
     app.log_routes();
 

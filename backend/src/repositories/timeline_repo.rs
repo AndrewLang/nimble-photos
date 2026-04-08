@@ -64,6 +64,12 @@ impl TimelineRepositoryExtensions for Repository<TimelineDay> {
     }
 
     async fn sync(&self) -> Result<(), PipelineError> {
+        self.execute("DELETE FROM timeline_days", &[])
+            .await
+            .map_err(|e| {
+                PipelineError::message(&format!("failed to clear timeline days: {:?}", e))
+            })?;
+
         let sql = r#"
             INSERT INTO timeline_days (
                 id,

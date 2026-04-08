@@ -7,6 +7,7 @@ pub mod auth_service;
 pub mod background_task_runner;
 pub mod browse_service;
 pub mod encrypt_service;
+pub mod event_bus_service;
 pub mod exif_service;
 pub mod file_service;
 pub mod hash_service;
@@ -26,6 +27,8 @@ pub use auth_service::AuthService;
 pub use background_task_runner::BackgroundTaskRunner;
 pub use browse_service::BrowseService;
 pub use encrypt_service::EncryptService;
+pub use event_bus_service::AppEvent;
+pub use event_bus_service::EventBusService;
 pub use exif_service::ExifService;
 pub use file_service::FileService;
 pub use hash_service::HashService;
@@ -60,8 +63,17 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
         let config = provider.get::<Configuration>();
         EncryptService::new(&config).expect("Failed to create EncryptService")
     });
+    builder.register_singleton(|provider| {
+        let capacity = provider
+            .get::<Configuration>()
+            .get("eventbus.capacity")
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(256);
+        EventBusService::new(capacity)
+    });
     builder.register_singleton(|_| IdGenerationService::new());
-    builder.register_singleton(|_| PhotoService::new());
+    builder.register_singleton(|provider| PhotoService::new(Arc::clone(&provider)));
     builder.register_singleton(|_| ExifService::new());
     builder.register_singleton(|_| HashService::new());
     builder.register_singleton(|_| FileService::new());

@@ -2,6 +2,7 @@ pub use super::image_process_context::ImageProcessContext;
 use super::image_process_step::ImageProcessStep;
 use crate::entities::StorageLocation;
 use crate::services::background_task_runner::BackgroundTaskRunner;
+use crate::services::event_bus_service::EventBusService;
 use crate::services::image_process_steps::{
     CategorizeImageStep, ComputeHashStep, ExtractExifStep, GeneratePreviewStep,
     GenerateThumbnailStep, PersistMetadataStep,
@@ -12,6 +13,7 @@ use crate::services::task_descriptor::TaskDescriptor;
 use anyhow::Result;
 use nimble_web::Configuration;
 use nimble_web::ServiceProvider;
+use serde_json::{Value as JsonValue, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -74,6 +76,7 @@ impl ImageProcessPayload {
 #[derive(Clone)]
 pub struct ImageProcessPipeline {
     runner: Arc<BackgroundTaskRunner>,
+    event_bus: Arc<EventBusService>,
     steps: Vec<Arc<dyn ImageProcessStep>>,
     services: Arc<ServiceProvider>,
 }
@@ -81,6 +84,7 @@ pub struct ImageProcessPipeline {
 impl ImageProcessPipeline {
     pub fn new(context: ImageProcessPipelineContext) -> Self {
         let runner = context.get_service::<BackgroundTaskRunner>();
+        let event_bus = context.get_service::<EventBusService>();
 
         let steps: Vec<Arc<dyn ImageProcessStep>> = vec![
             Arc::new(ComputeHashStep::new(context.services.clone())),
@@ -93,6 +97,7 @@ impl ImageProcessPipeline {
 
         Self {
             runner,
+            event_bus,
             steps,
             services: Arc::clone(&context.services),
         }
@@ -119,10 +124,20 @@ impl ImageProcessPipeline {
         let task_name = format!("image-process-{}-{}", request.storage.id, request.file_name);
         self.runner
             .enqueue(TaskDescriptor::new(task_name, async move {
+                let completion = json!({
+                    "storageId": request.storage.id,
+                    "storagePath": request.storage.path,
+                    "fileName": request.file_name,
+                    "relativePath": request.relative_path,
+                });
+
                 if let Err(error) = pipeline.run_steps(request).await {
+                    pipeline.emit_images_processed_if_idle(completion);
                     log::error!("Image process pipeline failed: {:?}", error);
                     return Err(error);
                 }
+
+                pipeline.emit_images_processed_if_idle(completion);
                 Ok(())
             }))
     }
@@ -146,5 +161,20 @@ impl ImageProcessPipeline {
             }
         }
         Ok(())
+    }
+
+    fn emit_images_processed_if_idle(&self, last_completed: JsonValue) {
+        if self.runner.queued_count() != 0 || self.runner.running_count() != 1 {
+            return;
+        }
+
+        self.event_bus.emit(
+            "images.processed",
+            json!({
+                "queuedCount": 0,
+                "runningCount": 0,
+                "lastCompleted": last_completed,
+            }),
+        );
     }
 }
