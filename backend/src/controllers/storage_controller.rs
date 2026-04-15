@@ -310,7 +310,7 @@ impl HttpHandler for DeleteStorageHandler {
 struct BrowseStorageHandler;
 
 #[async_trait]
-#[get("/api/storage/{storageId}/browse")]
+#[get("/api/storage/browse/{storageId}")]
 impl HttpHandler for BrowseStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let storage_id = context.route_storage_id()?;
