@@ -38,14 +38,6 @@ impl HttpHandler for UploadPhotosHandler {
             .require_content_type(context.request().headers().get("content-type"))
             .map_err(|error| PipelineError::message(&error.to_string()))?;
         let request_body = context.body_bytes()?;
-        let files = upload_service
-            .parse_multipart_files(content_type_header, request_body)
-            .await
-            .map_err(|error| PipelineError::message(&error.to_string()))?;
-
-        if files.is_empty() {
-            return Err(PipelineError::message("No files found in upload request"));
-        }
 
         let storage_id = context.id("storageId")?;
         let storage_repo = context.service::<Repository<StorageLocation>>()?;
@@ -56,9 +48,17 @@ impl HttpHandler for UploadPhotosHandler {
             .ok_or_else(|| PipelineError::message("Storage is not found"))?;
 
         let saved_files = upload_service
-            .persist_to_storage_temp(Path::new(&storage.path), files)
+            .persist_multipart_to_storage_temp(
+                content_type_header,
+                request_body,
+                Path::new(&storage.path),
+            )
             .await
             .map_err(|error| PipelineError::message(&error.to_string()))?;
+
+        if saved_files.is_empty() {
+            return Err(PipelineError::message("No files found in upload request"));
+        }
 
         if !saved_files.is_empty() {
             let pipeline = context.service::<ImageProcessPipeline>()?;

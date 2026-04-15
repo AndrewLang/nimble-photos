@@ -42,7 +42,6 @@ pub use image_pipeline::ImageProcessPipelineContext;
 pub use photo_service::PhotoService;
 pub use photo_upload_service::PhotoUploadService;
 pub use photo_upload_service::StoredUploadFile;
-pub use photo_upload_service::UploadFilePayload;
 pub use preview_extractor::PreviewExtractor;
 pub use setting_service::SettingKeys;
 pub use setting_service::SettingService;
@@ -82,7 +81,16 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|_| ExifService::new());
     builder.register_singleton(|_| HashService::new());
     builder.register_singleton(|_| FileService::new());
-    builder.register_singleton(|_| PhotoUploadService::new());
+    builder.register_singleton(|provider| {
+        let config = provider.get::<Configuration>();
+        let max_file_size = config
+            .get("upload.max_file_size_bytes")
+            .or_else(|| config.get("upload.maxFileSizeBytes"))
+            .and_then(|value| value.parse::<u64>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(64 * 1024 * 1024);
+        PhotoUploadService::new(max_file_size)
+    });
     builder.register_singleton(|provider| {
         log::info!("Initializing BackgroundTaskRunner...");
         let configuration = provider.get::<Configuration>();

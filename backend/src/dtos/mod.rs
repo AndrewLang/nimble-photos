@@ -5,8 +5,8 @@ pub mod client_dto;
 pub mod dashboard_settings_dto;
 pub mod photo_comment_dto;
 pub mod photo_dtos;
+pub mod sync_dto;
 pub mod timeline_dtos;
-pub mod upload_dto;
 pub mod user_profile_dto;
 
 pub use admin_user_dto::{AdminUserDto, UpdateUserRolesRequest};
@@ -24,6 +24,6 @@ pub use photo_dtos::{
     DeletePhotosPayload, PhotoGroup, PhotoLoc, PhotoLocWithTags, PhotoWithTags, TagRef,
     TimelineGroup, UpdatePhotoTagsPayload, UploadFileResponse, UploadPhotosResponse,
 };
+pub use sync_dto::{CheckFileItem, CheckFileRequest, CheckFileResponse};
 pub use timeline_dtos::TimelineYearDays;
-pub use upload_dto::{CheckFileItem, CheckFileRequest, CheckFileResponse};
 pub use user_profile_dto::UserProfileDto;

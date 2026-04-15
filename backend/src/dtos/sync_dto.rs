@@ -20,11 +20,12 @@ pub struct CheckFileResponse {
     pub missing_files: Vec<CheckFileItem>,
 }
 
-#[derive(Clone, Debug)]
-pub struct SyncFileData {
-    pub file_name: String,
-    pub content_type: Option<String>,
-    pub bytes: Vec<u8>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncMetadataRequest {
+    pub storage_id: String,
+    pub hash: String,
+    pub metadata: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,10 +33,6 @@ pub struct SyncFileData {
 pub struct SyncFileItem {
     pub hash: String,
     pub file_name: String,
-    pub file_size: u64,
-    pub metadata: serde_json::Value,
-
-    pub has_original: bool,
-    pub has_thumbnail: bool,
-    pub has_preview: bool,
+    pub content_type: Option<String>,
+    pub bytes: Vec<u8>,
 }
