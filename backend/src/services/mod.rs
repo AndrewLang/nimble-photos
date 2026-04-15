@@ -52,7 +52,7 @@ pub use thumbnail_extractor::ThumbnailExtractor;
 use std::sync::Arc;
 
 use crate::entities::{
-    photo::Photo, setting::Setting, storage_location::StorageLocation, user::User,
+    exif::ExifModel, photo::Photo, setting::Setting, storage_location::StorageLocation, user::User,
     user_settings::UserSettings,
 };
 use nimble_web::AppBuilder;
@@ -160,7 +160,8 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|provider| {
         let storage_repo = provider.get::<Repository<StorageLocation>>();
         let photo_repo = provider.get::<Repository<Photo>>();
-        StorageService::new(storage_repo, photo_repo)
+        let exif_repo = provider.get::<Repository<ExifModel>>();
+        StorageService::new(storage_repo, photo_repo, exif_repo)
     });
     builder
 }

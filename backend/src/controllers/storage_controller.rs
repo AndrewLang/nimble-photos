@@ -387,3 +387,77 @@ impl HttpHandler for SyncStorageCheckHandler {
         Ok(ResponseValue::json(response))
     }
 }
+
+struct SyncStorageMetadataHandler;
+
+#[async_trait]
+#[post("/api/storage/sync/metadata")]
+impl HttpHandler for SyncStorageMetadataHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let request = context
+            .read_json::<SyncMetadataRequest>()
+            .map_err(|err| PipelineError::message(err.message()))?;
+        let storage_service = context.service::<StorageService>()?;
+        let metadata = storage_service.sync_metadata(request.clone()).await?;
+
+        Ok(ResponseValue::json(json!({
+            "storageId": request.storage_id,
+            "hash": request.hash,
+            "metadata": metadata
+        })))
+    }
+}
+
+struct SyncStorageFileHandler;
+#[async_trait]
+#[post("/api/storage/sync")]
+impl HttpHandler for SyncStorageFileHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let upload_service = context.service::<PhotoUploadService>()?;
+        let content_type_header = upload_service
+            .require_content_type(context.request().headers().get("content-type"))
+            .map_err(|error| PipelineError::message(&error.to_string()))?;
+        let request_body = context.body_bytes()?;
+        let item = upload_service
+            .parse_sync_item(content_type_header, request_body.clone())
+            .await
+            .map_err(|error| PipelineError::message(&error.to_string()))?;
+
+        let storage_repo = context.service::<Repository<StorageLocation>>()?;
+        let storage_id = Uuid::parse_str(item.storage_id.trim())
+            .map_err(|_| PipelineError::message("invalid storageId"))?;
+        let storage = storage_repo
+            .get(&storage_id)
+            .await
+            .map_err(|_| PipelineError::message("failed to load storage settings"))?
+            .ok_or_else(|| PipelineError::message("storage not found"))?;
+
+        let (item, saved_file) = upload_service
+            .persist_sync_file_to_storage_temp(
+                content_type_header,
+                request_body,
+                Path::new(&storage.path),
+            )
+            .await
+            .map_err(|error| PipelineError::message(&error.to_string()))?;
+
+        let pipeline = context.service::<ImageProcessPipeline>()?;
+        pipeline
+            .enqueue_files(storage.clone(), vec![saved_file.clone()])
+            .map_err(|error| {
+                log::error!("Failed to enqueue sync image pipeline: {:?}", error);
+                PipelineError::message("Failed to schedule image processing tasks")
+            })?;
+
+        Ok(ResponseValue::json(serde_json::json!({
+            "storageId": item.storage_id,
+            "hash": item.hash,
+            "file": UploadFileResponse {
+                file_name: saved_file.file_name,
+                relative_path: saved_file.relative_path,
+                byte_size: saved_file.byte_size,
+                content_type: saved_file.content_type,
+            }
+        })))
+    }
+}

@@ -24,6 +24,6 @@ pub use photo_dtos::{
     DeletePhotosPayload, PhotoGroup, PhotoLoc, PhotoLocWithTags, PhotoWithTags, TagRef,
     TimelineGroup, UpdatePhotoTagsPayload, UploadFileResponse, UploadPhotosResponse,
 };
-pub use sync_dto::{CheckFileItem, CheckFileRequest, CheckFileResponse};
+pub use sync_dto::{CheckFileItem, CheckFileRequest, CheckFileResponse, SyncFileItem, SyncFileStream, SyncMetadataRequest};
 pub use timeline_dtos::TimelineYearDays;
 pub use user_profile_dto::UserProfileDto;

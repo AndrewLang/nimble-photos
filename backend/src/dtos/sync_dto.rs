@@ -31,8 +31,15 @@ pub struct SyncMetadataRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncFileItem {
+    pub storage_id: String,
     pub hash: String,
     pub file_name: String,
+    pub file_size: u64,
     pub content_type: Option<String>,
-    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SyncFileStream {
+    pub item: SyncFileItem,
+    pub body: RequestBody,
 }
