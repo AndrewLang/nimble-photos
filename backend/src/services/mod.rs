@@ -19,6 +19,7 @@ pub mod photo_service;
 pub mod photo_upload_service;
 pub mod preview_extractor;
 pub mod setting_service;
+pub mod storage_service;
 pub mod task_descriptor;
 pub mod thumbnail_extractor;
 
@@ -45,12 +46,16 @@ pub use photo_upload_service::UploadFilePayload;
 pub use preview_extractor::PreviewExtractor;
 pub use setting_service::SettingKeys;
 pub use setting_service::SettingService;
+pub use storage_service::StorageService;
 pub use task_descriptor::TaskDescriptor;
 pub use thumbnail_extractor::ThumbnailExtractor;
 
 use std::sync::Arc;
 
-use crate::entities::{setting::Setting, user::User, user_settings::UserSettings};
+use crate::entities::{
+    photo::Photo, setting::Setting, storage_location::StorageLocation, user::User,
+    user_settings::UserSettings,
+};
 use nimble_web::AppBuilder;
 use nimble_web::Configuration;
 use nimble_web::JwtTokenService;
@@ -143,6 +148,11 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     builder.register_singleton(|provider| {
         let repo = provider.get::<Repository<User>>();
         AdminUserService::new(repo)
+    });
+    builder.register_singleton(|provider| {
+        let storage_repo = provider.get::<Repository<StorageLocation>>();
+        let photo_repo = provider.get::<Repository<Photo>>();
+        StorageService::new(storage_repo, photo_repo)
     });
     builder
 }

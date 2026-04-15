@@ -372,3 +372,18 @@ impl HttpHandler for BrowseStorageHandler {
         Ok(ResponseValue::json(response))
     }
 }
+
+struct SyncStorageCheckHandler;
+
+#[async_trait]
+#[post("/api/storage/sync/check")]
+impl HttpHandler for SyncStorageCheckHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let request = context
+            .read_json::<CheckFileRequest>()
+            .map_err(|err| PipelineError::message(err.message()))?;
+        let storage_service = context.service::<StorageService>()?;
+        let response = storage_service.check_missing_files(request).await?;
+        Ok(ResponseValue::json(response))
+    }
+}

@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 pub use crate::controllers::{
     self, AdminUserController, AlbumController, AssetsController, AuthController, ClientHandlers,
     DashboardController, HttpContextExtensions, PhotoController, StorageController, TagController,
@@ -30,7 +32,7 @@ pub use serde::{Deserialize, Serialize};
 pub use serde_json::Value as JsonValue;
 pub use serde_json::json;
 pub use std::any::Any;
-pub use std::collections::HashSet;
+pub use std::collections::{HashMap, HashSet};
 pub use std::fs;
 pub use std::path::{Component, Path, PathBuf};
 pub use std::sync::{Arc, Mutex};

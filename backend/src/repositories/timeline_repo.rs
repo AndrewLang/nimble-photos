@@ -62,7 +62,7 @@ impl TimelineRepositoryExtensions for Repository<TimelineDay> {
     }
 
     async fn sync(&self) -> Result<(), PipelineError> {
-        self.execute("DELETE FROM timeline_days", &[])
+        self.raw_query::<serde_json::Value>("DELETE FROM timeline_days", &[])
             .await
             .map_err(|e| {
                 PipelineError::message(&format!("failed to clear timeline days: {:?}", e))
@@ -91,7 +91,9 @@ impl TimelineRepositoryExtensions for Repository<TimelineDay> {
             GROUP BY p.day_date
             ORDER BY p.day_date;
         "#;
-        self.execute(sql, &[]).await.map_err(|e| {
+        self.raw_query::<serde_json::Value>(sql, &[])
+            .await
+            .map_err(|e| {
             PipelineError::message(&format!("failed to sync timeline days: {:?}", e))
         })?;
 
