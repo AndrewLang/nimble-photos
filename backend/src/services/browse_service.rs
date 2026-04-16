@@ -2,9 +2,7 @@ use crate::prelude::*;
 use anyhow::{Result, anyhow};
 use sqlx::{PgPool, Row};
 
-use crate::entities::photo_browse::{
-    BrowseNodeType, BrowseOptions, BrowsePhoto, BrowseResponse, StorageFolder,
-};
+use crate::entities::photo_browse::{BrowseNodeType, BrowseOptions, BrowsePhoto, BrowseResponse, StorageFolder};
 use crate::entities::photo_cursor::PhotoCursor;
 use crate::models::browse_dimension_sql_adapter::{BrowseDimensionSqlAdapter, SqlParam};
 
@@ -39,13 +37,10 @@ impl BrowseService {
         }
 
         if depth < options.dimensions.len() {
-            return self
-                .browse_folders(storage_id, path_segments, options, depth)
-                .await;
+            return self.browse_folders(storage_id, path_segments, options, depth).await;
         }
 
-        self.browse_photos(storage_id, path_segments, options, page_size, cursor)
-            .await
+        self.browse_photos(storage_id, path_segments, options, page_size, cursor).await
     }
 
     async fn browse_folders(
@@ -80,6 +75,8 @@ impl BrowseService {
             where_clauses.join(" AND ")
         );
 
+        log::info!("Executing browse folders SQL: {}", sql);
+
         let mut query = sqlx::query(&sql).bind(*storage_id);
         for param in params {
             query = match param {
@@ -95,14 +92,8 @@ impl BrowseService {
         for row in rows {
             let folder_name = row
                 .try_get::<String, _>("folder")
-                .or_else(|_| {
-                    row.try_get::<i32, _>("folder")
-                        .map(|value| value.to_string())
-                })
-                .or_else(|_| {
-                    row.try_get::<i64, _>("folder")
-                        .map(|value| value.to_string())
-                })
+                .or_else(|_| row.try_get::<i32, _>("folder").map(|value| value.to_string()))
+                .or_else(|_| row.try_get::<i64, _>("folder").map(|value| value.to_string()))
                 .map_err(|_| anyhow!("invalid folder value"))?;
 
             let full_path = if path_segments.is_empty() {
@@ -208,13 +199,7 @@ impl BrowseService {
         log::info!("Browse photos returned {} rows", rows.len());
 
         let has_next = rows.len() as i64 > normalized_size;
-        let rows = if has_next {
-            rows.into_iter()
-                .take(normalized_size as usize)
-                .collect::<Vec<_>>()
-        } else {
-            rows
-        };
+        let rows = if has_next { rows.into_iter().take(normalized_size as usize).collect::<Vec<_>>() } else { rows };
 
         let mut entries = Vec::<(BrowsePhoto, DateTime<Utc>)>::new();
         for row in rows {
@@ -232,13 +217,7 @@ impl BrowseService {
         }
 
         let next_cursor = if has_next {
-            entries.last().map(|(photo, sort_date)| {
-                PhotoCursor {
-                    sort_date: sort_date.clone(),
-                    id: photo.id,
-                }
-                .encode()
-            })
+            entries.last().map(|(photo, sort_date)| PhotoCursor { sort_date: sort_date.clone(), id: photo.id }.encode())
         } else {
             None
         };
@@ -246,11 +225,6 @@ impl BrowseService {
         let photos: Vec<BrowsePhoto> = entries.into_iter().map(|(photo, _)| photo).collect();
         log::info!("Photos {} - elapsed: {:?}", photos.len(), start.elapsed());
 
-        Ok(BrowseResponse {
-            node_type: BrowseNodeType::Photos,
-            folders: None,
-            photos: Some(photos),
-            next_cursor,
-        })
+        Ok(BrowseResponse { node_type: BrowseNodeType::Photos, folders: None, photos: Some(photos), next_cursor })
     }
 }

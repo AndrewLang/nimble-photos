@@ -19,7 +19,7 @@ pub mod photo_service;
 pub mod photo_upload_service;
 pub mod preview_extractor;
 pub mod setting_service;
-pub mod storage_service;
+pub mod sync_service;
 pub mod task_descriptor;
 pub mod thumbnail_extractor;
 
@@ -45,15 +45,14 @@ pub use photo_upload_service::StoredUploadFile;
 pub use preview_extractor::PreviewExtractor;
 pub use setting_service::SettingKeys;
 pub use setting_service::SettingService;
-pub use storage_service::StorageService;
+pub use sync_service::SyncService;
 pub use task_descriptor::TaskDescriptor;
 pub use thumbnail_extractor::ThumbnailExtractor;
 
 use std::sync::Arc;
 
 use crate::entities::{
-    exif::ExifModel, photo::Photo, setting::Setting, storage_location::StorageLocation, user::User,
-    user_settings::UserSettings,
+    setting::Setting, user::User, user_settings::UserSettings,
 };
 use nimble_web::AppBuilder;
 use nimble_web::Configuration;
@@ -158,10 +157,7 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
         AdminUserService::new(repo)
     });
     builder.register_singleton(|provider| {
-        let storage_repo = provider.get::<Repository<StorageLocation>>();
-        let photo_repo = provider.get::<Repository<Photo>>();
-        let exif_repo = provider.get::<Repository<ExifModel>>();
-        StorageService::new(storage_repo, photo_repo, exif_repo)
+        SyncService::new(Arc::clone(&provider))
     });
     builder
 }

@@ -19,8 +19,6 @@ pub struct StoredUploadFile {
 
 impl PhotoUploadService {
     const FILES_FIELD_NAME: &'static str = "files";
-    const SYNC_ITEM_FIELD_NAME: &'static str = "item";
-    const SYNC_FILE_FIELD_NAME: &'static str = "file";
     const TEMP_FOLDER_NAME: &'static str = ".temp";
     const UNKNOWN_FILE_BASENAME: &'static str = "upload";
     const DEFAULT_MAX_FILE_SIZE: u64 = 64 * 1024 * 1024;
@@ -92,91 +90,6 @@ impl PhotoUploadService {
         }
 
         Ok(saved_files)
-    }
-
-    pub async fn persist_sync_file_to_storage_temp(
-        &self,
-        content_type: &str,
-        body_bytes: Vec<u8>,
-        storage_path: &Path,
-    ) -> Result<(SyncFileItem, StoredUploadFile)> {
-        let boundary = multer::parse_boundary(content_type)?;
-        let body_stream =
-            stream::once(async move { Ok::<Bytes, std::io::Error>(Bytes::from(body_bytes)) });
-        let mut multipart = multer::Multipart::new(body_stream, boundary);
-
-        let temp_folder = storage_path.join(Self::TEMP_FOLDER_NAME);
-        fs::create_dir_all(&temp_folder).await?;
-
-        let mut item: Option<SyncFileItem> = None;
-        let mut stored_file: Option<StoredUploadFile> = None;
-
-        while let Some(field) = multipart.next_field().await? {
-            match field.name() {
-                Some(Self::SYNC_ITEM_FIELD_NAME) => {
-                    let raw = field.text().await?;
-                    let parsed = serde_json::from_str::<SyncFileItem>(&raw)?;
-                    item = Some(parsed);
-                }
-                Some(Self::SYNC_FILE_FIELD_NAME) | Some(Self::FILES_FIELD_NAME) => {
-                    let sync_item = item
-                        .as_ref()
-                        .ok_or_else(|| anyhow!("multipart field 'item' must be sent before file"))?;
-
-                    let sanitized_name = Self::sanitize_file_name(&sync_item.file_name);
-                    let (final_file_name, absolute_file_path) =
-                        self.allocate_unique_path(&temp_folder, &sanitized_name).await?;
-
-                    let bytes_written = self
-                        .write_stream_to_file(field.into_stream(), &absolute_file_path)
-                        .await
-                        .with_context(|| {
-                            format!("failed to persist sync upload '{}'", absolute_file_path.display())
-                        })?;
-
-                    if bytes_written != sync_item.file_size {
-                        let _ = fs::remove_file(&absolute_file_path).await;
-                        return Err(anyhow!(
-                            "uploaded file size {} does not match expected size {}",
-                            bytes_written,
-                            sync_item.file_size
-                        ));
-                    }
-
-                    stored_file = Some(StoredUploadFile {
-                        file_name: final_file_name.clone(),
-                        relative_path: format!("{}/{}", Self::TEMP_FOLDER_NAME, final_file_name),
-                        byte_size: bytes_written as usize,
-                        content_type: sync_item.content_type.clone(),
-                    });
-                }
-                _ => {}
-            }
-        }
-
-        let item = item.ok_or_else(|| anyhow!("missing multipart field 'item'"))?;
-        let stored_file = stored_file.ok_or_else(|| anyhow!("missing multipart field 'file'"))?;
-        Ok((item, stored_file))
-    }
-
-    pub async fn parse_sync_item(
-        &self,
-        content_type: &str,
-        body_bytes: Vec<u8>,
-    ) -> Result<SyncFileItem> {
-        let boundary = multer::parse_boundary(content_type)?;
-        let body_stream =
-            stream::once(async move { Ok::<Bytes, std::io::Error>(Bytes::from(body_bytes)) });
-        let mut multipart = multer::Multipart::new(body_stream, boundary);
-
-        while let Some(field) = multipart.next_field().await? {
-            if field.name() == Some(Self::SYNC_ITEM_FIELD_NAME) {
-                let raw = field.text().await?;
-                return Ok(serde_json::from_str::<SyncFileItem>(&raw)?);
-            }
-        }
-
-        Err(anyhow!("missing multipart field 'item'"))
     }
 
     async fn write_stream_to_file<S>(&self, mut stream: S, path: &Path) -> Result<u64>

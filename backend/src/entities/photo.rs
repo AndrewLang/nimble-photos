@@ -73,6 +73,46 @@ pub struct Photo {
     pub sort_date: DateTime<Utc>,
 }
 
+impl Default for Photo {
+    fn default() -> Self {
+        let now = Utc::now();
+        Self {
+            id: Uuid::new_v4(),
+            storage_id: Uuid::nil(),
+            path: String::new(),
+            name: String::new(),
+            format: None,
+            hash: None,
+            size: None,
+            created_at: Some(now),
+            updated_at: Some(now),
+            date_imported: Some(now),
+            date_taken: None,
+            year: None,
+            month_day: None,
+            metadata_extracted: Some(false),
+            artist: None,
+            make: None,
+            model: None,
+            lens_make: None,
+            lens_model: None,
+            exposure_time: None,
+            iso: None,
+            aperture: None,
+            focal_length: None,
+            label: None,
+            rating: None,
+            flagged: None,
+            is_raw: None,
+            width: None,
+            height: None,
+            orientation: None,
+            day_date: now.date_naive(),
+            sort_date: now,
+        }
+    }
+}
+
 impl Entity for Photo {
     type Id = Uuid;
 

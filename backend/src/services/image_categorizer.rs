@@ -1,9 +1,9 @@
 use crate::prelude::*;
 use anyhow::{Context, Result, anyhow};
 
+use crate::models::category_template::CategoryTemplateParser;
 use crate::models::property_map::PropertyMap;
 use crate::models::template::PropertyMapTemplateContext;
-use crate::models::template::TemplateEngine;
 use crate::services::image_process_constants::ImageProcessKeys;
 
 #[derive(Debug)]
@@ -51,22 +51,10 @@ impl TemplateCategorizer {
         }
     }
 
-    fn effective_template(&self) -> &str {
-        let raw = self.template.trim();
-        if raw.is_empty() {
-            return "{year}/{date:%Y-%m-%d}/{fileName}";
-        }
-        if raw.eq_ignore_ascii_case("hash") {
-            return "{hash:0:2}/{hash:2:2}/{fileName}";
-        }
-        if raw.eq_ignore_ascii_case("date") {
-            return "{date:%Y-%m-%d}/{fileName}";
-        }
-        raw
-    }
-
     fn requires_hash(&self) -> bool {
-        self.effective_template().contains("{hash")
+        CategoryTemplateParser::new(self.template.clone())
+            .map(|parser| parser.requires_hash())
+            .unwrap_or(false)
     }
 
     fn move_file(source: &Path, destination: &Path) -> Result<()> {
@@ -138,8 +126,8 @@ impl ImageCategorizer for TemplateCategorizer {
             render_props.insert::<String>(hash_value).alias("hash");
         }
 
-        let relative = TemplateEngine::compile(self.effective_template())?
-            .render(&PropertyMapTemplateContext::new(render_props))?;
+        let parser = CategoryTemplateParser::new(self.template.clone())?;
+        let relative = parser.render(&PropertyMapTemplateContext::new(render_props))?;
         let final_path = working_dir.join(relative);
 
         Self::move_file(request.source_file(), &final_path)?;

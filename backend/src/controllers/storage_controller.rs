@@ -59,9 +59,8 @@ struct CreateStorageHandler;
 #[post("/api/storage/locations", policy = Policy::InRole("admin".to_string()))]
 impl HttpHandler for CreateStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload = context
-            .read_json::<CreateStoragePayload>()
-            .map_err(|err| PipelineError::message(err.message()))?;
+        let payload =
+            context.read_json::<CreateStoragePayload>().map_err(|err| PipelineError::message(err.message()))?;
 
         let label_value = payload.label.trim().should_not_empty("Storage label")?;
         let mount_point = payload.mount_point.trim().should_not_empty("Mount point")?;
@@ -70,17 +69,10 @@ impl HttpHandler for CreateStorageHandler {
         let full_path_value = full_path.to_string_lossy().to_string();
 
         if !full_path.exists() {
-            log::warn!(
-                "Storage path does not exist: {}, will create it.",
-                path_value
-            );
+            log::warn!("Storage path does not exist: {}, will create it.", path_value);
 
             fs::create_dir_all(&full_path).map_err(|err| {
-                PipelineError::message(&format!(
-                    "Failed to create storage path '{}': {}",
-                    full_path.display(),
-                    err
-                ))
+                PipelineError::message(&format!("Failed to create storage path '{}': {}", full_path.display(), err))
             })?;
         }
 
@@ -143,13 +135,10 @@ impl HttpHandler for UpdateStorageHandler {
             .route()
             .and_then(|route| route.params().get("id"))
             .ok_or_else(|| PipelineError::message("id parameter missing"))
-            .and_then(|value| {
-                Uuid::parse_str(value).map_err(|_| PipelineError::message("invalid id parameter"))
-            })?;
+            .and_then(|value| Uuid::parse_str(value).map_err(|_| PipelineError::message("invalid id parameter")))?;
 
-        let payload = context
-            .read_json::<UpdateStoragePayload>()
-            .map_err(|err| PipelineError::message(err.message()))?;
+        let payload =
+            context.read_json::<UpdateStoragePayload>().map_err(|err| PipelineError::message(err.message()))?;
 
         let repository = context.service::<Repository<StorageLocation>>()?;
         let mut location = repository
@@ -178,9 +167,7 @@ impl HttpHandler for UpdateStorageHandler {
         }
 
         if let Some(category_template) = &payload.category_template {
-            let value = category_template
-                .trim()
-                .should_not_empty("Category template");
+            let value = category_template.trim().should_not_empty("Category template");
             location.category_template = value?.to_string();
         }
 
@@ -190,11 +177,8 @@ impl HttpHandler for UpdateStorageHandler {
                 location.is_default = true;
             } else if location.is_default {
                 location.is_default = false;
-                if let Some(mut replacement) = repository
-                    .load_storages()
-                    .await?
-                    .into_iter()
-                    .find(|entry| entry.id != location.id)
+                if let Some(mut replacement) =
+                    repository.load_storages().await?.into_iter().find(|entry| entry.id != location.id)
                 {
                     replacement.is_default = true;
                     repository
@@ -209,10 +193,7 @@ impl HttpHandler for UpdateStorageHandler {
             }
         }
 
-        repository
-            .update(location)
-            .await
-            .map_err(|_| PipelineError::message("failed to save storage settings"))?;
+        repository.update(location).await.map_err(|_| PipelineError::message("failed to save storage settings"))?;
 
         let locations = repository.load_storages().await?;
         let response = repository
@@ -233,9 +214,7 @@ impl HttpHandler for DefaultStorageHandler {
             .route()
             .and_then(|route| route.params().get("id"))
             .ok_or_else(|| PipelineError::message("id parameter missing"))
-            .and_then(|value| {
-                Uuid::parse_str(value).map_err(|_| PipelineError::message("invalid id parameter"))
-            })?;
+            .and_then(|value| Uuid::parse_str(value).map_err(|_| PipelineError::message("invalid id parameter")))?;
 
         let storage_repo = context.service::<Repository<StorageLocation>>()?;
         let mut location = storage_repo
@@ -246,10 +225,7 @@ impl HttpHandler for DefaultStorageHandler {
 
         storage_repo.reset_default().await?;
         location.is_default = true;
-        storage_repo
-            .update(location)
-            .await
-            .map_err(|_| PipelineError::message("failed to save storage settings"))?;
+        storage_repo.update(location).await.map_err(|_| PipelineError::message("failed to save storage settings"))?;
 
         let locations = storage_repo.load_storages().await?;
         let response = storage_repo
@@ -270,23 +246,16 @@ impl HttpHandler for DeleteStorageHandler {
             .route()
             .and_then(|route| route.params().get("id"))
             .ok_or_else(|| PipelineError::message("id parameter missing"))
-            .and_then(|value| {
-                Uuid::parse_str(value).map_err(|_| PipelineError::message("invalid id parameter"))
-            })?;
+            .and_then(|value| Uuid::parse_str(value).map_err(|_| PipelineError::message("invalid id parameter")))?;
 
         let repository = context.service::<Repository<StorageLocation>>()?;
-        let deleted_location = repository
-            .get(&id)
-            .await
-            .map_err(|_| PipelineError::message("failed to load storage settings"))?;
+        let deleted_location =
+            repository.get(&id).await.map_err(|_| PipelineError::message("failed to load storage settings"))?;
         if deleted_location.is_none() {
             return Err(PipelineError::message("Storage location not found"));
         }
 
-        repository
-            .delete(&id)
-            .await
-            .map_err(|_| PipelineError::message("failed to save storage settings"))?;
+        repository.delete(&id).await.map_err(|_| PipelineError::message("failed to save storage settings"))?;
 
         let mut locations = repository.load_storages().await?;
         if !locations.iter().any(|location| location.is_default) {
@@ -332,27 +301,19 @@ impl HttpHandler for BrowseStorageHandler {
             })?;
 
         let client_id = context.current_client_id().await?;
-        let browse_options = context
-            .load_client_storage_settings(client_id, storage.id)
-            .await?;
+        let browse_options = context.load_client_storage_settings(client_id, storage.id).await?;
 
         let cursor = match request.cursor.as_deref() {
-            Some(raw) if !raw.trim().is_empty() => Some(
-                PhotoCursor::decode(raw).map_err(|_| PipelineError::message("invalid cursor"))?,
-            ),
+            Some(raw) if !raw.trim().is_empty() => {
+                Some(PhotoCursor::decode(raw).map_err(|_| PipelineError::message("invalid cursor"))?)
+            }
             _ => None,
         };
 
         let page_size = request.page_size.unwrap_or(50);
         let browse_service = context.service::<BrowseService>()?;
         let response: BrowseResponse = browse_service
-            .browse(
-                &storage.id,
-                &path_segments,
-                &browse_options,
-                page_size,
-                cursor,
-            )
+            .browse(&storage.id, &path_segments, &browse_options, page_size, cursor)
             .await
             .map_err(|err| {
                 let message = err.to_string();
@@ -379,11 +340,10 @@ struct SyncStorageCheckHandler;
 #[post("/api/storage/sync/check")]
 impl HttpHandler for SyncStorageCheckHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let request = context
-            .read_json::<CheckFileRequest>()
-            .map_err(|err| PipelineError::message(err.message()))?;
-        let storage_service = context.service::<StorageService>()?;
-        let response = storage_service.check_missing_files(request).await?;
+        let request = context.read_json::<CheckFileRequest>().map_err(|err| PipelineError::message(err.message()))?;
+        let sync_service = context.service::<SyncService>()?;
+        let response = sync_service.check_missing_files(request).await?;
+
         Ok(ResponseValue::json(response))
     }
 }
@@ -394,11 +354,10 @@ struct SyncStorageMetadataHandler;
 #[post("/api/storage/sync/metadata")]
 impl HttpHandler for SyncStorageMetadataHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let request = context
-            .read_json::<SyncMetadataRequest>()
-            .map_err(|err| PipelineError::message(err.message()))?;
-        let storage_service = context.service::<StorageService>()?;
-        let metadata = storage_service.sync_metadata(request.clone()).await?;
+        let request =
+            context.read_json::<SyncMetadataRequest>().map_err(|err| PipelineError::message(err.message()))?;
+        let sync_service = context.service::<SyncService>()?;
+        let metadata = sync_service.sync_metadata(request.clone()).await?;
 
         Ok(ResponseValue::json(json!({
             "storageId": request.storage_id,
@@ -410,54 +369,27 @@ impl HttpHandler for SyncStorageMetadataHandler {
 
 struct SyncStorageFileHandler;
 #[async_trait]
-#[post("/api/storage/sync")]
+#[post("/api/storage/sync/file")]
 impl HttpHandler for SyncStorageFileHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let upload_service = context.service::<PhotoUploadService>()?;
-        let content_type_header = upload_service
-            .require_content_type(context.request().headers().get("content-type"))
-            .map_err(|error| PipelineError::message(&error.to_string()))?;
+        let content_type_header = context
+            .request()
+            .headers()
+            .get("content-type")
+            .ok_or_else(|| PipelineError::message("Missing content-type header"))?;
         let request_body = context.body_bytes()?;
-        let item = upload_service
-            .parse_sync_item(content_type_header, request_body.clone())
-            .await
-            .map_err(|error| PipelineError::message(&error.to_string()))?;
+        let sync_service = context.service::<SyncService>()?;
+        let response = sync_service.sync_file(content_type_header, request_body).await?;
+        Ok(ResponseValue::json(response))
+    }
+}
 
-        let storage_repo = context.service::<Repository<StorageLocation>>()?;
-        let storage_id = Uuid::parse_str(item.storage_id.trim())
-            .map_err(|_| PipelineError::message("invalid storageId"))?;
-        let storage = storage_repo
-            .get(&storage_id)
-            .await
-            .map_err(|_| PipelineError::message("failed to load storage settings"))?
-            .ok_or_else(|| PipelineError::message("storage not found"))?;
-
-        let (item, saved_file) = upload_service
-            .persist_sync_file_to_storage_temp(
-                content_type_header,
-                request_body,
-                Path::new(&storage.path),
-            )
-            .await
-            .map_err(|error| PipelineError::message(&error.to_string()))?;
-
-        let pipeline = context.service::<ImageProcessPipeline>()?;
-        pipeline
-            .enqueue_files(storage.clone(), vec![saved_file.clone()])
-            .map_err(|error| {
-                log::error!("Failed to enqueue sync image pipeline: {:?}", error);
-                PipelineError::message("Failed to schedule image processing tasks")
-            })?;
-
-        Ok(ResponseValue::json(serde_json::json!({
-            "storageId": item.storage_id,
-            "hash": item.hash,
-            "file": UploadFileResponse {
-                file_name: saved_file.file_name,
-                relative_path: saved_file.relative_path,
-                byte_size: saved_file.byte_size,
-                content_type: saved_file.content_type,
-            }
-        })))
+struct SyncStorageLegacyFileHandler;
+#[async_trait]
+#[post("/api/storage/sync")]
+impl HttpHandler for SyncStorageLegacyFileHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let handler = SyncStorageFileHandler;
+        handler.invoke(context).await
     }
 }

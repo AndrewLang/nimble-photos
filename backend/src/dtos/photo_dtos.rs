@@ -49,7 +49,7 @@ pub struct PhotoLocWithTags {
     pub tags: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadFileResponse {
     pub file_name: String,

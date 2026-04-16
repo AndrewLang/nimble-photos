@@ -1,13 +1,14 @@
 use nimble_photos::controllers::storage_controller::StorageController;
 use nimble_photos::entities::{ExifModel, Photo, StorageLocation};
 use nimble_photos::services::{
-    BackgroundTaskRunner, EventBusService, ExifService, FileService, HashService,
-    ImageProcessPipeline, ImageProcessPipelineContext, PhotoUploadService, PreviewExtractor,
-    StorageService, ThumbnailExtractor,
+    BackgroundTaskRunner, EventBusService, ExifService, FileService, HashService, ImageProcessPipeline,
+    ImageProcessPipelineContext, PhotoUploadService, PreviewExtractor, SyncService, ThumbnailExtractor,
 };
 use nimble_web::testkit::request::HttpRequestBuilder;
 use nimble_web::testkit::response::ResponseAssertions;
-use nimble_web::{AppBuilder, Application, DataProvider, HttpRequest, HttpResponse, MemoryRepository, QueryBuilder, Repository};
+use nimble_web::{
+    AppBuilder, Application, DataProvider, HttpRequest, HttpResponse, MemoryRepository, QueryBuilder, Repository,
+};
 use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
@@ -15,22 +16,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 fn unique_temp_dir() -> PathBuf {
-    let suffix = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "nimble_photos_storage_sync_controller_{}_{}",
-        std::process::id(),
-        suffix
-    ))
+    let suffix = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    std::env::temp_dir().join(format!("nimble_photos_storage_sync_controller_{}_{}", std::process::id(), suffix))
 }
 
-fn build_app(
-    storage_seed: Vec<StorageLocation>,
-    photo_seed: Vec<Photo>,
-    exif_seed: Vec<ExifModel>,
-) -> Application {
+fn build_app(storage_seed: Vec<StorageLocation>, photo_seed: Vec<Photo>, exif_seed: Vec<ExifModel>) -> Application {
     let storage_provider = MemoryRepository::<StorageLocation>::new();
     storage_provider.seed(storage_seed);
 
@@ -55,12 +45,6 @@ fn build_app(
         let exif_provider = exif_provider.clone();
         move |_| Repository::<ExifModel>::new(Box::new(exif_provider.clone()))
     });
-    builder.register_singleton(|provider| {
-        let storage_repo = provider.get::<Repository<StorageLocation>>();
-        let photo_repo = provider.get::<Repository<Photo>>();
-        let exif_repo = provider.get::<Repository<ExifModel>>();
-        StorageService::new(storage_repo, photo_repo, exif_repo)
-    });
     builder.register_singleton(|_| PhotoUploadService::new(64 * 1024 * 1024));
     builder.register_singleton(|_| HashService::new());
     builder.register_singleton(|_| ExifService::new());
@@ -73,6 +57,7 @@ fn build_app(
         let configuration = provider.get::<nimble_web::Configuration>().as_ref().clone();
         ImageProcessPipeline::new(ImageProcessPipelineContext::new(provider, configuration))
     });
+    builder.register_singleton(|provider| SyncService::new(provider));
 
     builder.build()
 }
@@ -103,12 +88,20 @@ fn sample_photo(storage_id: Uuid, hash: &str, size: i64) -> Photo {
         format: Some("jpg".to_string()),
         hash: Some(hash.to_string()),
         size: Some(size),
-        created_at: None,
+        created_at: Some(
+            chrono::DateTime::parse_from_rfc3339("2026-04-01T12:30:45Z")
+                .expect("timestamp")
+                .with_timezone(&chrono::Utc),
+        ),
         updated_at: None,
         date_imported: None,
-        date_taken: None,
-        year: None,
-        month_day: None,
+        date_taken: Some(
+            chrono::DateTime::parse_from_rfc3339("2026-04-01T12:30:45Z")
+                .expect("timestamp")
+                .with_timezone(&chrono::Utc),
+        ),
+        year: Some(2026),
+        month_day: Some("04-01".to_string()),
         metadata_extracted: None,
         artist: None,
         make: None,
@@ -202,6 +195,7 @@ fn sync_storage_metadata_handler_persists_metadata() {
 
     let payload = json!({
         "storageId": storage.id.to_string(),
+        "imageId": photo_id.to_string(),
         "hash": "sync-hash",
         "metadata": {
             "make": "Canon",
@@ -234,10 +228,7 @@ fn sync_storage_metadata_handler_persists_metadata() {
     let photo_repo = app.services().get::<Repository<Photo>>();
     let exif_repo = app.services().get::<Repository<ExifModel>>();
 
-    let saved_photo = runtime
-        .block_on(photo_repo.get(&photo_id))
-        .expect("load saved photo")
-        .expect("photo exists");
+    let saved_photo = runtime.block_on(photo_repo.get(&photo_id)).expect("load saved photo").expect("photo exists");
     assert_eq!(saved_photo.make.as_deref(), Some("Canon"));
     assert_eq!(saved_photo.model.as_deref(), Some("EOS R5"));
     assert_eq!(saved_photo.artist.as_deref(), Some("Andy"));
@@ -276,7 +267,9 @@ fn sync_storage_file_handler_persists_file_and_returns_upload_info() {
     let temp_root = unique_temp_dir();
     fs::create_dir_all(&temp_root).expect("create temp root");
     let storage = sample_storage(temp_root.to_string_lossy().as_ref());
-    let app = build_app(vec![storage.clone()], Vec::new(), Vec::new());
+    let photo = sample_photo(storage.id, "sync-hash", 5);
+    let photo_id = photo.id;
+    let app = build_app(vec![storage.clone()], vec![photo], Vec::new());
 
     let file_bytes = b"streamed-file";
     let item_json = json!({
@@ -291,24 +284,163 @@ fn sync_storage_file_handler_persists_file_and_returns_upload_info() {
     let body = sync_multipart_body(boundary, &item_json, file_bytes);
 
     let mut request = HttpRequest::new("POST", "/api/storage/sync");
-    request
-        .headers_mut()
-        .insert("content-type", &sync_multipart_content_type(boundary));
+    request.headers_mut().insert("content-type", &sync_multipart_content_type(boundary));
     request.set_body(nimble_web::RequestBody::Bytes(body));
 
     let response = handle_request(&app, request);
     response.assert_status(200);
 
     let parsed: serde_json::Value = response.assert_json();
+    assert_eq!(parsed["imageId"], photo_id.to_string());
     assert_eq!(parsed["storageId"], storage.id.to_string());
     assert_eq!(parsed["hash"], "sync-hash");
+    assert_eq!(parsed["assetKind"], "image");
 
-    let relative_path = parsed["file"]["relativePath"]
-        .as_str()
-        .expect("relativePath");
+    let relative_path = parsed["file"]["relativePath"].as_str().expect("relativePath");
+    assert_eq!(relative_path, "2026/2026-04-01/sync.jpg");
     let full_path = temp_root.join(relative_path);
     assert!(full_path.exists(), "expected synced file at {}", full_path.display());
     assert_eq!(fs::read(&full_path).expect("read synced file"), file_bytes);
+
+    let runtime = tokio::runtime::Runtime::new().expect("runtime");
+    let photo_repo = app.services().get::<Repository<Photo>>();
+    let saved_photo = runtime.block_on(photo_repo.get(&photo_id)).expect("load saved photo").expect("photo exists");
+    assert_eq!(saved_photo.path, "2026/2026-04-01/sync.jpg");
+    assert_eq!(saved_photo.name, "sync.jpg");
+    assert_eq!(saved_photo.size, Some(file_bytes.len() as i64));
+
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+fn sync_storage_file_handler_creates_photo_when_missing() {
+    let temp_root = unique_temp_dir();
+    fs::create_dir_all(&temp_root).expect("create temp root");
+    let storage = sample_storage(temp_root.to_string_lossy().as_ref());
+    let app = build_app(vec![storage.clone()], Vec::new(), Vec::new());
+
+    let file_bytes = b"streamed-file";
+    let item_json = json!({
+        "storageId": storage.id.to_string(),
+        "hash": "created-sync-hash",
+        "fileName": "created-sync.jpg",
+        "fileSize": file_bytes.len(),
+        "contentType": "image/jpeg"
+    })
+    .to_string();
+    let boundary = "sync-boundary-create";
+    let body = sync_multipart_body(boundary, &item_json, file_bytes);
+
+    let mut request = HttpRequest::new("POST", "/api/storage/sync/file");
+    request.headers_mut().insert("content-type", &sync_multipart_content_type(boundary));
+    request.set_body(nimble_web::RequestBody::Bytes(body));
+
+    let response = handle_request(&app, request);
+    response.assert_status(200);
+
+    let parsed: serde_json::Value = response.assert_json();
+    let image_id = parsed["imageId"].as_str().expect("imageId");
+    assert_eq!(parsed["hash"], "created-sync-hash");
+    assert_eq!(parsed["assetKind"], "image");
+
+    let runtime = tokio::runtime::Runtime::new().expect("runtime");
+    let photo_repo = app.services().get::<Repository<Photo>>();
+    let created_photo = runtime
+        .block_on(photo_repo.get(&Uuid::parse_str(image_id).expect("uuid")))
+        .expect("load created photo")
+        .expect("photo exists");
+    assert_eq!(created_photo.hash.as_deref(), Some("created-sync-hash"));
+    assert_eq!(created_photo.name, "created-sync.jpg");
+
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+fn sync_storage_file_handler_persists_preview_to_hashed_storage_path() {
+    let temp_root = unique_temp_dir();
+    fs::create_dir_all(&temp_root).expect("create temp root");
+    let storage = sample_storage(temp_root.to_string_lossy().as_ref());
+    let photo = sample_photo(storage.id, "aabbccddeeff00112233445566778899", 5);
+    let photo_id = photo.id;
+    let app = build_app(vec![storage.clone()], vec![photo], Vec::new());
+
+    let file_bytes = b"preview-file";
+    let hash = "aabbccddeeff00112233445566778899";
+    let item_json = json!({
+        "storageId": storage.id.to_string(),
+        "imageId": photo_id.to_string(),
+        "hash": hash,
+        "assetKind": "preview",
+        "fileName": "preview.jpg",
+        "fileSize": file_bytes.len(),
+        "contentType": "image/jpeg"
+    })
+    .to_string();
+    let boundary = "sync-preview-boundary";
+    let body = sync_multipart_body(boundary, &item_json, file_bytes);
+
+    let mut request = HttpRequest::new("POST", "/api/storage/sync/file");
+    request.headers_mut().insert("content-type", &sync_multipart_content_type(boundary));
+    request.set_body(nimble_web::RequestBody::Bytes(body));
+
+    let response = handle_request(&app, request);
+    response.assert_status(200);
+
+    let parsed: serde_json::Value = response.assert_json();
+    assert_eq!(parsed["imageId"], photo_id.to_string());
+    assert_eq!(parsed["assetKind"], "preview");
+
+    let relative_path = parsed["file"]["relativePath"].as_str().expect("relativePath");
+    assert_eq!(relative_path, ".previews/aa/bb/aabbccddeeff00112233445566778899.jpg");
+
+    let full_path = temp_root.join(relative_path);
+    assert!(full_path.exists(), "expected preview file at {}", full_path.display());
+    assert_eq!(fs::read(&full_path).expect("read preview file"), file_bytes);
+
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+fn sync_storage_file_handler_persists_thumbnail_to_hashed_storage_path() {
+    let temp_root = unique_temp_dir();
+    fs::create_dir_all(&temp_root).expect("create temp root");
+    let storage = sample_storage(temp_root.to_string_lossy().as_ref());
+    let photo = sample_photo(storage.id, "ffeeccdd00112233445566778899aabb", 5);
+    let photo_id = photo.id;
+    let app = build_app(vec![storage.clone()], vec![photo], Vec::new());
+
+    let file_bytes = b"thumbnail-file";
+    let hash = "ffeeccdd00112233445566778899aabb";
+    let item_json = json!({
+        "storageId": storage.id.to_string(),
+        "imageId": photo_id.to_string(),
+        "hash": hash,
+        "assetKind": "thumbnail",
+        "fileName": "thumbnail.webp",
+        "fileSize": file_bytes.len(),
+        "contentType": "image/webp"
+    })
+    .to_string();
+    let boundary = "sync-thumbnail-boundary";
+    let body = sync_multipart_body(boundary, &item_json, file_bytes);
+
+    let mut request = HttpRequest::new("POST", "/api/storage/sync/file");
+    request.headers_mut().insert("content-type", &sync_multipart_content_type(boundary));
+    request.set_body(nimble_web::RequestBody::Bytes(body));
+
+    let response = handle_request(&app, request);
+    response.assert_status(200);
+
+    let parsed: serde_json::Value = response.assert_json();
+    assert_eq!(parsed["imageId"], photo_id.to_string());
+    assert_eq!(parsed["assetKind"], "thumbnail");
+
+    let relative_path = parsed["file"]["relativePath"].as_str().expect("relativePath");
+    assert_eq!(relative_path, ".thumbnails/ff/ee/ffeeccdd00112233445566778899aabb.webp");
+
+    let full_path = temp_root.join(relative_path);
+    assert!(full_path.exists(), "expected thumbnail file at {}", full_path.display());
+    assert_eq!(fs::read(&full_path).expect("read thumbnail file"), file_bytes);
 
     let _ = fs::remove_dir_all(temp_root);
 }

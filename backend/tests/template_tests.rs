@@ -1,5 +1,5 @@
 use chrono::{DateTime, NaiveDate, Utc};
-use nimble_photos::models::property_map::PropertyMap;
+use nimble_photos::models::{CategoryTemplateParser, property_map::PropertyMap};
 use nimble_photos::models::template::PropertyMapTemplateContext;
 use nimble_photos::models::template::{TemplateContext, TemplateEngine};
 use std::any::Any;
@@ -137,4 +137,37 @@ fn property_map_template_context_requires_effective_date() {
 
     let result = template.render(&ctx);
     assert!(result.is_err());
+}
+
+#[test]
+fn category_template_parser_supports_shortcuts() {
+    let hash = CategoryTemplateParser::new("hash").expect("hash parser");
+    let date = CategoryTemplateParser::new("date").expect("date parser");
+    let empty = CategoryTemplateParser::new("   ").expect("empty parser");
+
+    assert_eq!(hash.template(), "{hash:0:2}/{hash:2:2}/{fileName}");
+    assert_eq!(date.template(), "{date:%Y-%m-%d}/{fileName}");
+    assert_eq!(empty.template(), "{year}/{date:%Y-%m-%d}/{fileName}");
+}
+
+#[test]
+fn category_template_parser_renders_path() {
+    let mut properties = PropertyMap::new();
+    properties
+        .insert::<String>("holiday.snapshot.jpg".to_string())
+        .alias("file_name");
+    properties
+        .insert::<DateTime<Utc>>(test_date())
+        .alias("effective_date");
+    properties
+        .insert::<String>("abcdef1234567890".to_string())
+        .alias("hash");
+
+    let ctx = PropertyMapTemplateContext::new(properties);
+    let parser =
+        CategoryTemplateParser::new("{year}/{hash:0:2}/{fileStem}-{hash:0:6}.{extension}")
+            .expect("parser should compile");
+
+    let rendered = parser.render(&ctx).expect("parser should render");
+    assert_eq!(rendered, "2025/ab/holiday.snapshot-abcdef.jpg");
 }
