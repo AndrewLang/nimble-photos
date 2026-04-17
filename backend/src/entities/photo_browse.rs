@@ -115,11 +115,7 @@ impl BrowseRequest {
             .split('/')
             .filter_map(|s| {
                 let trimmed = s.trim();
-                if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                }
+                if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
             })
             .collect();
 

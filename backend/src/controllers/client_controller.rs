@@ -50,17 +50,11 @@ impl HttpHandler for ListClientsHandler {
 
         let repo = context.service::<Repository<Client>>()?;
         let query = QueryBuilder::new().page(1, 100).build();
-        let page = repo
-            .query(query)
-            .await
-            .map_err(|_| PipelineError::message("failed to query clients"))?;
+        let page = repo.query(query).await.map_err(|_| PipelineError::message("failed to query clients"))?;
 
         let mut clients = page.items;
         clients.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-        let response = clients
-            .into_iter()
-            .map(ClientResponse::from)
-            .collect::<Vec<_>>();
+        let response = clients.into_iter().map(ClientResponse::from).collect::<Vec<_>>();
         Ok(ResponseValue::json(response))
     }
 }
@@ -76,9 +70,7 @@ impl HttpHandler for ApproveClientHandler {
         let setting_service = context.service::<SettingService>()?;
         let policy = setting_service.client_approval_policy().await?;
         if policy != "manual" {
-            return Err(PipelineError::message(
-                "Client approval is only available when approval policy is manual",
-            ));
+            return Err(PipelineError::message("Client approval is only available when approval policy is manual"));
         }
 
         let client_id = context.id("id")?;
@@ -95,10 +87,7 @@ impl HttpHandler for ApproveClientHandler {
         client.approved_by = Some(approver_id);
         client.updated_at = Utc::now();
 
-        let updated = repo
-            .update(client)
-            .await
-            .map_err(|_| PipelineError::message("failed to approve client"))?;
+        let updated = repo.update(client).await.map_err(|_| PipelineError::message("failed to approve client"))?;
         Ok(ResponseValue::json(ClientResponse::from(updated)))
     }
 }
@@ -122,10 +111,7 @@ impl HttpHandler for RevokeClientHandler {
         client.is_active = false;
         client.updated_at = Utc::now();
 
-        let updated = repo
-            .update(client)
-            .await
-            .map_err(|_| PipelineError::message("failed to revoke client"))?;
+        let updated = repo.update(client).await.map_err(|_| PipelineError::message("failed to revoke client"))?;
         Ok(ResponseValue::json(ClientResponse::from(updated)))
     }
 }
@@ -140,10 +126,7 @@ impl HttpHandler for DeleteClientHandler {
 
         let client_id = context.id("id")?;
         let repo = context.service::<Repository<Client>>()?;
-        let deleted = repo
-            .delete(&client_id)
-            .await
-            .map_err(|_| PipelineError::message("failed to delete client"))?;
+        let deleted = repo.delete(&client_id).await.map_err(|_| PipelineError::message("failed to delete client"))?;
         if !deleted {
             return Err(PipelineError::message("client not found"));
         }
@@ -185,15 +168,12 @@ impl RegisterClientHandler {
             "jti": Uuid::new_v4()
         });
 
-        let header_part =
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header.to_string().as_bytes());
-        let payload_part =
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string().as_bytes());
+        let header_part = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header.to_string().as_bytes());
+        let payload_part = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string().as_bytes());
 
         let mut signature_bytes = [0u8; 32];
         rand::rng().fill(&mut signature_bytes);
-        let signature_part =
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature_bytes);
+        let signature_part = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature_bytes);
 
         format!("{header_part}.{payload_part}.{signature_part}")
     }
@@ -203,9 +183,8 @@ impl RegisterClientHandler {
 #[post("/api/clients/register", policy = Policy::Authenticated)]
 impl HttpHandler for RegisterClientHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let request = context
-            .read_json::<RegisterClientRequest>()
-            .map_err(|err| PipelineError::message(err.message()))?;
+        let request =
+            context.read_json::<RegisterClientRequest>().map_err(|err| PipelineError::message(err.message()))?;
 
         let device_name = Self::normalized(&request.device_name, "deviceName")?;
         let device_type = Self::normalized(&request.device_type, "deviceType")?;
@@ -227,23 +206,14 @@ impl HttpHandler for RegisterClientHandler {
             .map_err(|_| PipelineError::message("failed to query existing client"))?;
 
         if let Some(existing_client) = existing {
-            let response = RegisterClientResponse {
-                api_key: existing_client.api_key_hash.clone(),
-            };
+            let response = RegisterClientResponse { api_key: existing_client.api_key_hash.clone() };
 
             return Ok(ResponseValue::json(response));
         }
 
-        let api_key = Self::create_api_key(
-            user_id,
-            client_id,
-            &device_name,
-            &device_type,
-            &client_version,
-        );
-        let api_key_hash = encrypt_service
-            .encrypt(&api_key)
-            .map_err(|_| PipelineError::message("failed to protect api key"))?;
+        let api_key = Self::create_api_key(user_id, client_id, &device_name, &device_type, &client_version);
+        let api_key_hash =
+            encrypt_service.encrypt(&api_key).map_err(|_| PipelineError::message("failed to protect api key"))?;
 
         let client = Client {
             id: client_id,
@@ -255,20 +225,13 @@ impl HttpHandler for RegisterClientHandler {
             api_key_hash,
             is_active: is_approved,
             is_approved,
-            approved_by: if is_approved {
-                Some(SettingConsts::DEFAULT_STORAGE_ID)
-            } else {
-                None
-            },
+            approved_by: if is_approved { Some(SettingConsts::DEFAULT_STORAGE_ID) } else { None },
             last_seen_at: now.into(),
             created_at: now,
             updated_at: now,
         };
 
-        let _saved = repo
-            .insert(client)
-            .await
-            .map_err(|_| PipelineError::message("failed to register client"))?;
+        let _saved = repo.insert(client).await.map_err(|_| PipelineError::message("failed to register client"))?;
 
         let response = RegisterClientResponse { api_key };
 
@@ -290,8 +253,7 @@ impl UpdateClientStorageSettingsHandler {
 
         let mut storage_ids = Vec::with_capacity(request.storage_ids.len());
         for raw_id in &request.storage_ids {
-            let storage_id = Uuid::parse_str(raw_id)
-                .map_err(|_| PipelineError::message("invalid storage id"))?;
+            let storage_id = Uuid::parse_str(raw_id).map_err(|_| PipelineError::message("invalid storage id"))?;
 
             let exists = storage_repo
                 .get(&storage_id)
@@ -320,12 +282,7 @@ impl UpdateClientStorageSettingsHandler {
 
         for storage_id in storage_ids {
             client_storage_repo
-                .insert(ClientStorage {
-                    id: Uuid::new_v4(),
-                    client_id,
-                    storage_id,
-                    browse_options: Default::default(),
-                })
+                .insert(ClientStorage { id: Uuid::new_v4(), client_id, storage_id, browse_options: Default::default() })
                 .await
                 .map_err(|_| PipelineError::message("failed to save client storage settings"))?;
         }

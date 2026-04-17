@@ -43,15 +43,7 @@ impl PostgresEntity for UserSettings {
     }
 
     fn insert_columns() -> &'static [&'static str] {
-        &[
-            "user_id",
-            "display_name",
-            "avatar_url",
-            "theme",
-            "language",
-            "timezone",
-            "created_at",
-        ]
+        &["user_id", "display_name", "avatar_url", "theme", "language", "timezone", "created_at"]
     }
 
     fn insert_values(&self) -> Vec<Value> {
@@ -70,13 +62,7 @@ impl PostgresEntity for UserSettings {
     }
 
     fn update_columns() -> &'static [&'static str] {
-        &[
-            "display_name",
-            "avatar_url",
-            "theme",
-            "language",
-            "timezone",
-        ]
+        &["display_name", "avatar_url", "theme", "language", "timezone"]
     }
 
     fn update_values(&self) -> Vec<Value> {
@@ -100,9 +86,7 @@ impl PostgresEntity for UserSettings {
             ColumnDef::new("theme", ColumnType::Text).not_null(),
             ColumnDef::new("language", ColumnType::Text).not_null(),
             ColumnDef::new("timezone", ColumnType::Text).not_null(),
-            ColumnDef::new("created_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
+            ColumnDef::new("created_at", ColumnType::Timestamp).not_null().default("NOW()"),
         ]
     }
 }

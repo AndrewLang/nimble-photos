@@ -14,10 +14,7 @@ pub struct CategorizeRequest<'a> {
 
 impl<'a> CategorizeRequest<'a> {
     pub fn new(source_file: &'a Path, properties: &'a PropertyMap) -> Self {
-        Self {
-            source_file,
-            properties,
-        }
+        Self { source_file, properties }
     }
 
     pub fn source_file(&self) -> &Path {
@@ -46,39 +43,26 @@ pub struct TemplateCategorizer {
 
 impl TemplateCategorizer {
     pub fn new(template: impl Into<String>) -> Self {
-        Self {
-            template: template.into(),
-        }
+        Self { template: template.into() }
     }
 
     fn requires_hash(&self) -> bool {
-        CategoryTemplateParser::new(self.template.clone())
-            .map(|parser| parser.requires_hash())
-            .unwrap_or(false)
+        CategoryTemplateParser::new(self.template.clone()).map(|parser| parser.requires_hash()).unwrap_or(false)
     }
 
     fn move_file(source: &Path, destination: &Path) -> Result<()> {
         if let Some(parent) = destination.parent() {
-            fs::create_dir_all(parent).with_context(|| {
-                format!(
-                    "failed to create destination directory {}",
-                    parent.display()
-                )
-            })?;
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create destination directory {}", parent.display()))?;
         }
 
         match fs::rename(source, destination) {
             Ok(()) => Ok(()),
             Err(_) => {
                 fs::copy(source, destination).with_context(|| {
-                    format!(
-                        "failed to copy source {} to {}",
-                        source.display(),
-                        destination.display()
-                    )
+                    format!("failed to copy source {} to {}", source.display(), destination.display())
                 })?;
-                fs::remove_file(source)
-                    .with_context(|| format!("failed to remove source {}", source.display()))?;
+                fs::remove_file(source).with_context(|| format!("failed to remove source {}", source.display()))?;
                 Ok(())
             }
         }
@@ -94,9 +78,7 @@ impl ImageCategorizer for TemplateCategorizer {
         let working_dir = request
             .properties()
             .get_by_alias::<PathBuf>(ImageProcessKeys::WORKING_DIRECTORY)
-            .ok_or_else(|| {
-                anyhow!("working directory not found in properties for categorization")
-            })?;
+            .ok_or_else(|| anyhow!("working directory not found in properties for categorization"))?;
 
         let file_name = request
             .source_file()
@@ -117,10 +99,7 @@ impl ImageCategorizer for TemplateCategorizer {
             )
             .alias("effective_date");
 
-        let hash = request
-            .properties()
-            .get_by_alias::<String>(ImageProcessKeys::HASH)
-            .cloned();
+        let hash = request.properties().get_by_alias::<String>(ImageProcessKeys::HASH).cloned();
 
         if let Some(hash_value) = hash.clone() {
             render_props.insert::<String>(hash_value).alias("hash");

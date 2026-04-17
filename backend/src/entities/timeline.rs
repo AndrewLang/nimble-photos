@@ -64,16 +64,7 @@ impl PostgresEntity for TimelineDay {
     }
 
     fn insert_columns() -> &'static [&'static str] {
-        &[
-            "id",
-            "day_date",
-            "year",
-            "month",
-            "total_count",
-            "min_sort_date",
-            "max_sort_date",
-            "created_at",
-        ]
+        &["id", "day_date", "year", "month", "total_count", "min_sort_date", "max_sort_date", "created_at"]
     }
 
     fn insert_values(&self) -> Vec<Value> {
@@ -90,15 +81,7 @@ impl PostgresEntity for TimelineDay {
     }
 
     fn update_columns() -> &'static [&'static str] {
-        &[
-            "day_date",
-            "year",
-            "month",
-            "total_count",
-            "min_sort_date",
-            "max_sort_date",
-            "created_at",
-        ]
+        &["day_date", "year", "month", "total_count", "min_sort_date", "max_sort_date", "created_at"]
     }
 
     fn update_values(&self) -> Vec<Value> {
@@ -122,9 +105,7 @@ impl PostgresEntity for TimelineDay {
             ColumnDef::new("total_count", ColumnType::Integer).not_null(),
             ColumnDef::new("min_sort_date", ColumnType::Timestamp),
             ColumnDef::new("max_sort_date", ColumnType::Timestamp),
-            ColumnDef::new("created_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
+            ColumnDef::new("created_at", ColumnType::Timestamp).not_null().default("NOW()"),
         ]
     }
 }

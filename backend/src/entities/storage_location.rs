@@ -29,9 +29,7 @@ impl StorageLocation {
         if path.is_absolute() {
             path
         } else {
-            std::env::current_dir()
-                .unwrap_or_else(|_| PathBuf::from("."))
-                .join(path)
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")).join(path)
         }
     }
 
@@ -63,15 +61,7 @@ impl PostgresEntity for StorageLocation {
     }
 
     fn insert_columns() -> &'static [&'static str] {
-        &[
-            "id",
-            "label",
-            "path",
-            "is_default",
-            "readonly",
-            "created_at",
-            "category_template",
-        ]
+        &["id", "label", "path", "is_default", "readonly", "created_at", "category_template"]
     }
 
     fn insert_values(&self) -> Vec<Value> {
@@ -87,14 +77,7 @@ impl PostgresEntity for StorageLocation {
     }
 
     fn update_columns() -> &'static [&'static str] {
-        &[
-            "label",
-            "path",
-            "is_default",
-            "readonly",
-            "created_at",
-            "category_template",
-        ]
+        &["label", "path", "is_default", "readonly", "created_at", "category_template"]
     }
 
     fn update_values(&self) -> Vec<Value> {
@@ -113,12 +96,8 @@ impl PostgresEntity for StorageLocation {
             ColumnDef::new("id", ColumnType::Uuid).primary_key(),
             ColumnDef::new("label", ColumnType::Text).not_null(),
             ColumnDef::new("path", ColumnType::Text).not_null(),
-            ColumnDef::new("is_default", ColumnType::Boolean)
-                .not_null()
-                .default("false"),
-            ColumnDef::new("readonly", ColumnType::Boolean)
-                .not_null()
-                .default("false"),
+            ColumnDef::new("is_default", ColumnType::Boolean).not_null().default("false"),
+            ColumnDef::new("readonly", ColumnType::Boolean).not_null().default("false"),
             ColumnDef::new("created_at", ColumnType::Text).not_null(),
             ColumnDef::new("category_template", ColumnType::Text).not_null(),
         ]

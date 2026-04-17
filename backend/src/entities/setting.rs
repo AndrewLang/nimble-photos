@@ -76,21 +76,14 @@ impl Type<Postgres> for SettingValueType {
 impl<'r> Decode<'r, Postgres> for SettingValueType {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let raw = <String as Decode<Postgres>>::decode(value)?;
-        SettingValueType::from_str(&raw).map_err(|_| {
-            BoxDynError::from(format!(
-                "Invalid setting value type stored in database: {}",
-                raw
-            ))
-        })
+        SettingValueType::from_str(&raw)
+            .map_err(|_| BoxDynError::from(format!("Invalid setting value type stored in database: {}", raw)))
     }
 }
 
 #[cfg(feature = "postgres")]
 impl Encode<'_, Postgres> for SettingValueType {
-    fn encode_by_ref(
-        &self,
-        buf: &mut <Postgres as Database>::ArgumentBuffer<'_>,
-    ) -> Result<IsNull, BoxDynError> {
+    fn encode_by_ref(&self, buf: &mut <Postgres as Database>::ArgumentBuffer<'_>) -> Result<IsNull, BoxDynError> {
         <String as Encode<Postgres>>::encode_by_ref(&self.as_str().to_string(), buf)
     }
 }
@@ -139,14 +132,7 @@ impl PostgresEntity for Setting {
     }
 
     fn insert_columns() -> &'static [&'static str] {
-        &[
-            "key",
-            "value_type",
-            "value",
-            "group_name",
-            "created_at",
-            "updated_at",
-        ]
+        &["key", "value_type", "value", "group_name", "created_at", "updated_at"]
     }
 
     fn insert_values(&self) -> Vec<Value> {
@@ -179,12 +165,8 @@ impl PostgresEntity for Setting {
             ColumnDef::new("value_type", ColumnType::Text).not_null(),
             ColumnDef::new("value", ColumnType::Text).not_null(),
             ColumnDef::new("group_name", ColumnType::Text).not_null(),
-            ColumnDef::new("created_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
-            ColumnDef::new("updated_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
+            ColumnDef::new("created_at", ColumnType::Timestamp).not_null().default("NOW()"),
+            ColumnDef::new("updated_at", ColumnType::Timestamp).not_null().default("NOW()"),
         ]
     }
 }

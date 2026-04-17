@@ -8,10 +8,7 @@ impl HttpHandler for TimelineYearsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context.service::<Repository<TimelineDay>>()?;
 
-        let years = repository
-            .get_years()
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let years = repository.get_years().await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::json(years))
     }
@@ -25,10 +22,7 @@ impl HttpHandler for TimelineYearDaysHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context.service::<Repository<TimelineDay>>()?;
 
-        let years = repository
-            .get_yeardays()
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let years = repository.get_yeardays().await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::json(years))
     }
@@ -52,9 +46,10 @@ impl HttpHandler for TimelineHandler {
             .map(|d| d.day_date.format("%Y-%m-%d").to_string())
             .collect();
 
-        let groups = photo_repository.photos_for_days(days).await.map_err(|e| {
-            PipelineError::message(&format!("failed to load photos for days: {:?}", e))
-        })?;
+        let groups = photo_repository
+            .photos_for_days(days)
+            .await
+            .map_err(|e| PipelineError::message(&format!("failed to load photos for days: {:?}", e)))?;
 
         Ok(ResponseValue::json(groups))
     }

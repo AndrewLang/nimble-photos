@@ -10,16 +10,9 @@ impl FileService {
     }
 
     pub fn target_file_name(&self, requested_name: &str, source_file: &Path) -> PathBuf {
-        let fallback = source_file
-            .file_name()
-            .and_then(OsStr::to_str)
-            .unwrap_or("image");
+        let fallback = source_file.file_name().and_then(OsStr::to_str).unwrap_or("image");
         let trimmed = requested_name.trim();
-        let resolved = if trimmed.is_empty() {
-            fallback
-        } else {
-            trimmed
-        };
+        let resolved = if trimmed.is_empty() { fallback } else { trimmed };
         PathBuf::from(resolved)
     }
 
@@ -39,9 +32,8 @@ impl FileService {
     }
 
     pub fn relative_path(&self, base: &Path, full: &Path) -> Result<String> {
-        let relative = full
-            .strip_prefix(base)
-            .with_context(|| format!("{} is not inside {}", full.display(), base.display()))?;
+        let relative =
+            full.strip_prefix(base).with_context(|| format!("{} is not inside {}", full.display(), base.display()))?;
         let mut segments = Vec::new();
         for component in relative.components() {
             segments.push(component.as_os_str().to_string_lossy().to_string());
@@ -59,9 +51,6 @@ impl FileService {
     }
 
     pub fn path_for_hash<P: AsRef<Path>>(&self, base: P, hash: &str, extension: &str) -> PathBuf {
-        base.as_ref()
-            .join(&hash[0..2])
-            .join(&hash[2..4])
-            .join(format!("{}.{extension}", hash))
+        base.as_ref().join(&hash[0..2]).join(&hash[2..4]).join(format!("{}.{extension}", hash))
     }
 }

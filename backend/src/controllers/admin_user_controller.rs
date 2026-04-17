@@ -31,9 +31,7 @@ struct UpdateUserRolesHandler;
 
 impl UpdateUserRolesHandler {
     fn contains_admin_role(&self, roles: &[String]) -> bool {
-        roles
-            .iter()
-            .any(|role| role.trim().eq_ignore_ascii_case("admin"))
+        roles.iter().any(|role| role.trim().eq_ignore_ascii_case("admin"))
     }
 }
 
@@ -46,17 +44,14 @@ impl HttpHandler for UpdateUserRolesHandler {
             return Ok(ResponseValue::empty());
         }
 
-        let payload = context
-            .read_json::<UpdateUserRolesRequest>()
-            .map_err(|err| PipelineError::message(err.message()))?;
+        let payload =
+            context.read_json::<UpdateUserRolesRequest>().map_err(|err| PipelineError::message(err.message()))?;
 
         let user_id = context.entity_id()?;
         let current_user_id = context.current_user_id()?;
 
         if user_id == current_user_id && !self.contains_admin_role(&payload.roles) {
-            return Err(PipelineError::message(
-                "Admin cannot remove the admin role from their own account",
-            ));
+            return Err(PipelineError::message("Admin cannot remove the admin role from their own account"));
         }
 
         let service = context.service::<AdminUserService>()?;

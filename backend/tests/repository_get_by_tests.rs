@@ -56,31 +56,19 @@ impl DataProvider<TestUser> for MockUserProvider {
 
 #[tokio::test]
 async fn test_repository_get_by_delegation() {
-    let user = TestUser {
-        id: "1".to_string(),
-        email: "test@example.com".to_string(),
-    };
+    let user = TestUser { id: "1".to_string(), email: "test@example.com".to_string() };
     let provider = MockUserProvider { user: user.clone() };
     let repo = Repository::new(Box::new(provider));
 
     // Test successful hit
-    let found = repo
-        .get_by("email", Value::String("test@example.com".to_string()))
-        .await
-        .unwrap();
+    let found = repo.get_by("email", Value::String("test@example.com".to_string())).await.unwrap();
     assert_eq!(found, Some(user));
 
     // Test miss
-    let not_found = repo
-        .get_by("email", Value::String("other@example.com".to_string()))
-        .await
-        .unwrap();
+    let not_found = repo.get_by("email", Value::String("other@example.com".to_string())).await.unwrap();
     assert!(not_found.is_none());
 
     // Test other column
-    let other_col = repo
-        .get_by("name", Value::String("test".to_string()))
-        .await
-        .unwrap();
+    let other_col = repo.get_by("name", Value::String("test".to_string())).await.unwrap();
     assert!(other_col.is_none());
 }

@@ -48,11 +48,7 @@ impl HttpHandler for UploadPhotosHandler {
             .ok_or_else(|| PipelineError::message("Storage is not found"))?;
 
         let saved_files = upload_service
-            .persist_multipart_to_storage_temp(
-                content_type_header,
-                request_body,
-                Path::new(&storage.path),
-            )
+            .persist_multipart_to_storage_temp(content_type_header, request_body, Path::new(&storage.path))
             .await
             .map_err(|error| PipelineError::message(&error.to_string()))?;
 
@@ -62,12 +58,10 @@ impl HttpHandler for UploadPhotosHandler {
 
         if !saved_files.is_empty() {
             let pipeline = context.service::<ImageProcessPipeline>()?;
-            pipeline
-                .enqueue_files(storage.clone(), saved_files.clone())
-                .map_err(|error| {
-                    log::error!("Failed to enqueue image pipeline: {:?}", error);
-                    PipelineError::message("Failed to schedule image processing tasks")
-                })?;
+            pipeline.enqueue_files(storage.clone(), saved_files.clone()).map_err(|error| {
+                log::error!("Failed to enqueue image pipeline: {:?}", error);
+                PipelineError::message("Failed to schedule image processing tasks")
+            })?;
         }
 
         let response = UploadPhotosResponse {
@@ -95,9 +89,7 @@ struct DeletePhotosHandler;
 #[delete("/api/photos", policy = Policy::Authenticated)]
 impl HttpHandler for DeletePhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload = context
-            .read_json::<DeletePhotosPayload>()
-            .map_err(|e| PipelineError::message(e.message()))?;
+        let payload = context.read_json::<DeletePhotosPayload>().map_err(|e| PipelineError::message(e.message()))?;
 
         if payload.photo_ids.is_empty() {
             return Err(PipelineError::message("photoIds cannot be empty"));
@@ -111,10 +103,8 @@ impl HttpHandler for DeletePhotosHandler {
             let photo_id = Uuid::parse_str(raw_photo_id.trim())
                 .map_err(|e| PipelineError::message(&format!("invalid photo id: {}", e)))?;
 
-            let Some(photo) = photo_repo
-                .get(&photo_id)
-                .await
-                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
+            let Some(photo) =
+                photo_repo.get(&photo_id).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?
             else {
                 continue;
             };
@@ -122,16 +112,12 @@ impl HttpHandler for DeletePhotosHandler {
             deleted += photo_repo
                 .delete_file(&photo, context)
                 .await
-                .map_err(|e| {
-                    PipelineError::message(&format!("failed to delete photo files: {:?}", e))
-                })
+                .map_err(|e| PipelineError::message(&format!("failed to delete photo files: {:?}", e)))
                 .map(|_| 1u32)
                 .unwrap_or(0u32);
         }
 
-        Ok(ResponseValue::new(Json(
-            serde_json::json!({ "deleted": deleted }),
-        )))
+        Ok(ResponseValue::new(Json(serde_json::json!({ "deleted": deleted }))))
     }
 }
 
@@ -155,10 +141,7 @@ impl HttpHandler for ThumbnailByStorageHandler {
         Ok(ResponseValue::new(
             FileResponse::from_path(thumb_path)
                 .with_content_type(SettingConsts::THUMBNAIL_CONTENT_TYPE)
-                .with_header(
-                    "Cache-Control",
-                    SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
-                ),
+                .with_header("Cache-Control", SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER),
         ))
     }
 }
@@ -171,19 +154,15 @@ impl HttpHandler for ThumbnailHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let hash = context.hash()?;
         let photo_repo = context.service::<Repository<Photo>>()?;
-        let photo = photo_repo
-            .find_by_hash(&hash)
-            .await?
-            .ok_or_else(|| PipelineError::message("thumbnail not found"))?;
+        let photo =
+            photo_repo.find_by_hash(&hash).await?.ok_or_else(|| PipelineError::message("thumbnail not found"))?;
 
         let storage_repo = context.service::<Repository<StorageLocation>>()?;
         let storage = storage_repo
             .get(&photo.storage_id)
             .await
             .map_err(|_| PipelineError::message("Storage location not found"))?
-            .ok_or_else(|| {
-                PipelineError::message(&format!("Storage is not found: {}", photo.storage_id))
-            })?;
+            .ok_or_else(|| PipelineError::message(&format!("Storage is not found: {}", photo.storage_id)))?;
 
         let file_service = context.service::<FileService>()?;
         let root = Path::new(&storage.path).join(SettingConsts::THUMBNAIL_FOLDER);
@@ -193,20 +172,14 @@ impl HttpHandler for ThumbnailHandler {
         let full_path = if thumb_path.exists() {
             thumb_path
         } else {
-            log::debug!(
-                "Thumbnail file not found at {}, falling back to original image",
-                thumb_path.display()
-            );
+            log::debug!("Thumbnail file not found at {}, falling back to original image", thumb_path.display());
             PathBuf::from(&photo.path)
         };
 
         Ok(ResponseValue::new(
             FileResponse::from_path(full_path)
                 .with_content_type(SettingConsts::THUMBNAIL_CONTENT_TYPE)
-                .with_header(
-                    "Cache-Control",
-                    SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
-                ),
+                .with_header("Cache-Control", SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER),
         ))
     }
 }
@@ -223,11 +196,7 @@ impl PreviewHandler {
         let source_path = PathBuf::from(&photo.path);
 
         if !source_path.exists() {
-            log::warn!(
-                "Preview source file missing for hash {} at {}",
-                hash,
-                source_path.display()
-            );
+            log::warn!("Preview source file missing for hash {} at {}", hash, source_path.display());
             return Ok(None);
         }
 
@@ -276,17 +245,12 @@ impl HttpHandler for PreviewByStorageHandler {
         let storage_id = context.id("storage_id")?;
         let hash = context.hash()?;
 
-        let preview_path = context
-            .get_preview_path_by_storage(storage_id, &hash)
-            .await?;
+        let preview_path = context.get_preview_path_by_storage(storage_id, &hash).await?;
         if preview_path.exists() {
             return Ok(ResponseValue::new(
                 FileResponse::from_path(preview_path)
                     .with_content_type(SettingConsts::PREVIEW_CONTENT_TYPE)
-                    .with_header(
-                        "Cache-Control",
-                        SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
-                    ),
+                    .with_header("Cache-Control", SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER),
             ));
         }
 
@@ -311,9 +275,7 @@ impl HttpHandler for PreviewByStorageHandler {
             return Err(PipelineError::message("preview source not found"));
         }
 
-        let output_path = context
-            .get_preview_path_by_storage(storage_id, &hash)
-            .await?;
+        let output_path = context.get_preview_path_by_storage(storage_id, &hash).await?;
         let extractor = context.service::<PreviewExtractor>()?;
         let output_path_clone = output_path.clone();
         let source_path_clone = source_path.clone();
@@ -340,17 +302,13 @@ impl HttpHandler for PreviewByStorageHandler {
             result.ok()
         });
 
-        let resolved_path = generated
-            .filter(|path| path.exists())
-            .ok_or_else(|| PipelineError::message("preview not found"))?;
+        let resolved_path =
+            generated.filter(|path| path.exists()).ok_or_else(|| PipelineError::message("preview not found"))?;
 
         Ok(ResponseValue::new(
             FileResponse::from_path(resolved_path)
                 .with_content_type(SettingConsts::PREVIEW_CONTENT_TYPE)
-                .with_header(
-                    "Cache-Control",
-                    SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
-                ),
+                .with_header("Cache-Control", SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER),
         ))
     }
 }
@@ -361,10 +319,7 @@ impl HttpHandler for PreviewHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let hash = context.hash()?;
         let photo_repo = context.service::<Repository<Photo>>()?;
-        let photo = photo_repo
-            .find_by_hash(&hash)
-            .await?
-            .ok_or_else(|| PipelineError::message("Preview not found"))?;
+        let photo = photo_repo.find_by_hash(&hash).await?.ok_or_else(|| PipelineError::message("Preview not found"))?;
 
         let storage_repo = context.service::<Repository<StorageLocation>>()?;
         let storage = storage_repo
@@ -381,10 +336,7 @@ impl HttpHandler for PreviewHandler {
         Ok(ResponseValue::new(
             FileResponse::from_path(full_path)
                 .with_content_type(SettingConsts::PREVIEW_CONTENT_TYPE)
-                .with_header(
-                    "Cache-Control",
-                    SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER,
-                ),
+                .with_header("Cache-Control", SettingConsts::DEFAULT_HTTP_IMAGE_CACHE_HEADER),
         ))
     }
 }
@@ -403,10 +355,8 @@ impl HttpHandler for MapPhotosHandler {
         let limit = page_size;
         let offset = if page > 0 { (page - 1) * limit } else { 0 };
 
-        let photos = repository
-            .photos_with_gps(limit, offset)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let photos =
+            repository.photos_with_gps(limit, offset).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         let response = serde_json::json!({
             "page": page,
@@ -440,17 +390,10 @@ impl HttpHandler for PhotoCommentsHandler {
             .page(page, page_size)
             .build();
 
-        let comments = repository
-            .query(query)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let comments = repository.query(query).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         let dtos = Page {
-            items: comments
-                .items
-                .into_iter()
-                .map(PhotoCommentDto::from)
-                .collect(),
+            items: comments.items.into_iter().map(PhotoCommentDto::from).collect(),
             total: comments.total,
             page: comments.page,
             page_size: comments.page_size,
@@ -470,45 +413,30 @@ impl HttpHandler for CreatePhotoCommentHandler {
         let photo_id = context.id("id")?;
         let display_name = context.current_user_display_name().await?;
 
-        let identity = context
-            .get::<IdentityContext>()
-            .ok_or_else(|| PipelineError::message("Identity context not found"))?;
+        let identity =
+            context.get::<IdentityContext>().ok_or_else(|| PipelineError::message("Identity context not found"))?;
 
         let settings = context.service::<SettingService>()?;
-        let can_comment = settings
-            .can_create_comments(identity.identity().claims().roles())
-            .await?;
+        let can_comment = settings.can_create_comments(identity.identity().claims().roles()).await?;
         if !can_comment {
             context.response_mut().set_status(403);
             return Ok(ResponseValue::empty());
         }
 
-        let payload = context
-            .read_json::<CreatePhotoCommentPayload>()
-            .map_err(|e| PipelineError::message(e.message()))?;
+        let payload =
+            context.read_json::<CreatePhotoCommentPayload>().map_err(|e| PipelineError::message(e.message()))?;
 
         let body = payload.comment.trim();
         if body.is_empty() {
             return Err(PipelineError::message("Comment cannot be empty"));
         }
         if body.chars().count() > MAX_COMMENT_LENGTH {
-            return Err(PipelineError::message(&format!(
-                "Comment must be {} characters or fewer",
-                MAX_COMMENT_LENGTH
-            )));
+            return Err(PipelineError::message(&format!("Comment must be {} characters or fewer", MAX_COMMENT_LENGTH)));
         }
 
-        let comment = PhotoComment::new(
-            photo_id,
-            user_id,
-            Some(display_name),
-            Some(body.to_string()),
-        );
+        let comment = PhotoComment::new(photo_id, user_id, Some(display_name), Some(body.to_string()));
         let repository = context.service::<Repository<PhotoComment>>()?;
-        let saved = repository
-            .insert(comment)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let saved = repository.insert(comment).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::json(PhotoCommentDto::from(saved)))
     }
@@ -522,15 +450,9 @@ impl HttpHandler for PhotoTagsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let repository = context.service::<Repository<Tag>>()?;
 
-        let query = QueryBuilder::<Tag>::new()
-            .distinct()
-            .sort_asc("name")
-            .build();
+        let query = QueryBuilder::<Tag>::new().distinct().sort_asc("name").build();
 
-        let tags = repository
-            .all(query)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let tags = repository.all(query).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
         let names = tags.into_iter().map(|t| t.name).collect::<Vec<_>>();
         Ok(ResponseValue::json(names))
     }
@@ -542,48 +464,34 @@ struct UpdatePhotoTagsHandler;
 #[put("/api/photos/tags")]
 impl HttpHandler for UpdatePhotoTagsHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload = context
-            .read_json::<UpdatePhotoTagsPayload>()
-            .map_err(|e| PipelineError::message(e.message()))?;
+        let payload = context.read_json::<UpdatePhotoTagsPayload>().map_err(|e| PipelineError::message(e.message()))?;
 
         if payload.photo_ids.is_empty() {
             return Err(PipelineError::message("photoIds cannot be empty"));
         }
 
-        let refs = payload
-            .tags
-            .iter()
-            .map(|name| TagRef::Name(name.clone()))
-            .collect::<Vec<_>>();
+        let refs = payload.tags.iter().map(|name| TagRef::Name(name.clone())).collect::<Vec<_>>();
         let photo_repo = context.service::<Repository<Photo>>()?;
         let tag_repo = context.service::<Repository<Tag>>()?;
 
         let mut updated = 0u32;
         for raw_photo_id in payload.photo_ids {
-            let photo_id = raw_photo_id.to_uuid().ok_or_else(|| {
-                PipelineError::message(&format!("invalid photo id: {}", raw_photo_id))
-            })?;
+            let photo_id = raw_photo_id
+                .to_uuid()
+                .ok_or_else(|| PipelineError::message(&format!("invalid photo id: {}", raw_photo_id)))?;
 
-            let exists = photo_repo
-                .get(&photo_id)
-                .await
-                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
-                .is_some();
+            let exists =
+                photo_repo.get(&photo_id).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?.is_some();
 
             if !exists {
                 continue;
             }
 
-            tag_repo
-                .set_photo_tags(photo_id, &refs)
-                .await
-                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+            tag_repo.set_photo_tags(photo_id, &refs).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
             updated += 1;
         }
 
-        Ok(ResponseValue::new(Json(
-            serde_json::json!({ "updated": updated }),
-        )))
+        Ok(ResponseValue::new(Json(serde_json::json!({ "updated": updated }))))
     }
 }
 

@@ -17,10 +17,7 @@ fn image_storage_location_normalizes_relative_path() {
     };
 
     assert_eq!(storage.normalized_path(), cwd.join(relative));
-    assert_eq!(
-        storage.category_template,
-        "{year}/{date:%Y-%m-%d}/{fileName}"
-    );
+    assert_eq!(storage.category_template, "{year}/{date:%Y-%m-%d}/{fileName}");
 }
 
 #[test]
@@ -37,8 +34,5 @@ fn image_storage_location_keeps_absolute_path() {
     };
 
     assert_eq!(storage.normalized_path(), absolute);
-    assert_eq!(
-        storage.category_template,
-        "{year}/{date:%Y-%m-%d}/{fileName}"
-    );
+    assert_eq!(storage.category_template, "{year}/{date:%Y-%m-%d}/{fileName}");
 }

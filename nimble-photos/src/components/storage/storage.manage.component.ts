@@ -129,4 +129,15 @@ export class StorageManageComponent {
                 },
             });
     }
+
+    refreshLocation(location: StorageLocation): void {
+        this.storageService
+            .refreshLocation(location.id)
+            .subscribe({
+                next: (locations) => { },
+                error: (err) => {
+                    this.actionError.set(err.error?.message || 'Failed to refresh storage location.');
+                },
+            });
+    }
 }

@@ -13,9 +13,7 @@ impl PhotoService {
             loop {
                 match receiver.recv().await {
                     Ok(event) => {
-                        if let Err(error) =
-                            PhotoService::handle_event(Arc::clone(&services), event).await
-                        {
+                        if let Err(error) = PhotoService::handle_event(Arc::clone(&services), event).await {
                             log::error!("PhotoService event handler failed: {:?}", error);
                         }
                     }
@@ -31,7 +29,7 @@ impl PhotoService {
     }
 
     async fn handle_event(services: Arc<ServiceProvider>, event: AppEvent) -> Result<()> {
-        if event.topic != "images.processed" {
+        if event.topic != EventNames::IMAGES_PROCESSED {
             return Ok(());
         }
 

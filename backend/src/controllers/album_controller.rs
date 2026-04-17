@@ -20,10 +20,7 @@ struct AlbumPhotosHandler;
 #[async_trait]
 #[get("/api/albums/{id}/photos/{page}/{pageSize}")]
 impl HttpHandler for AlbumPhotosHandler {
-    async fn invoke(
-        &self,
-        context: &mut HttpContext,
-    ) -> std::result::Result<ResponseValue, PipelineError> {
+    async fn invoke(&self, context: &mut HttpContext) -> std::result::Result<ResponseValue, PipelineError> {
         let id = context.entity_id()?;
         let page: u32 = context.page().unwrap_or(1);
         let page_size: u32 = context.page_size().unwrap_or(20);
@@ -39,20 +36,14 @@ struct ListAlbumsHandler;
 #[async_trait]
 #[get("/api/albums/{page}/{pageSize}")]
 impl HttpHandler for ListAlbumsHandler {
-    async fn invoke(
-        &self,
-        context: &mut HttpContext,
-    ) -> std::result::Result<ResponseValue, PipelineError> {
+    async fn invoke(&self, context: &mut HttpContext) -> std::result::Result<ResponseValue, PipelineError> {
         let page: u32 = context.page().unwrap_or(1);
         let page_size: u32 = context.page_size().unwrap_or(20);
         let repository = context.service::<Repository<Album>>()?;
 
         let query = QueryBuilder::<Album>::new().page(page, page_size).build();
 
-        let albums = repository
-            .query(query)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let albums = repository.query(query).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::json(albums))
     }
@@ -73,9 +64,7 @@ struct AddAlbumPhotosHandler;
 impl HttpHandler for AddAlbumPhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let album_id = context.entity_id()?;
-        let payload = context
-            .read_json::<AlbumPhotoIdsPayload>()
-            .map_err(|e| PipelineError::message(e.message()))?;
+        let payload = context.read_json::<AlbumPhotoIdsPayload>().map_err(|e| PipelineError::message(e.message()))?;
 
         let photo_ids = payload.photo_ids;
         let repository = context.service::<Repository<AlbumPhoto>>()?;
@@ -95,9 +84,7 @@ struct RemoveAlbumPhotosHandler;
 impl HttpHandler for RemoveAlbumPhotosHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let album_id = context.entity_id()?;
-        let payload = context
-            .read_json::<AlbumPhotoIdsPayload>()
-            .map_err(|e| PipelineError::message(e.message()))?;
+        let payload = context.read_json::<AlbumPhotoIdsPayload>().map_err(|e| PipelineError::message(e.message()))?;
         let photo_ids = payload.photo_ids;
         let repository = context.service::<Repository<AlbumPhoto>>()?;
         let removed = repository
@@ -125,10 +112,7 @@ impl HttpHandler for AlbumCommentsHandler {
             .filter("hidden", FilterOperator::Eq, Value::Bool(allow_hidden))
             .sort_desc("created_at")
             .build();
-        let comments = repository
-            .query(query)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let comments = repository.query(query).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::json(comments))
     }
@@ -148,10 +132,7 @@ impl CreateAlbumCommentHandler {
             return Err(PipelineError::message("Comment cannot be empty"));
         }
         if trimmed.chars().count() > MAX_COMMENT_LENGTH {
-            return Err(PipelineError::message(&format!(
-                "Comment must be {} characters or fewer",
-                MAX_COMMENT_LENGTH
-            )));
+            return Err(PipelineError::message(&format!("Comment must be {} characters or fewer", MAX_COMMENT_LENGTH)));
         }
         Ok(trimmed.to_string())
     }
@@ -161,9 +142,8 @@ impl CreateAlbumCommentHandler {
 #[post("/api/album/comments/{id}", policy = Policy::Authenticated)]
 impl HttpHandler for CreateAlbumCommentHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload = context
-            .read_json::<CreateAlbumCommentPayload>()
-            .map_err(|e| PipelineError::message(e.message()))?;
+        let payload =
+            context.read_json::<CreateAlbumCommentPayload>().map_err(|e| PipelineError::message(e.message()))?;
 
         let comment = self.validate_comment(&payload.comment)?;
         let album_id = context.entity_id()?;
@@ -179,10 +159,7 @@ impl HttpHandler for CreateAlbumCommentHandler {
 
         let new_comment = AlbumComment::new(album_id, user_id, display_name, comment);
         let repository = context.service::<Repository<AlbumComment>>()?;
-        let saved = repository
-            .insert(new_comment)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let saved = repository.insert(new_comment).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::json(AlbumCommentDto::from(saved)))
     }
@@ -213,17 +190,12 @@ impl HttpHandler for UpdateAlbumCommentVisibilityHandler {
             .ok_or_else(|| PipelineError::message("Comment not found"))?;
 
         if comment.album_id != album_id {
-            return Err(PipelineError::message(
-                "Comment does not belong to the supplied album",
-            ));
+            return Err(PipelineError::message("Comment does not belong to the supplied album"));
         }
 
         comment.hidden = payload.hidden;
 
-        let saved = repository
-            .update(comment)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let saved = repository.update(comment).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(ResponseValue::new(Json(AlbumCommentDto::from(saved))))
     }

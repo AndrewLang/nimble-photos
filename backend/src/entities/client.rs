@@ -124,20 +124,12 @@ impl PostgresEntity for Client {
             ColumnDef::new("device_type", ColumnType::Text).not_null(),
             ColumnDef::new("version", ColumnType::Text).not_null(),
             ColumnDef::new("api_key_hash", ColumnType::Text).not_null(),
-            ColumnDef::new("is_active", ColumnType::Boolean)
-                .not_null()
-                .default("true"),
-            ColumnDef::new("is_approved", ColumnType::Boolean)
-                .not_null()
-                .default("false"),
+            ColumnDef::new("is_active", ColumnType::Boolean).not_null().default("true"),
+            ColumnDef::new("is_approved", ColumnType::Boolean).not_null().default("false"),
             ColumnDef::new("approved_by", ColumnType::Uuid),
             ColumnDef::new("last_seen_at", ColumnType::Timestamp),
-            ColumnDef::new("created_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
-            ColumnDef::new("updated_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
+            ColumnDef::new("created_at", ColumnType::Timestamp).not_null().default("NOW()"),
+            ColumnDef::new("updated_at", ColumnType::Timestamp).not_null().default("NOW()"),
         ]
     }
 }

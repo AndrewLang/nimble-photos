@@ -14,10 +14,7 @@ pub trait StorageRepositoryExtensions {
         locations: Vec<StorageLocation>,
     ) -> Result<Vec<StorageLocationResponse>, PipelineError>;
     async fn load_storages(&self) -> Result<Vec<StorageLocation>, PipelineError>;
-    async fn find_storage_by_path(
-        &self,
-        path: &str,
-    ) -> Result<Option<StorageLocation>, PipelineError>;
+    async fn find_storage_by_path(&self, path: &str) -> Result<Option<StorageLocation>, PipelineError>;
     async fn exists_by_path(&self, path: &str) -> Result<bool, PipelineError>;
     async fn exists_by_id(&self, id: Uuid) -> Result<bool, PipelineError>;
     async fn is_empty(&self) -> Result<bool, PipelineError>;
@@ -90,23 +87,13 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
 
     async fn load_storages(&self) -> Result<Vec<StorageLocation>, PipelineError> {
         let query = QueryBuilder::<StorageLocation>::new()
-            .filter(
-                "id",
-                FilterOperator::Ne,
-                Value::Uuid(SettingConsts::DEFAULT_STORAGE_ID),
-            )
+            .filter("id", FilterOperator::Ne, Value::Uuid(SettingConsts::DEFAULT_STORAGE_ID))
             .build();
-        let locations = self
-            .all(query)
-            .await
-            .map_err(|_| PipelineError::message("failed to load storage settings"))?;
+        let locations = self.all(query).await.map_err(|_| PipelineError::message("failed to load storage settings"))?;
         Ok(locations)
     }
 
-    async fn find_storage_by_path(
-        &self,
-        path: &str,
-    ) -> Result<Option<StorageLocation>, PipelineError> {
+    async fn find_storage_by_path(&self, path: &str) -> Result<Option<StorageLocation>, PipelineError> {
         self.get_by("path", Value::String(path.to_string()))
             .await
             .map_err(|_| PipelineError::message("failed to load storage settings"))
@@ -117,11 +104,7 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
     }
 
     async fn exists_by_id(&self, id: Uuid) -> Result<bool, PipelineError> {
-        Ok(self
-            .get(&id)
-            .await
-            .map_err(|_| PipelineError::message("failed to load storage settings"))?
-            .is_some())
+        Ok(self.get(&id).await.map_err(|_| PipelineError::message("failed to load storage settings"))?.is_some())
     }
 
     async fn is_empty(&self) -> Result<bool, PipelineError> {
@@ -136,11 +119,7 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
 
     async fn default_storages(&self) -> Result<Vec<StorageLocation>, PipelineError> {
         let locations = self
-            .query(
-                Query::<StorageLocation>::new()
-                    .with_filter("is_default", Value::Bool(true))
-                    .with_page_size(100),
-            )
+            .query(Query::<StorageLocation>::new().with_filter("is_default", Value::Bool(true)).with_page_size(100))
             .await
             .map_err(|_| PipelineError::message("failed to load storage settings"))?
             .items;

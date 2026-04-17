@@ -153,9 +153,7 @@ impl PostgresEntity for Album {
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
-            ColumnDef::new("id", ColumnType::Uuid)
-                .primary_key()
-                .default("gen_random_uuid()"),
+            ColumnDef::new("id", ColumnType::Uuid).primary_key().default("gen_random_uuid()"),
             ColumnDef::new("parent_id", ColumnType::Uuid),
             ColumnDef::new("name", ColumnType::Text).not_null(),
             ColumnDef::new("create_date", ColumnType::Timestamp),

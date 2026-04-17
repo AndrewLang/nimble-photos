@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
+import { logger } from '../models/logger';
 import { CreateStorageLocationRequest, StorageDiskInfo, StorageLocation, UpdateStorageLocationRequest } from '../models/storage.model';
 import { API_BASE_URL } from './api.config';
 
@@ -35,5 +36,10 @@ export class StorageService {
 
     setDefault(id: string): Observable<StorageLocation[]> {
         return this.http.put<StorageLocation[]>(`${this.apiBase}/storage/locations/${id}/default`, {});
+    }
+
+    refreshLocation(id: string): Observable<any> {
+        logger.debug(`Refreshing storage location with id: ${id}`);
+        return this.http.post<any>(`${this.apiBase}/storage/scan`, { storageId: id });
     }
 }

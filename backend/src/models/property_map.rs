@@ -9,9 +9,7 @@ pub struct InsertEntry<'a> {
 
 impl<'a> InsertEntry<'a> {
     pub fn alias(self, alias: impl Into<String>) -> &'a mut PropertyMap {
-        self.map
-            .aliases
-            .insert(alias.into(), (self.type_id, self.index));
+        self.map.aliases.insert(alias.into(), (self.type_id, self.index));
         self.map
     }
 }
@@ -24,10 +22,7 @@ pub struct PropertyMap {
 
 impl PropertyMap {
     pub fn new() -> Self {
-        Self {
-            properties: HashMap::new(),
-            aliases: HashMap::new(),
-        }
+        Self { properties: HashMap::new(), aliases: HashMap::new() }
     }
 
     pub fn insert<T: Any + Send + Sync>(&mut self, value: T) -> InsertEntry<'_> {
@@ -36,18 +31,11 @@ impl PropertyMap {
         values.push(Box::new(value));
         let index = values.len() - 1;
 
-        InsertEntry {
-            map: self,
-            type_id,
-            index,
-        }
+        InsertEntry { map: self, type_id, index }
     }
 
     pub fn get<T: Any + Send + Sync>(&self) -> Option<&T> {
-        self.properties
-            .get(&TypeId::of::<T>())
-            .and_then(|values| values.last())
-            .and_then(|v| v.downcast_ref::<T>())
+        self.properties.get(&TypeId::of::<T>()).and_then(|values| values.last()).and_then(|v| v.downcast_ref::<T>())
     }
 
     pub fn get_mut<T: Any + Send + Sync>(&mut self) -> Option<&mut T> {
@@ -59,9 +47,6 @@ impl PropertyMap {
 
     pub fn get_by_alias<T: Any + Send + Sync>(&self, alias: &str) -> Option<&T> {
         let (type_id, index) = self.aliases.get(alias)?;
-        self.properties
-            .get(type_id)
-            .and_then(|values| values.get(*index))
-            .and_then(|v| v.downcast_ref::<T>())
+        self.properties.get(type_id).and_then(|values| values.get(*index)).and_then(|v| v.downcast_ref::<T>())
     }
 }

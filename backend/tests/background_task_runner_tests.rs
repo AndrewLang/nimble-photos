@@ -47,15 +47,12 @@ async fn tasks_execute_in_parallel_up_to_configured_limit() {
         let completed_count_for_task = Arc::clone(&completed_count);
         let barrier_for_task = Arc::clone(&barrier);
         runner
-            .enqueue(TaskDescriptor::new(
-                format!("parallel-task-{task_index}"),
-                async move {
-                    barrier_for_task.wait().await;
-                    sleep(Duration::from_millis(80)).await;
-                    completed_count_for_task.fetch_add(1, Ordering::SeqCst);
-                    Ok(())
-                },
-            ))
+            .enqueue(TaskDescriptor::new(format!("parallel-task-{task_index}"), async move {
+                barrier_for_task.wait().await;
+                sleep(Duration::from_millis(80)).await;
+                completed_count_for_task.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            }))
             .expect("failed to enqueue task");
     }
 
@@ -88,7 +85,6 @@ async fn stop_finishes_running_tasks_and_rejects_new_tasks() {
     assert_eq!(runner.running_count(), 0);
     assert_eq!(runner.queued_count(), 0);
 
-    let enqueue_after_stop =
-        runner.enqueue(TaskDescriptor::new("rejected-task", async move { Ok(()) }));
+    let enqueue_after_stop = runner.enqueue(TaskDescriptor::new("rejected-task", async move { Ok(()) }));
     assert!(enqueue_after_stop.is_err());
 }

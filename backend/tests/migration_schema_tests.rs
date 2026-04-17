@@ -31,13 +31,8 @@ async fn ensure_supporting_schema_creates_tag_tables() {
         return;
     };
 
-    ensure_supporting_schema(&pool)
-        .await
-        .expect("supporting schema migration failed");
+    ensure_supporting_schema(&pool).await.expect("supporting schema migration failed");
 
     assert!(table_exists(&pool, "tags").await, "tags table missing");
-    assert!(
-        table_exists(&pool, "photo_tags").await,
-        "photo_tags table missing"
-    );
+    assert!(table_exists(&pool, "photo_tags").await, "photo_tags table missing");
 }

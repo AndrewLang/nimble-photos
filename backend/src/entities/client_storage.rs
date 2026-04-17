@@ -44,10 +44,8 @@ impl Entity for ClientStorage {
 impl<'r> FromRow<'r, PgRow> for ClientStorage {
     fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
         let raw_options: Option<String> = row.try_get("browse_options")?;
-        let browse_options = raw_options
-            .as_deref()
-            .and_then(|raw| serde_json::from_str::<BrowseOptions>(raw).ok())
-            .unwrap_or_default();
+        let browse_options =
+            raw_options.as_deref().and_then(|raw| serde_json::from_str::<BrowseOptions>(raw).ok()).unwrap_or_default();
 
         Ok(Self {
             id: row.try_get("id")?,
@@ -73,8 +71,8 @@ impl PostgresEntity for ClientStorage {
     }
 
     fn insert_values(&self) -> Vec<Value> {
-        let browse_options = serde_json::to_string(&self.browse_options)
-            .unwrap_or_else(|_| self.default_browse_options());
+        let browse_options =
+            serde_json::to_string(&self.browse_options).unwrap_or_else(|_| self.default_browse_options());
         vec![
             Value::Uuid(self.id),
             Value::Uuid(self.client_id),
@@ -88,20 +86,14 @@ impl PostgresEntity for ClientStorage {
     }
 
     fn update_values(&self) -> Vec<Value> {
-        let browse_options = serde_json::to_string(&self.browse_options)
-            .unwrap_or_else(|_| self.default_browse_options());
-        vec![
-            Value::Uuid(self.client_id),
-            Value::Uuid(self.storage_id),
-            Value::String(browse_options),
-        ]
+        let browse_options =
+            serde_json::to_string(&self.browse_options).unwrap_or_else(|_| self.default_browse_options());
+        vec![Value::Uuid(self.client_id), Value::Uuid(self.storage_id), Value::String(browse_options)]
     }
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
-            ColumnDef::new("id", ColumnType::Uuid)
-                .primary_key()
-                .default("gen_random_uuid()"),
+            ColumnDef::new("id", ColumnType::Uuid).primary_key().default("gen_random_uuid()"),
             ColumnDef::new("client_id", ColumnType::Uuid).not_null(),
             ColumnDef::new("storage_id", ColumnType::Uuid).not_null(),
             ColumnDef::new("browse_options", ColumnType::Text).not_null(),

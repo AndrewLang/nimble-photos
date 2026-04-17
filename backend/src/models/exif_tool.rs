@@ -14,9 +14,7 @@ pub struct ExifTool {
 
 impl ExifTool {
     pub fn new() -> Self {
-        Self {
-            exe_path: Self::default_exe_path(),
-        }
+        Self { exe_path: Self::default_exe_path() }
     }
 
     pub fn read_exif(&self, path: &str) -> Result<ExifMap> {
@@ -32,10 +30,7 @@ impl ExifTool {
             .output()?;
 
         if !output.status.success() {
-            anyhow::bail!(
-                "ExifTool failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            anyhow::bail!("ExifTool failed: {}", String::from_utf8_lossy(&output.stderr));
         }
 
         let json = String::from_utf8_lossy(&output.stdout);
@@ -75,14 +70,8 @@ impl ExifTool {
     }
 
     fn default_exe_path() -> PathBuf {
-        let exe_name = if cfg!(target_os = "windows") {
-            "exiftool.exe"
-        } else {
-            "exiftool"
-        };
+        let exe_name = if cfg!(target_os = "windows") { "exiftool.exe" } else { "exiftool" };
 
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("bins")
-            .join(exe_name)
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bins").join(exe_name)
     }
 }

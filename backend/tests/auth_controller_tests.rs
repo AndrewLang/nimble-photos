@@ -40,9 +40,7 @@ struct InMemoryUserProvider {
 
 impl InMemoryUserProvider {
     fn new() -> Self {
-        Self {
-            store: Arc::new(Mutex::new(HashMap::new())),
-        }
+        Self { store: Arc::new(Mutex::new(HashMap::new())) }
     }
     fn seed(&self, entities: Vec<User>) {
         let mut store = self.store.lock().unwrap();
@@ -102,15 +100,10 @@ fn login_returns_token() {
     }
 
     let mut request = HttpRequest::new("POST", "/api/auth/login");
-    request.set_body(RequestBody::Text(
-        "{\"email\":\"me@example.com\",\"password\":\"x\"}".to_string(),
-    ));
+    request.set_body(RequestBody::Text("{\"email\":\"me@example.com\",\"password\":\"x\"}".to_string()));
 
     let mut values = std::collections::HashMap::new();
-    values.insert(
-        "encryption.key".to_string(),
-        "FMxHF3veLLoH25I7Hr9IOenHDKZwj6hcEYeQzTFww9s=".to_string(),
-    );
+    values.insert("encryption.key".to_string(), "FMxHF3veLLoH25I7Hr9IOenHDKZwj6hcEYeQzTFww9s=".to_string());
     let config = Configuration::from_values(values);
 
     let encrypt_service = EncryptService::new(&config).unwrap();
@@ -136,12 +129,9 @@ fn login_returns_token() {
     let mut container = ServiceContainer::new();
     let config_clone = config.clone();
     container.register_singleton::<Configuration, _>(move |_| config_clone.clone());
-    container.register_singleton::<Repository<User>, _>(move |_| {
-        Repository::new(Box::new(user_repo.clone()))
-    });
-    container.register_singleton::<Repository<UserSettings>, _>(move |_| {
-        Repository::new(Box::new(settings_repo.clone()))
-    });
+    container.register_singleton::<Repository<User>, _>(move |_| Repository::new(Box::new(user_repo.clone())));
+    container
+        .register_singleton::<Repository<UserSettings>, _>(move |_| Repository::new(Box::new(settings_repo.clone())));
     container.register_singleton::<EncryptService, _>(move |provider| {
         let config = provider.resolve::<Configuration>().unwrap();
         EncryptService::new(&config).unwrap()
@@ -155,12 +145,7 @@ fn login_returns_token() {
         let settings_repo = provider.resolve::<Repository<UserSettings>>().unwrap();
         let encrypt = provider.resolve::<EncryptService>().unwrap();
         let tokens = provider.resolve::<Arc<dyn TokenService>>().unwrap();
-        AuthService::new(
-            repo.clone(),
-            settings_repo.clone(),
-            encrypt.as_ref().clone(),
-            tokens.as_ref().clone(),
-        )
+        AuthService::new(repo.clone(), settings_repo.clone(), encrypt.as_ref().clone(), tokens.as_ref().clone())
     });
 
     let services = container.build();
@@ -225,23 +210,14 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
     }]);
 
     let mut container = ServiceContainer::new();
-    container.register_singleton::<Repository<User>, _>(move |_| {
-        Repository::new(Box::new(user_repo.clone()))
-    });
-    container.register_singleton::<Repository<UserSettings>, _>(move |_| {
-        Repository::new(Box::new(settings_repo.clone()))
-    });
+    container.register_singleton::<Repository<User>, _>(move |_| Repository::new(Box::new(user_repo.clone())));
+    container
+        .register_singleton::<Repository<UserSettings>, _>(move |_| Repository::new(Box::new(settings_repo.clone())));
 
     // Add missing services
     let mut values = HashMap::new();
-    values.insert(
-        "encryption.key".to_string(),
-        "FMxHF3veLLoH25I7Hr9IOenHDKZwj6hcEYeQzTFww9s=".to_string(),
-    );
-    values.insert(
-        "Encryption.Key".to_string(),
-        "FMxHF3veLLoH25I7Hr9IOenHDKZwj6hcEYeQzTFww9s=".to_string(),
-    );
+    values.insert("encryption.key".to_string(), "FMxHF3veLLoH25I7Hr9IOenHDKZwj6hcEYeQzTFww9s=".to_string());
+    values.insert("Encryption.Key".to_string(), "FMxHF3veLLoH25I7Hr9IOenHDKZwj6hcEYeQzTFww9s=".to_string());
     let config_arc = Configuration::from_values(values);
     let config_clone = config_arc.clone();
 
@@ -276,9 +252,7 @@ fn me_returns_profile_when_authenticated_and_repos_registered() {
 
     let mut request = HttpRequest::new("GET", "/api/auth/me");
     let header_val = format!("Bearer {}", token);
-    request
-        .headers_mut()
-        .insert("authorization", header_val.as_str());
+    request.headers_mut().insert("authorization", header_val.as_str());
 
     let config = config_arc; // Use the same config
     let mut context = HttpContext::new(request, services, config);

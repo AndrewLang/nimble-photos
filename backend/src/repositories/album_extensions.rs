@@ -8,28 +8,15 @@ impl AlbumExtensions for Repository<Album> {}
 
 #[async_trait]
 pub trait AlbumPhotoExtensions {
-    async fn add_photos_to_album(
-        &self,
-        album_id: Uuid,
-        photo_ids: &[Uuid],
-    ) -> Result<u32, PipelineError>;
-    async fn remove_photos_from_album(
-        &self,
-        album_id: Uuid,
-        photo_ids: &[Uuid],
-    ) -> Result<u32, PipelineError>;
+    async fn add_photos_to_album(&self, album_id: Uuid, photo_ids: &[Uuid]) -> Result<u32, PipelineError>;
+    async fn remove_photos_from_album(&self, album_id: Uuid, photo_ids: &[Uuid]) -> Result<u32, PipelineError>;
 }
 
 #[async_trait]
 impl AlbumPhotoExtensions for Repository<AlbumPhoto> {
-    async fn add_photos_to_album(
-        &self,
-        album_id: Uuid,
-        photo_ids: &[Uuid],
-    ) -> Result<u32, PipelineError> {
-        let query = QueryBuilder::<AlbumPhoto>::new()
-            .filter("album_id", FilterOperator::Eq, Value::Uuid(album_id))
-            .build();
+    async fn add_photos_to_album(&self, album_id: Uuid, photo_ids: &[Uuid]) -> Result<u32, PipelineError> {
+        let query =
+            QueryBuilder::<AlbumPhoto>::new().filter("album_id", FilterOperator::Eq, Value::Uuid(album_id)).build();
 
         let photo_ids_set: HashSet<Uuid> = self
             .all(query)
@@ -54,32 +41,17 @@ impl AlbumPhotoExtensions for Repository<AlbumPhoto> {
         Ok(added)
     }
 
-    async fn remove_photos_from_album(
-        &self,
-        album_id: Uuid,
-        photo_ids: &[Uuid],
-    ) -> Result<u32, PipelineError> {
+    async fn remove_photos_from_album(&self, album_id: Uuid, photo_ids: &[Uuid]) -> Result<u32, PipelineError> {
         let mut removed = 0;
         let query = QueryBuilder::<AlbumPhoto>::new()
             .filter("album_id", FilterOperator::Eq, Value::Uuid(album_id))
-            .filter(
-                "photo_id",
-                FilterOperator::In,
-                Value::List(photo_ids.iter().copied().map(Value::Uuid).collect()),
-            )
+            .filter("photo_id", FilterOperator::In, Value::List(photo_ids.iter().copied().map(Value::Uuid).collect()))
             .build();
 
-        let items = self
-            .query(query)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let items = self.query(query).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         for item in items.items {
-            if self
-                .delete(&item.id)
-                .await
-                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?
-            {
+            if self.delete(&item.id).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))? {
                 removed += 1;
             }
         }

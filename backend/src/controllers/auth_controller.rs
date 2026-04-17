@@ -15,9 +15,7 @@ impl Controller for AuthController {
             EndpointRoute::post("/api/auth/refresh", RefreshHandler).build(),
             EndpointRoute::post("/api/auth/logout", LogoutHandler).build(),
             EndpointRoute::get("/api/auth/registration-status", RegistrationStatusHandler).build(),
-            EndpointRoute::get("/api/auth/me", MeHandler)
-                .with_policy(Policy::Authenticated)
-                .build(),
+            EndpointRoute::get("/api/auth/me", MeHandler).with_policy(Policy::Authenticated).build(),
             #[cfg(feature = "testbot")]
             EndpointRoute::post("/api/test/auth/reset-token", TestResetTokenHandler).build(),
             #[cfg(feature = "testbot")]
@@ -34,9 +32,7 @@ impl HttpHandler for LoginHandler {
         let payload: LoginRequest = context.json()?;
 
         let auth_service = context.service::<AuthService>()?;
-        let response = auth_service
-            .login(&payload.email, &payload.password)
-            .await?;
+        let response = auth_service.login(&payload.email, &payload.password).await?;
 
         Ok(ResponseValue::json(response))
     }
@@ -55,12 +51,8 @@ impl HttpHandler for RegisterHandler {
 
         let auth_service = context.service::<AuthService>()?;
         let setting_service = context.service::<SettingService>()?;
-        let response = auth_service
-            .register(&payload.email, &payload.password, &payload.display_name)
-            .await?;
-        setting_service
-            .update("site.initialized", json!(true))
-            .await?;
+        let response = auth_service.register(&payload.email, &payload.password, &payload.display_name).await?;
+        setting_service.update("site.initialized", json!(true)).await?;
 
         Ok(ResponseValue::json(response))
     }
@@ -79,17 +71,11 @@ impl HttpHandler for RegistrationStatusHandler {
         let mut initialized = setting_service.is_site_initialized().await?;
 
         if has_admin && !initialized {
-            setting_service
-                .update("site.initialized", json!(true))
-                .await?;
+            setting_service.update("site.initialized", json!(true)).await?;
             initialized = true;
         }
 
-        Ok(ResponseValue::json(RegistrationStatusResponse {
-            has_admin,
-            allow_registration,
-            initialized,
-        }))
+        Ok(ResponseValue::json(RegistrationStatusResponse { has_admin, allow_registration, initialized }))
     }
 }
 
@@ -108,11 +94,8 @@ impl HttpHandler for MeHandler {
             .map_err(|_| PipelineError::message("data error"))?
             .ok_or_else(|| PipelineError::message("user not found"))?;
 
-        let settings = settings_repo
-            .get(&user_id)
-            .await
-            .map_err(|_| PipelineError::message("data error"))?
-            .unwrap_or(UserSettings {
+        let settings = settings_repo.get(&user_id).await.map_err(|_| PipelineError::message("data error"))?.unwrap_or(
+            UserSettings {
                 user_id,
                 display_name: user.email.clone(),
                 avatar_url: None,
@@ -120,7 +103,8 @@ impl HttpHandler for MeHandler {
                 language: "en".to_string(),
                 timezone: "UTC".to_string(),
                 created_at: Utc::now(),
-            });
+            },
+        );
 
         let dto: UserProfileDto = (user, settings).into();
 
@@ -189,9 +173,7 @@ impl HttpHandler for TestVerifyTokenHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
         let payload: TokenRequest = context.json()?;
         let auth_service = context.service::<AuthService>()?;
-        let token = auth_service
-            .issue_verification_token(&payload.email)
-            .await?;
+        let token = auth_service.issue_verification_token(&payload.email).await?;
         Ok(ResponseValue::json(TokenResponse { token }))
     }
 }

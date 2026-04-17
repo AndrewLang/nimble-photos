@@ -105,20 +105,14 @@ impl PostgresEntity for User {
     fn table_columns() -> Vec<ColumnDef> {
         vec![
             ColumnDef::new("id", ColumnType::Uuid).primary_key(),
-            ColumnDef::new("email", ColumnType::Text)
-                .not_null()
-                .unique(),
+            ColumnDef::new("email", ColumnType::Text).not_null().unique(),
             ColumnDef::new("display_name", ColumnType::Text).not_null(),
             ColumnDef::new("password_hash", ColumnType::Text).not_null(),
-            ColumnDef::new("created_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
+            ColumnDef::new("created_at", ColumnType::Timestamp).not_null().default("NOW()"),
             ColumnDef::new("reset_token", ColumnType::Text),
             ColumnDef::new("reset_token_expires_at", ColumnType::Timestamp),
             ColumnDef::new("verification_token", ColumnType::Text),
-            ColumnDef::new("email_verified", ColumnType::Boolean)
-                .not_null()
-                .default("false"),
+            ColumnDef::new("email_verified", ColumnType::Boolean).not_null().default("false"),
             ColumnDef::new("roles", ColumnType::Text),
         ]
     }

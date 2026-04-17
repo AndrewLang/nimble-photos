@@ -16,12 +16,7 @@ impl AuthService {
         encrypt_service: EncryptService,
         tokens: Arc<dyn TokenService>,
     ) -> Self {
-        Self {
-            settings_repo,
-            repo,
-            encrypt_service,
-            tokens,
-        }
+        Self { settings_repo, repo, encrypt_service, tokens }
     }
 
     pub async fn register(
@@ -41,18 +36,13 @@ impl AuthService {
             .map(|page| page.items.is_empty())
             .map_err(|_| PipelineError::message("data error"))?;
 
-        let password_hash = self
-            .encrypt_service
-            .encrypt(password)
-            .map_err(|e| PipelineError::message(&e.to_string()))?;
+        let password_hash =
+            self.encrypt_service.encrypt(password).map_err(|e| PipelineError::message(&e.to_string()))?;
 
         let email_string = email.to_string();
         let email_value = Value::String(email_string.clone());
-        if let Some(_) = self
-            .repo
-            .get_by("email", email_value)
-            .await
-            .map_err(|_| PipelineError::message("data error"))?
+        if let Some(_) =
+            self.repo.get_by("email", email_value).await.map_err(|_| PipelineError::message("data error"))?
         {
             return Err(PipelineError::message("email already registered"));
         }
@@ -69,11 +59,7 @@ impl AuthService {
             reset_token_expires_at: None,
             verification_token: Some(Uuid::new_v4().to_string()),
             email_verified: false,
-            roles: if is_first_user {
-                Some("admin".to_string())
-            } else {
-                Some("viewer".to_string())
-            },
+            roles: if is_first_user { Some("admin".to_string()) } else { Some("viewer".to_string()) },
         };
 
         let user_id = user.id;
@@ -105,36 +91,21 @@ impl AuthService {
         #[cfg(feature = "postgres")]
         {
             let query = QueryBuilder::<User>::new()
-                .filter(
-                    "roles",
-                    FilterOperator::Contains,
-                    Value::String("admin".to_string()),
-                )
+                .filter("roles", FilterOperator::Contains, Value::String("admin".to_string()))
                 .page(1, 1)
                 .build();
 
-            let page = self
-                .repo
-                .query(query)
-                .await
-                .map_err(|_| PipelineError::message("data error"))?;
+            let page = self.repo.query(query).await.map_err(|_| PipelineError::message("data error"))?;
 
             return Ok(!page.items.is_empty());
         }
 
         #[cfg(not(feature = "postgres"))]
         {
-            let page = self
-                .repo
-                .query(Query::<User>::new())
-                .await
-                .map_err(|_| PipelineError::message("data error"))?;
+            let page = self.repo.query(Query::<User>::new()).await.map_err(|_| PipelineError::message("data error"))?;
 
             let has_admin = page.items.iter().any(|user| {
-                user.roles
-                    .as_ref()
-                    .map(|roles| roles.split(',').any(|role| role.trim() == "admin"))
-                    .unwrap_or(false)
+                user.roles.as_ref().map(|roles| roles.split(',').any(|role| role.trim() == "admin")).unwrap_or(false)
             });
 
             return Ok(has_admin);
@@ -163,19 +134,14 @@ impl AuthService {
     }
 
     pub async fn refresh(&self, refresh_token: &str) -> Result<LoginResponse, PipelineError> {
-        let user_id = self
-            .tokens
-            .validate_refresh_token(refresh_token)
-            .map_err(|e| PipelineError::message(&e.to_string()))?;
-        let user_id = Uuid::parse_str(&user_id)
-            .map_err(|_| PipelineError::message("invalid refresh token subject"))?;
+        let user_id =
+            self.tokens.validate_refresh_token(refresh_token).map_err(|e| PipelineError::message(&e.to_string()))?;
+        let user_id = Uuid::parse_str(&user_id).map_err(|_| PipelineError::message("invalid refresh token subject"))?;
         self.issue_tokens(user_id).await
     }
 
     pub fn logout(&self, refresh_token: &str) -> Result<(), PipelineError> {
-        self.tokens
-            .revoke_refresh_token(refresh_token)
-            .map_err(|e| PipelineError::message(&e.to_string()))
+        self.tokens.revoke_refresh_token(refresh_token).map_err(|e| PipelineError::message(&e.to_string()))
     }
 
     pub async fn me(&self, user_id: &str) -> Result<User, PipelineError> {
@@ -187,12 +153,7 @@ impl AuthService {
             .ok_or_else(|| PipelineError::message("user not found"))
     }
 
-    pub async fn change_password(
-        &self,
-        user_id: &str,
-        old_pw: &str,
-        new_pw: &str,
-    ) -> Result<(), PipelineError> {
+    pub async fn change_password(&self, user_id: &str, old_pw: &str, new_pw: &str) -> Result<(), PipelineError> {
         let id = Uuid::parse_str(user_id).map_err(|_| PipelineError::message("invalid user id"))?;
         let mut user = self
             .repo
@@ -209,16 +170,10 @@ impl AuthService {
             return Err(PipelineError::message("invalid credentials"));
         }
 
-        let new_hash = self
-            .encrypt_service
-            .encrypt(new_pw)
-            .map_err(|e| PipelineError::message(&e.to_string()))?;
+        let new_hash = self.encrypt_service.encrypt(new_pw).map_err(|e| PipelineError::message(&e.to_string()))?;
 
         user.password_hash = new_hash;
-        self.repo
-            .update(user)
-            .await
-            .map_err(|_| PipelineError::message("failed to update user"))?;
+        self.repo.update(user).await.map_err(|_| PipelineError::message("failed to update user"))?;
         Ok(())
     }
 
@@ -240,19 +195,13 @@ impl AuthService {
             return Err(PipelineError::message("invalid token"));
         }
 
-        let new_hash = self
-            .encrypt_service
-            .encrypt(new_pw)
-            .map_err(|e| PipelineError::message(&e.to_string()))?;
+        let new_hash = self.encrypt_service.encrypt(new_pw).map_err(|e| PipelineError::message(&e.to_string()))?;
 
         user.password_hash = new_hash;
         user.reset_token = None;
         user.reset_token_expires_at = None;
 
-        self.repo
-            .update(user)
-            .await
-            .map_err(|_| PipelineError::message("failed to update user"))?;
+        self.repo.update(user).await.map_err(|_| PipelineError::message("failed to update user"))?;
         Ok(())
     }
 
@@ -269,10 +218,7 @@ impl AuthService {
         user.email_verified = true;
         user.verification_token = None;
 
-        self.repo
-            .update(user)
-            .await
-            .map_err(|_| PipelineError::message("failed to update user"))?;
+        self.repo.update(user).await.map_err(|_| PipelineError::message("failed to update user"))?;
         Ok(())
     }
 
@@ -289,10 +235,7 @@ impl AuthService {
         user.reset_token = Some(token.clone());
         user.reset_token_expires_at = Some(Utc::now() + Duration::minutes(30));
 
-        self.repo
-            .update(user)
-            .await
-            .map_err(|_| PipelineError::message("failed to update user"))?;
+        self.repo.update(user).await.map_err(|_| PipelineError::message("failed to update user"))?;
 
         Ok(token)
     }
@@ -306,9 +249,7 @@ impl AuthService {
             .map_err(|_| PipelineError::message("data error"))?
             .ok_or_else(|| PipelineError::message("user not found"))?;
 
-        user.verification_token
-            .clone()
-            .ok_or_else(|| PipelineError::message("verification token missing"))
+        user.verification_token.clone().ok_or_else(|| PipelineError::message("verification token missing"))
     }
 
     async fn issue_tokens(&self, user_id: Uuid) -> Result<LoginResponse, PipelineError> {

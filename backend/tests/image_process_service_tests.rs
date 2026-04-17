@@ -18,15 +18,9 @@ impl ImageExtractorTestContext {
     const PARALLEL_TASK_COUNT: usize = 6;
 
     fn new() -> Self {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "nimble_photos_image_process_service_{}_{}",
-            std::process::id(),
-            nanos
-        ));
+        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+        let path =
+            std::env::temp_dir().join(format!("nimble_photos_image_process_service_{}_{}", std::process::id(), nanos));
         fs::create_dir_all(&path).expect("failed to create test root directory");
         Self { root: path }
     }
@@ -52,24 +46,17 @@ impl ImageExtractorTestContext {
     }
 
     fn create_source_image(&self) {
-        let image = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_fn(
-            Self::SOURCE_WIDTH,
-            Self::SOURCE_HEIGHT,
-            |x, y| {
-                let red = (x % 255) as u8;
-                let green = (y % 255) as u8;
-                let blue = ((x + y) % 255) as u8;
-                Rgb([red, green, blue])
-            },
-        );
-        image
-            .save(self.source_image_path())
-            .expect("failed to save source image");
+        let image = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_fn(Self::SOURCE_WIDTH, Self::SOURCE_HEIGHT, |x, y| {
+            let red = (x % 255) as u8;
+            let green = (y % 255) as u8;
+            let blue = ((x + y) % 255) as u8;
+            Rgb([red, green, blue])
+        });
+        image.save(self.source_image_path()).expect("failed to save source image");
     }
 
     fn create_invalid_raw_image(&self) {
-        fs::write(self.raw_image_path(), b"invalid-raw-content")
-            .expect("failed to write raw test file");
+        fs::write(self.raw_image_path(), b"invalid-raw-content").expect("failed to write raw test file");
     }
 
     fn image_dimensions(path: &Path) -> (u32, u32) {
@@ -95,9 +82,7 @@ fn thumbnail_extractor_creates_webp_with_thumbnail_size() {
     let extractor = ThumbnailExtractor::new();
     let output = context.thumbnail_output_path();
 
-    extractor
-        .extract_to(context.source_image_path(), &output)
-        .expect("thumbnail generation failed");
+    extractor.extract_to(context.source_image_path(), &output).expect("thumbnail generation failed");
 
     assert!(output.exists());
     let dimensions = ImageExtractorTestContext::image_dimensions(&output);
@@ -112,9 +97,7 @@ fn preview_extractor_creates_jpeg_with_preview_size() {
     let extractor = PreviewExtractor::new();
     let output = context.preview_output_path();
 
-    extractor
-        .extract_to(context.source_image_path(), &output)
-        .expect("preview generation failed");
+    extractor.extract_to(context.source_image_path(), &output).expect("preview generation failed");
 
     assert!(output.exists());
     let dimensions = ImageExtractorTestContext::image_dimensions(&output);

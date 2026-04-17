@@ -34,9 +34,8 @@ struct UpdateSettingHandler;
 #[put("/api/dashboard/settings/{key}", policy = Policy::Authenticated)]
 impl HttpHandler for UpdateSettingHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload = context
-            .read_json::<UpdateSettingPayload>()
-            .map_err(|err| PipelineError::message(err.message()))?;
+        let payload =
+            context.read_json::<UpdateSettingPayload>().map_err(|err| PipelineError::message(err.message()))?;
 
         let key = context
             .route()
@@ -80,18 +79,14 @@ struct UploadLogoHandler;
 
 impl UploadLogoHandler {
     fn parse_data_url(data_url: &str) -> Result<(&str, &str), PipelineError> {
-        let (meta, data) = data_url
-            .split_once(',')
-            .ok_or_else(|| PipelineError::message("Invalid data URL"))?;
+        let (meta, data) = data_url.split_once(',').ok_or_else(|| PipelineError::message("Invalid data URL"))?;
 
         if !meta.starts_with("data:") {
             return Err(PipelineError::message("Invalid data URL"));
         }
 
         let meta = &meta[5..];
-        let (mime, encoding) = meta
-            .split_once(';')
-            .ok_or_else(|| PipelineError::message("Invalid data URL"))?;
+        let (mime, encoding) = meta.split_once(';').ok_or_else(|| PipelineError::message("Invalid data URL"))?;
 
         if encoding != "base64" {
             return Err(PipelineError::message("Logo must be base64 encoded"));
@@ -105,9 +100,7 @@ impl UploadLogoHandler {
 #[post("/api/dashboard/settings/logo/upload", policy = Policy::Authenticated)]
 impl HttpHandler for UploadLogoHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let payload = context
-            .read_json::<LogoUploadRequest>()
-            .map_err(|err| PipelineError::message(err.message()))?;
+        let payload = context.read_json::<LogoUploadRequest>().map_err(|err| PipelineError::message(err.message()))?;
 
         let (mime, encoded) = Self::parse_data_url(&payload.data_url)?;
         let extension = match mime {
@@ -116,19 +109,14 @@ impl HttpHandler for UploadLogoHandler {
             "image/jpg" => "jpg",
             "image/svg+xml" => "svg",
             _ => {
-                return Err(PipelineError::message(
-                    "Unsupported logo format. Use PNG, JPG, or SVG.",
-                ));
+                return Err(PipelineError::message("Unsupported logo format. Use PNG, JPG, or SVG."));
             }
         };
 
-        let bytes = STANDARD
-            .decode(encoded)
-            .map_err(|_| PipelineError::message("Invalid logo data"))?;
+        let bytes = STANDARD.decode(encoded).map_err(|_| PipelineError::message("Invalid logo data"))?;
 
         let folder = Path::new("data").join("logo");
-        fs::create_dir_all(&folder)
-            .map_err(|_| PipelineError::message("Failed to create logo directory"))?;
+        fs::create_dir_all(&folder).map_err(|_| PipelineError::message("Failed to create logo directory"))?;
 
         let filename = format!("logo-{}.{}", Uuid::new_v4(), extension);
         let path = folder.join(&filename);

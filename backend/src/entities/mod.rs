@@ -8,21 +8,21 @@ pub use exif::ExifModel;
 #[cfg(not(feature = "postgres"))]
 use nimble_web::MemoryRepository;
 use nimble_web::{AppBuilder, Application, EntityOperation, Policy, Repository};
+pub use permission::Permission;
 pub use photo::Photo;
 pub use photo::PhotoViewModel;
 pub use photo_browse::{
-    BrowseDimension, BrowseNodeType, BrowseOptions, BrowsePhoto, BrowseRequest, BrowseResponse,
-    SortDirection, StorageFolder,
+    BrowseDimension, BrowseNodeType, BrowseOptions, BrowsePhoto, BrowseRequest, BrowseResponse, SortDirection,
+    StorageFolder,
 };
 pub use photo_comment::PhotoComment;
 pub use photo_cursor::PhotoCursor;
 pub use photo_tag::PhotoTag;
-pub use permission::Permission;
 pub use setting::Setting;
 pub use setting::SettingValueType;
 pub use storage_location::{
-    CreateStoragePayload, DiskInfo, StorageLocation, StorageLocationResponse,
-    UpdateClientStorageSettingsPayload, UpdateStoragePayload,
+    CreateStoragePayload, DiskInfo, StorageLocation, StorageLocationResponse, UpdateClientStorageSettingsPayload,
+    UpdateStoragePayload,
 };
 pub use tag::Tag;
 pub use timeline::TimelineDay;
@@ -75,10 +75,7 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         &[EntityOperation::Get, EntityOperation::List],
         Policy::Authenticated,
     );
-    builder.use_entity_with_operations::<UserSettings>(&[
-        EntityOperation::Get,
-        EntityOperation::Update,
-    ]);
+    builder.use_entity_with_operations::<UserSettings>(&[EntityOperation::Get, EntityOperation::Update]);
     builder.use_entity_with_operations::<Photo>(&[
         EntityOperation::List,
         EntityOperation::Get,
@@ -87,12 +84,7 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
     ]);
     builder.use_entity_with_hooks_and_policy(
         AlbumHooks::new(),
-        &[
-            EntityOperation::List,
-            EntityOperation::Get,
-            EntityOperation::Create,
-            EntityOperation::Update,
-        ],
+        &[EntityOperation::List, EntityOperation::Get, EntityOperation::Create, EntityOperation::Update],
         Policy::Authenticated,
     );
     builder.use_entity_with_hooks_and_policy(
@@ -100,29 +92,16 @@ pub fn register_entities(builder: &mut AppBuilder) -> &mut AppBuilder {
         &[EntityOperation::Delete],
         Policy::InRole("admin".to_string()),
     );
-    builder.use_entity_with_hooks(
-        EnsureUuidIdHooks::<ExifModel>::new(),
-        &[EntityOperation::Get],
-    );
+    builder.use_entity_with_hooks(EnsureUuidIdHooks::<ExifModel>::new(), &[EntityOperation::Get]);
     builder.use_entity_with_hooks(
         EnsureUuidIdHooks::<PhotoComment>::new(),
-        &[
-            EntityOperation::List,
-            EntityOperation::Get,
-            EntityOperation::Create,
-        ],
+        &[EntityOperation::List, EntityOperation::Get, EntityOperation::Create],
     );
     builder.use_entity_with_hooks(
         EnsureUuidIdHooks::<AlbumComment>::new(),
-        &[
-            EntityOperation::List,
-            EntityOperation::Get,
-            EntityOperation::Create,
-            EntityOperation::Update,
-        ],
+        &[EntityOperation::List, EntityOperation::Get, EntityOperation::Create, EntityOperation::Update],
     );
-    builder
-        .use_entity_with_operations::<TimelineDay>(&[EntityOperation::List, EntityOperation::Get]);
+    builder.use_entity_with_operations::<TimelineDay>(&[EntityOperation::List, EntityOperation::Get]);
 
     #[cfg(not(feature = "postgres"))]
     {
@@ -279,10 +258,8 @@ pub async fn migrate_entities(app: &Application) -> Result<()> {
         migrate_entity::<Setting>(app).await?;
         migrate_entity::<TimelineDay>(app).await?;
 
-        let pool = app
-            .services()
-            .resolve::<sqlx::PgPool>()
-            .ok_or_else(|| anyhow!("PgPool not found in service provider"))?;
+        let pool =
+            app.services().resolve::<sqlx::PgPool>().ok_or_else(|| anyhow!("PgPool not found in service provider"))?;
 
         log::info!("Creating additional indices for performance...");
         ensure_supporting_schema(pool.as_ref()).await?;
@@ -299,9 +276,7 @@ where
     E: PostgresEntity,
 {
     log::info!("Migrating entity [{}] ...", E::plural_name());
-    app.migrate_entity::<E>()
-        .await
-        .map_err(|err| anyhow!("Failed to migrate {}: {:?}", E::plural_name(), err))?;
+    app.migrate_entity::<E>().await.map_err(|err| anyhow!("Failed to migrate {}: {:?}", E::plural_name(), err))?;
     Ok(())
 }
 
@@ -404,10 +379,7 @@ pub async fn ensure_supporting_schema(pool: &sqlx::PgPool) -> Result<()> {
     ];
 
     for sql in sqls {
-        sqlx::query(sql)
-            .execute(pool)
-            .await
-            .map_err(|err| anyhow!("Failed to execute SQL '{}': {}", sql, err))?;
+        sqlx::query(sql).execute(pool).await.map_err(|err| anyhow!("Failed to execute SQL '{}': {}", sql, err))?;
     }
 
     ensure_default_storage(pool).await?;
@@ -419,10 +391,7 @@ pub async fn ensure_supporting_schema(pool: &sqlx::PgPool) -> Result<()> {
 fn default_storage_root() -> PathBuf {
     if cfg!(windows) {
         if let Ok(user_profile) = std::env::var("USERPROFILE") {
-            return Path::new(&user_profile)
-                .join("AppData")
-                .join("Local")
-                .join("photon");
+            return Path::new(&user_profile).join("AppData").join("Local").join("photon");
         }
     }
 

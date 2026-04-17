@@ -11,34 +11,22 @@ pub trait TimelineRepositoryExtensions {
 #[async_trait]
 impl TimelineRepositoryExtensions for Repository<TimelineDay> {
     async fn get_years(&self) -> Result<Vec<i32>, PipelineError> {
-        let query = QueryBuilder::new()
-            .distinct_by("year")
-            .sort_desc("year")
-            .build();
-        let days = self
-            .all(query)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let query = QueryBuilder::new().distinct_by("year").sort_desc("year").build();
+        let days = self.all(query).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(days.into_iter().map(|row| row.year).collect())
     }
 
     async fn get_yeardays(&self) -> Result<Vec<TimelineYearDays>, PipelineError> {
         let query = QueryBuilder::new().sort_desc("day_date").build();
-        let days = self
-            .all(query)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let days = self.all(query).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         let mut result: Vec<TimelineYearDays> = Vec::new();
         let mut current_year: Option<i32> = None;
 
         for day in days {
             if current_year != Some(day.year) {
-                result.push(TimelineYearDays {
-                    year: day.year,
-                    days: Vec::new(),
-                });
+                result.push(TimelineYearDays { year: day.year, days: Vec::new() });
                 current_year = Some(day.year);
             }
 
@@ -49,14 +37,8 @@ impl TimelineRepositoryExtensions for Repository<TimelineDay> {
     }
 
     async fn get_days(&self, page: u32, page_size: u32) -> Result<Vec<TimelineDay>, PipelineError> {
-        let query = QueryBuilder::new()
-            .sort_desc("day_date")
-            .page(page, page_size)
-            .build();
-        let days_page = self
-            .query(query)
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+        let query = QueryBuilder::new().sort_desc("day_date").page(page, page_size).build();
+        let days_page = self.query(query).await.map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
 
         Ok(days_page.items)
     }
@@ -64,9 +46,7 @@ impl TimelineRepositoryExtensions for Repository<TimelineDay> {
     async fn sync(&self) -> Result<(), PipelineError> {
         self.raw_query::<serde_json::Value>("DELETE FROM timeline_days", &[])
             .await
-            .map_err(|e| {
-                PipelineError::message(&format!("failed to clear timeline days: {:?}", e))
-            })?;
+            .map_err(|e| PipelineError::message(&format!("failed to clear timeline days: {:?}", e)))?;
 
         let sql = r#"
             INSERT INTO timeline_days (
@@ -93,9 +73,7 @@ impl TimelineRepositoryExtensions for Repository<TimelineDay> {
         "#;
         self.raw_query::<serde_json::Value>(sql, &[])
             .await
-            .map_err(|e| {
-            PipelineError::message(&format!("failed to sync timeline days: {:?}", e))
-        })?;
+            .map_err(|e| PipelineError::message(&format!("failed to sync timeline days: {:?}", e)))?;
 
         Ok(())
     }

@@ -25,10 +25,7 @@ fn source_path_joins_storage_path_and_relative_path() {
         content_type: Some("image/jpeg".to_string()),
     };
 
-    assert_eq!(
-        payload.source_path(),
-        root.join("temp").join("abcd1234.jpg")
-    );
+    assert_eq!(payload.source_path(), root.join("temp").join("abcd1234.jpg"));
 }
 
 #[test]

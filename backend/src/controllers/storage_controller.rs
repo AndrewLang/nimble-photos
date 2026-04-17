@@ -384,12 +384,21 @@ impl HttpHandler for SyncStorageFileHandler {
     }
 }
 
-struct SyncStorageLegacyFileHandler;
+struct ScanStorageHandler;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScanStoragePayload {
+    storage_id: Uuid,
+}
+
 #[async_trait]
-#[post("/api/storage/sync")]
-impl HttpHandler for SyncStorageLegacyFileHandler {
+#[post("/api/storage/scan")]
+impl HttpHandler for ScanStorageHandler {
     async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
-        let handler = SyncStorageFileHandler;
-        handler.invoke(context).await
+        let request = context.read_json::<ScanStoragePayload>().map_err(|err| PipelineError::message(err.message()))?;
+        let storage_service = context.service::<StorageService>()?;
+        let response = storage_service.scan(request.storage_id).await?;
+        Ok(ResponseValue::json(response))
     }
 }

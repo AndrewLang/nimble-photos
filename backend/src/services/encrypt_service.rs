@@ -12,9 +12,7 @@ pub struct EncryptService {
 
 impl EncryptService {
     pub fn new(config: &Configuration) -> Result<Self> {
-        let key_b64 = config
-            .get("encryption.key")
-            .ok_or_else(|| anyhow!("encryption key not configured"))?;
+        let key_b64 = config.get("encryption.key").ok_or_else(|| anyhow!("encryption key not configured"))?;
         let key_bytes = STANDARD.decode(key_b64)?;
         if key_bytes.len() != 32 {
             return Err(anyhow!("encryption key must be 32 bytes"));
@@ -28,10 +26,8 @@ impl EncryptService {
         let mut nonce_bytes = [0u8; 24];
         rand::rng().fill(&mut nonce_bytes);
         let nonce = XNonce::from_slice(&nonce_bytes);
-        let ciphertext = self
-            .cipher
-            .encrypt(nonce, plaintext.as_bytes())
-            .map_err(|e| anyhow!("encryption failed: {}", e))?;
+        let ciphertext =
+            self.cipher.encrypt(nonce, plaintext.as_bytes()).map_err(|e| anyhow!("encryption failed: {}", e))?;
         let mut out = Vec::with_capacity(24 + ciphertext.len());
         out.extend_from_slice(&nonce_bytes);
         out.extend_from_slice(&ciphertext);
@@ -46,10 +42,7 @@ impl EncryptService {
         }
         let (nonce_bytes, ct) = data.split_at(24);
         let nonce = XNonce::from_slice(nonce_bytes);
-        let plaintext = self
-            .cipher
-            .decrypt(nonce, ct)
-            .map_err(|e| anyhow!("decryption failed: {}", e))?;
+        let plaintext = self.cipher.decrypt(nonce, ct).map_err(|e| anyhow!("decryption failed: {}", e))?;
 
         String::from_utf8(plaintext).map_err(|e| anyhow!("invalid utf8: {}", e))
     }

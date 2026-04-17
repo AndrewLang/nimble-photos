@@ -19,6 +19,7 @@ pub mod photo_service;
 pub mod photo_upload_service;
 pub mod preview_extractor;
 pub mod setting_service;
+pub mod storage_service;
 pub mod sync_service;
 pub mod task_descriptor;
 pub mod thumbnail_extractor;
@@ -45,6 +46,7 @@ pub use photo_upload_service::StoredUploadFile;
 pub use preview_extractor::PreviewExtractor;
 pub use setting_service::SettingKeys;
 pub use setting_service::SettingService;
+pub use storage_service::StorageService;
 pub use sync_service::SyncService;
 pub use task_descriptor::TaskDescriptor;
 pub use thumbnail_extractor::ThumbnailExtractor;
@@ -158,6 +160,9 @@ pub fn register_services(builder: &mut AppBuilder) -> &mut AppBuilder {
     });
     builder.register_singleton(|provider| {
         SyncService::new(Arc::clone(&provider))
+    });
+    builder.register_singleton(|provider| {
+        StorageService::new(Arc::clone(&provider))
     });
     builder
 }

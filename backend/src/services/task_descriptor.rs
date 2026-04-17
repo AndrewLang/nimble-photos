@@ -12,10 +12,7 @@ impl TaskDescriptor {
     where
         F: Future<Output = Result<()>> + Send + 'static,
     {
-        Self {
-            name: name.into(),
-            task_future: Box::pin(task_future),
-        }
+        Self { name: name.into(), task_future: Box::pin(task_future) }
     }
 
     pub async fn execute(self) -> Result<()> {

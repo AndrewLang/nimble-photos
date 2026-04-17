@@ -18,23 +18,17 @@ impl Middleware for PublicAccessMiddleware {
         if path.starts_with(PHOTOS_PREFIX) {
             let method = context.request().method();
             if method == "GET"
-                && (path.starts_with("/api/photos/thumbnail/")
-                    || path.starts_with("/api/photos/preview/"))
+                && (path.starts_with("/api/photos/thumbnail/") || path.starts_with("/api/photos/preview/"))
             {
                 return next.run(context).await;
             }
 
             let settings = context.service::<SettingService>()?;
-            let authenticated = context
-                .get::<IdentityContext>()
-                .map(|ctx| ctx.is_authenticated())
-                .unwrap_or(false);
+            let authenticated = context.get::<IdentityContext>().map(|ctx| ctx.is_authenticated()).unwrap_or(false);
             let api_key_present = context.extract_api_key().is_ok();
 
             if method == "GET" {
-                if !path.starts_with("/api/photos/thumbnail/")
-                    && !path.starts_with("/api/photos/preview/")
-                {
+                if !path.starts_with("/api/photos/thumbnail/") && !path.starts_with("/api/photos/preview/") {
                     let site_public = settings.is_site_public().await?;
                     if !site_public && !authenticated && !api_key_present {
                         log::debug!("Unauthenticated {} denied.", path);

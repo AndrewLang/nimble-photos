@@ -1,15 +1,12 @@
 pub(crate) const THUMBNAIL_FORMAT_EXTENSION: &str = "webp";
 pub(crate) const PREVIEW_FORMAT_EXTENSION: &str = "jpg";
-pub(crate) const RAW_EXTENSIONS: [&str; 10] = [
-    "cr2", "cr3", "nef", "arw", "dng", "orf", "raf", "rw2", "pef", "srw",
-];
+pub(crate) const RAW_EXTENSIONS: [&str; 10] = ["cr2", "cr3", "nef", "arw", "dng", "orf", "raf", "rw2", "pef", "srw"];
 
 pub struct ImageProcessKeys {}
 
 impl ImageProcessKeys {
-    pub const RAW_EXTENSIONS: [&'static str; 10] = [
-        "cr2", "cr3", "nef", "arw", "dng", "orf", "raf", "rw2", "pef", "srw",
-    ];
+    pub const RAW_EXTENSIONS: [&'static str; 10] =
+        ["cr2", "cr3", "nef", "arw", "dng", "orf", "raf", "rw2", "pef", "srw"];
 
     pub const THUMBNAIL_FORMAT_EXTENSION: &'static str = "webp";
     pub const THUMBNAIL_PATH: &'static str = "thumbnail_path";

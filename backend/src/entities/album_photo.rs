@@ -24,12 +24,7 @@ pub struct AlbumPhoto {
 
 impl AlbumPhoto {
     pub fn new(album_id: Uuid, photo_id: Uuid) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            album_id,
-            photo_id,
-            created_at: Some(Utc::now()),
-        }
+        Self { id: Uuid::new_v4(), album_id, photo_id, created_at: Some(Utc::now()) }
     }
 }
 
@@ -82,9 +77,7 @@ impl PostgresEntity for AlbumPhoto {
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
-            ColumnDef::new("id", ColumnType::Uuid)
-                .primary_key()
-                .default("gen_random_uuid()"),
+            ColumnDef::new("id", ColumnType::Uuid).primary_key().default("gen_random_uuid()"),
             ColumnDef::new("album_id", ColumnType::Uuid).not_null(),
             ColumnDef::new("photo_id", ColumnType::Uuid).not_null(),
             ColumnDef::new("created_at", ColumnType::Timestamp).not_null(),

@@ -18,9 +18,7 @@ pub struct ExifService {
 
 impl ExifService {
     pub fn new() -> Self {
-        Self {
-            exif_tool: Arc::new(ExifTool::new()),
-        }
+        Self { exif_tool: Arc::new(ExifTool::new()) }
     }
 
     pub fn extract_from_path<P: AsRef<Path>>(&self, path: P) -> ExifModel {
@@ -50,11 +48,7 @@ impl ExifService {
                     metadata = exiftool_metadata;
                 }
                 Err(err) => {
-                    log::warn!(
-                        "Failed to extract EXIF via ExifTool for {}: {}",
-                        source,
-                        err
-                    );
+                    log::warn!("Failed to extract EXIF via ExifTool for {}: {}", source, err);
                 }
             }
         }
@@ -76,10 +70,7 @@ impl ExifService {
                 if exclude_tags.contains(tag_name.as_str()) {
                     continue;
                 }
-                tag_name = tag_name_map
-                    .get(tag_name.as_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or(tag_name);
+                tag_name = tag_name_map.get(tag_name.as_str()).map(|s| s.to_string()).unwrap_or(tag_name);
 
                 let value = if Self::is_enum_tag(field.tag) {
                     match &field.value {
@@ -102,8 +93,7 @@ impl ExifService {
         let image_width = self.u32_from_field(fields, Tag::ImageWidth.to_string());
         let image_length = self.u32_from_field(fields, Tag::ImageLength.to_string());
 
-        let (image_width, image_length) =
-            self.normalize_dimensions(image_width, image_length, orientation);
+        let (image_width, image_length) = self.normalize_dimensions(image_width, image_length, orientation);
 
         ExifModel {
             make: self.text_from_field(fields, Tag::Make.to_string()),
@@ -127,26 +117,14 @@ impl ExifService {
             pixel_x_dimension: self.u32_from_field(fields, Tag::PixelXDimension.to_string()),
             pixel_y_dimension: self.u32_from_field(fields, Tag::PixelYDimension.to_string()),
             orientation: orientation,
-            rating: self
-                .u32_from_field(fields, "Rating".to_string())
-                .map(|value| value as u8),
+            rating: self.u32_from_field(fields, "Rating".to_string()).map(|value| value as u8),
             label: self.text_from_field(fields, "Label".to_string()),
-            flagged: self
-                .u32_from_field(fields, "Flagged".to_string())
-                .map(|value| value as i8),
+            flagged: self.u32_from_field(fields, "Flagged".to_string()).map(|value| value as i8),
             datetime: self.text_from_field(fields, Tag::DateTime.to_string()),
             datetime_original: self.text_from_field(fields, Tag::DateTimeOriginal.to_string()),
             datetime_digitized: self.text_from_field(fields, Tag::DateTimeDigitized.to_string()),
-            gps_latitude: self.gps_coordinate(
-                fields,
-                Tag::GPSLatitude.to_string(),
-                Tag::GPSLatitudeRef.to_string(),
-            ),
-            gps_longitude: self.gps_coordinate(
-                fields,
-                Tag::GPSLongitude.to_string(),
-                Tag::GPSLongitudeRef.to_string(),
-            ),
+            gps_latitude: self.gps_coordinate(fields, Tag::GPSLatitude.to_string(), Tag::GPSLatitudeRef.to_string()),
+            gps_longitude: self.gps_coordinate(fields, Tag::GPSLongitude.to_string(), Tag::GPSLongitudeRef.to_string()),
             gps_altitude: self.gps_altitude(fields),
             gps_altitude_ref: self.text_from_field(fields, Tag::GPSAltitudeRef.to_string()),
             gps_latitude_ref: self.text_from_field(fields, Tag::GPSLatitudeRef.to_string()),
@@ -169,24 +147,20 @@ impl ExifService {
 
     fn u32_from_field(&self, fields: &HashMap<String, String>, tag: String) -> Option<u32> {
         let field = self.field(fields, tag)?;
-        Self::parse_f64_token(field).and_then(|value| {
-            if value.is_finite() && value >= 0.0 {
-                Some(value as u32)
-            } else {
-                None
-            }
-        })
+        Self::parse_f64_token(field).and_then(
+            |value| {
+                if value.is_finite() && value >= 0.0 { Some(value as u32) } else { None }
+            },
+        )
     }
 
     fn u16_from_field(&self, fields: &HashMap<String, String>, tag: String) -> Option<u16> {
         let field = self.field(fields, tag)?;
-        Self::parse_f64_token(field).and_then(|value| {
-            if value.is_finite() && value >= 0.0 {
-                Some(value as u16)
-            } else {
-                None
-            }
-        })
+        Self::parse_f64_token(field).and_then(
+            |value| {
+                if value.is_finite() && value >= 0.0 { Some(value as u16) } else { None }
+            },
+        )
     }
 
     fn f32_from_field(&self, fields: &HashMap<String, String>, tag: String) -> Option<f32> {
@@ -217,9 +191,8 @@ impl ExifService {
     }
 
     fn gps_altitude(&self, fields: &HashMap<String, String>) -> Option<f64> {
-        let altitude = self
-            .field(fields, Tag::GPSAltitude.to_string())
-            .and_then(|value| Self::parse_f64_token(value))?;
+        let altitude =
+            self.field(fields, Tag::GPSAltitude.to_string()).and_then(|value| Self::parse_f64_token(value))?;
 
         let reference = self
             .field(fields, Tag::GPSAltitudeRef.to_string())
@@ -227,20 +200,12 @@ impl ExifService {
             .map(|value| value as u8)
             .unwrap_or(0);
 
-        if reference == 1 {
-            Some(-altitude)
-        } else {
-            Some(altitude)
-        }
+        if reference == 1 { Some(-altitude) } else { Some(altitude) }
     }
 
     fn non_empty_string(&self, value: String) -> Option<String> {
         let trimmed = value.trim().to_string();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed)
-        }
+        if trimmed.is_empty() { None } else { Some(trimmed) }
     }
 
     fn extract_numeric_values(text: &str) -> Vec<f64> {
@@ -259,11 +224,7 @@ impl ExifService {
         if let Some((num, den)) = trimmed.split_once('/') {
             let numerator = num.trim().parse::<f64>().ok()?;
             let denominator = den.trim().parse::<f64>().ok()?;
-            if denominator == 0.0 {
-                None
-            } else {
-                Some(numerator / denominator)
-            }
+            if denominator == 0.0 { None } else { Some(numerator / denominator) }
         } else {
             trimmed.parse::<f64>().ok()
         }
@@ -275,9 +236,7 @@ impl ExifService {
             None => return false,
         };
 
-        ImageProcessKeys::RAW_EXTENSIONS
-            .iter()
-            .any(|candidate| candidate.eq_ignore_ascii_case(&extension))
+        ImageProcessKeys::RAW_EXTENSIONS.iter().any(|candidate| candidate.eq_ignore_ascii_case(&extension))
     }
 
     fn exif_tag_name_map(&self) -> &'static HashMap<&'static str, &'static str> {
@@ -314,9 +273,7 @@ impl ExifService {
 
     fn extract_meaningful_value(&self, value: &str) -> String {
         let first_part = value.split('/').next().unwrap_or(value).trim();
-        first_part
-            .trim_matches(|c: char| c == '[' || c == ']' || c.is_whitespace())
-            .to_string()
+        first_part.trim_matches(|c: char| c == '[' || c == ']' || c.is_whitespace()).to_string()
     }
 
     fn parse_quickraw_exif(&self, raw_text: &str) -> HashMap<String, String> {
@@ -332,10 +289,7 @@ impl ExifService {
             if let Some((key, value)) = line.split_once(':') {
                 let key_trimmed = key.trim();
 
-                let mapped_name = tag_name_map
-                    .get(key_trimmed)
-                    .cloned()
-                    .unwrap_or_else(|| key_trimmed);
+                let mapped_name = tag_name_map.get(key_trimmed).cloned().unwrap_or_else(|| key_trimmed);
 
                 let raw_value = value.trim();
                 let cleaned_value = self.extract_meaningful_value(raw_value);
@@ -358,11 +312,8 @@ impl ExifService {
             Value::Undefined(bytes, _) => {
                 // Handle special cases
                 if tag == Tag::UserComment {
-                    let content = if bytes.starts_with(b"ASCII\0\0\0") && bytes.len() > 8 {
-                        &bytes[8..]
-                    } else {
-                        bytes
-                    };
+                    let content =
+                        if bytes.starts_with(b"ASCII\0\0\0") && bytes.len() > 8 { &bytes[8..] } else { bytes };
 
                     let text = String::from_utf8_lossy(content);
                     text.trim_matches(char::from(0)).trim().to_string()
@@ -379,11 +330,7 @@ impl ExifService {
                 } else {
                     // Generic binary cleanup: remove control chars
                     let s = String::from_utf8_lossy(bytes).trim().to_string();
-                    if s.chars().any(|c| c.is_control()) {
-                        format!("Binary({:?})", bytes)
-                    } else {
-                        s
-                    }
+                    if s.chars().any(|c| c.is_control()) { format!("Binary({:?})", bytes) } else { s }
                 }
             }
 
@@ -433,8 +380,7 @@ impl ExifService {
     }
 
     fn get_excluded_tags(&self) -> &'static HashSet<&'static str> {
-        static EXCLUDED: Lazy<HashSet<&'static str>> =
-            Lazy::new(|| HashSet::from(["Tag(Tiff, 700)", "MakerNote"]));
+        static EXCLUDED: Lazy<HashSet<&'static str>> = Lazy::new(|| HashSet::from(["Tag(Tiff, 700)", "MakerNote"]));
         &EXCLUDED
     }
 
@@ -446,11 +392,7 @@ impl ExifService {
     ) -> (Option<u32>, Option<u32>) {
         let orientation = orientation.unwrap_or(1);
 
-        if matches!(orientation, 5 | 6 | 7 | 8) {
-            (height, width)
-        } else {
-            (width, height)
-        }
+        if matches!(orientation, 5 | 6 | 7 | 8) { (height, width) } else { (width, height) }
     }
 
     fn is_enum_tag(tag: Tag) -> bool {
@@ -479,26 +421,16 @@ impl ExifService {
     }
 
     fn is_valid(&self, fields: &HashMap<String, String>) -> bool {
-        let has_primary_dimensions = self
-            .u32_from_field(fields, Tag::ImageWidth.to_string())
-            .filter(|value| *value > 0)
-            .is_some()
-            && self
-                .u32_from_field(fields, Tag::ImageLength.to_string())
-                .filter(|value| *value > 0)
-                .is_some();
+        let has_primary_dimensions =
+            self.u32_from_field(fields, Tag::ImageWidth.to_string()).filter(|value| *value > 0).is_some()
+                && self.u32_from_field(fields, Tag::ImageLength.to_string()).filter(|value| *value > 0).is_some();
 
         if has_primary_dimensions {
             return true;
         }
 
-        self.u32_from_field(fields, Tag::PixelXDimension.to_string())
-            .filter(|value| *value > 0)
-            .is_some()
-            && self
-                .u32_from_field(fields, Tag::PixelYDimension.to_string())
-                .filter(|value| *value > 0)
-                .is_some()
+        self.u32_from_field(fields, Tag::PixelXDimension.to_string()).filter(|value| *value > 0).is_some()
+            && self.u32_from_field(fields, Tag::PixelYDimension.to_string()).filter(|value| *value > 0).is_some()
     }
 
     fn print_exif(&self, map: &HashMap<String, String>) {

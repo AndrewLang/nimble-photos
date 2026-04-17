@@ -36,17 +36,9 @@ pub trait HttpContextExtensions {
     async fn validate_api_key(&mut self, api_key: &str) -> Result<Client, PipelineError>;
     async fn get_preview_root(&self, hash: &str) -> Result<PathBuf, PipelineError>;
     async fn get_preview_path(&self, hash: &str) -> Result<PathBuf, PipelineError>;
-    async fn get_preview_root_by_storage(&self, storage_id: Uuid)
-    -> Result<PathBuf, PipelineError>;
-    async fn get_preview_path_by_storage(
-        &self,
-        storage_id: Uuid,
-        hash: &str,
-    ) -> Result<PathBuf, PipelineError>;
-    async fn get_thumbnail_root_by_storage(
-        &self,
-        storage_id: Uuid,
-    ) -> Result<PathBuf, PipelineError>;
+    async fn get_preview_root_by_storage(&self, storage_id: Uuid) -> Result<PathBuf, PipelineError>;
+    async fn get_preview_path_by_storage(&self, storage_id: Uuid, hash: &str) -> Result<PathBuf, PipelineError>;
+    async fn get_thumbnail_root_by_storage(&self, storage_id: Uuid) -> Result<PathBuf, PipelineError>;
     async fn get_thumbnail_roots(&self) -> Result<Vec<PathBuf>, PipelineError>;
 }
 
@@ -55,24 +47,16 @@ impl HttpContextExtensions for HttpContext {
     fn require(&self, permission: Permission) -> Result<(), PipelineError> {
         match permission {
             Permission::BrowsePhotos => {
-                let allowed = self
-                    .get::<IdentityContext>()
-                    .map(|identity| identity.is_authenticated())
-                    .unwrap_or(false);
-                if allowed {
-                    Ok(())
-                } else {
-                    Err(PipelineError::message("forbidden"))
-                }
+                let allowed =
+                    self.get::<IdentityContext>().map(|identity| identity.is_authenticated()).unwrap_or(false);
+                if allowed { Ok(()) } else { Err(PipelineError::message("forbidden")) }
             }
         }
     }
 
     fn require_admin(&self) -> Result<(), PipelineError> {
-        let is_admin = self
-            .get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().contains("admin"))
-            .unwrap_or(false);
+        let is_admin =
+            self.get::<IdentityContext>().map(|ctx| ctx.identity().claims().roles().contains("admin")).unwrap_or(false);
         if !is_admin {
             return Err(PipelineError::message("forbidden"));
         }
@@ -106,11 +90,7 @@ impl HttpContextExtensions for HttpContext {
             })
             .transpose()?;
 
-        Ok(BrowseRequest {
-            path,
-            page_size,
-            cursor,
-        })
+        Ok(BrowseRequest { path, page_size, cursor })
     }
 
     fn route_storage_id(&self) -> Result<Uuid, PipelineError> {
@@ -139,10 +119,7 @@ impl HttpContextExtensions for HttpContext {
     fn default_preview_root(&self) -> PathBuf {
         if cfg!(windows) {
             if let Ok(user_profile) = std::env::var("USERPROFILE") {
-                return Path::new(&user_profile)
-                    .join("AppData")
-                    .join("Local")
-                    .join("photon");
+                return Path::new(&user_profile).join("AppData").join("Local").join("photon");
             }
         }
 
@@ -150,9 +127,7 @@ impl HttpContextExtensions for HttpContext {
     }
 
     fn is_admin(&self) -> bool {
-        self.get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().contains("admin"))
-            .unwrap_or(false)
+        self.get::<IdentityContext>().map(|ctx| ctx.identity().claims().roles().contains("admin")).unwrap_or(false)
     }
 
     fn is_viewer(&self) -> bool {
@@ -191,20 +166,14 @@ impl HttpContextExtensions for HttpContext {
     }
 
     fn page(&self) -> Result<u32, PipelineError> {
-        let page: u32 = self
-            .route()
-            .and_then(|route| route.params().get("page"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(1);
+        let page: u32 =
+            self.route().and_then(|route| route.params().get("page")).and_then(|v| v.parse().ok()).unwrap_or(1);
         Ok(page)
     }
 
     fn page_size(&self) -> Result<u32, PipelineError> {
-        let page: u32 = self
-            .route()
-            .and_then(|route| route.params().get("pageSize"))
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(1);
+        let page: u32 =
+            self.route().and_then(|route| route.params().get("pageSize")).and_then(|v| v.parse().ok()).unwrap_or(1);
         Ok(page)
     }
 
@@ -215,8 +184,7 @@ impl HttpContextExtensions for HttpContext {
             .identity()
             .subject()
             .to_string();
-        Uuid::parse_str(&subject)
-            .map_err(|_| PipelineError::message("Invalid identity: user ID is not valid"))
+        Uuid::parse_str(&subject).map_err(|_| PipelineError::message("Invalid identity: user ID is not valid"))
     }
 
     async fn current_user_display_name(&self) -> Result<String, PipelineError> {
@@ -240,9 +208,7 @@ impl HttpContextExtensions for HttpContext {
             .map(|token| token.to_string())
             .ok_or_else(|| PipelineError::message("apiKey parameter missing"))?;
 
-        decode(&raw)
-            .map(|v| v.into_owned())
-            .map_err(|_| PipelineError::message("invalid apiKey encoding"))
+        decode(&raw).map(|v| v.into_owned()).map_err(|_| PipelineError::message("invalid apiKey encoding"))
     }
 
     fn body_bytes(&self) -> Result<Vec<u8>, PipelineError> {
@@ -251,14 +217,10 @@ impl HttpContextExtensions for HttpContext {
             RequestBody::Text(text) => Ok(text.as_bytes().to_vec()),
             RequestBody::Bytes(bytes) => Ok(bytes.clone()),
             RequestBody::Stream(stream) => {
-                let mut guard = stream
-                    .lock()
-                    .map_err(|_| PipelineError::message("request body stream lock error"))?;
+                let mut guard = stream.lock().map_err(|_| PipelineError::message("request body stream lock error"))?;
                 let mut collected = Vec::<u8>::new();
                 loop {
-                    let next_chunk = guard
-                        .read_chunk()
-                        .map_err(|error| PipelineError::message(&error.to_string()))?;
+                    let next_chunk = guard.read_chunk().map_err(|error| PipelineError::message(&error.to_string()))?;
                     match next_chunk {
                         Some(chunk) => collected.extend_from_slice(&chunk),
                         None => break,
@@ -270,32 +232,20 @@ impl HttpContextExtensions for HttpContext {
     }
 
     async fn can_upload_photos(&self) -> Result<bool, PipelineError> {
-        let roles = self
-            .get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().clone())
-            .unwrap_or_default();
-        self.service::<SettingService>()?
-            .can_upload_photos(&roles)
-            .await
+        let roles =
+            self.get::<IdentityContext>().map(|ctx| ctx.identity().claims().roles().clone()).unwrap_or_default();
+        self.service::<SettingService>()?.can_upload_photos(&roles).await
     }
     async fn can_access_dashboard(&self) -> Result<bool, PipelineError> {
-        let roles = self
-            .get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().clone())
-            .unwrap_or_default();
-        self.service::<SettingService>()?
-            .can_access_dashboard(&roles)
-            .await
+        let roles =
+            self.get::<IdentityContext>().map(|ctx| ctx.identity().claims().roles().clone()).unwrap_or_default();
+        self.service::<SettingService>()?.can_access_dashboard(&roles).await
     }
 
     async fn can_update_setting(&self, key: &str) -> Result<bool, PipelineError> {
-        let roles = self
-            .get::<IdentityContext>()
-            .map(|ctx| ctx.identity().claims().roles().clone())
-            .unwrap_or_default();
-        self.service::<SettingService>()?
-            .can_update_setting(&roles, key)
-            .await
+        let roles =
+            self.get::<IdentityContext>().map(|ctx| ctx.identity().claims().roles().clone()).unwrap_or_default();
+        self.service::<SettingService>()?.can_update_setting(&roles, key).await
     }
 
     async fn viewer_hidden_tags(&self) -> Result<HashSet<String>, PipelineError> {
@@ -387,11 +337,7 @@ impl HttpContextExtensions for HttpContext {
                 Ok(Some(_)) => {}
                 Ok(None) => {
                     if let Err(err) = std::fs::create_dir_all(&preview_root) {
-                        log::warn!(
-                            "Failed to create default preview root '{}': {:?}",
-                            preview_root.display(),
-                            err
-                        );
+                        log::warn!("Failed to create default preview root '{}': {:?}", preview_root.display(), err);
                     }
 
                     let preview_storage = StorageLocation {
@@ -405,28 +351,17 @@ impl HttpContextExtensions for HttpContext {
                     };
 
                     if let Err(err) = storage_repo.insert(preview_storage).await {
-                        log::warn!(
-                            "Failed to create preview storage {}: {:?}",
-                            preview_storage_id,
-                            err
-                        );
+                        log::warn!("Failed to create preview storage {}: {:?}", preview_storage_id, err);
                     }
                 }
                 Err(err) => {
-                    log::warn!(
-                        "Failed to load preview storage {}: {:?}",
-                        preview_storage_id,
-                        err
-                    );
+                    log::warn!("Failed to load preview storage {}: {:?}", preview_storage_id, err);
                 }
             }
         }
 
         let photo_repo = self.service::<Repository<Photo>>()?;
-        let photo = photo_repo
-            .find_by_hash(&hash)
-            .await?
-            .ok_or_else(|| PipelineError::message("preview not found"))?;
+        let photo = photo_repo.find_by_hash(&hash).await?.ok_or_else(|| PipelineError::message("preview not found"))?;
 
         let storage_id = photo.storage_id;
         if let Ok(storage_repo) = self.service::<Repository<StorageLocation>>() {
@@ -435,26 +370,14 @@ impl HttpContextExtensions for HttpContext {
                     return Ok(storage.normalized_path().join(".previews"));
                 }
                 Ok(None) => {
-                    log::warn!(
-                        "Storage {} not found while resolving preview for hash {}",
-                        storage_id,
-                        hash
-                    );
+                    log::warn!("Storage {} not found while resolving preview for hash {}", storage_id, hash);
                 }
                 Err(err) => {
-                    log::warn!(
-                        "Failed to load storage {} for preview hash {}: {:?}",
-                        storage_id,
-                        hash,
-                        err
-                    );
+                    log::warn!("Failed to load storage {} for preview hash {}: {:?}", storage_id, hash, err);
                 }
             }
         } else {
-            log::warn!(
-                "Storage repository unavailable while resolving preview for hash {}",
-                hash
-            );
+            log::warn!("Storage repository unavailable while resolving preview for hash {}", hash);
         }
 
         Ok(preview_root)
@@ -462,16 +385,10 @@ impl HttpContextExtensions for HttpContext {
 
     async fn get_preview_path(&self, hash: &str) -> Result<PathBuf, PipelineError> {
         let preview_root = self.get_preview_root(hash).await?;
-        Ok(preview_root
-            .join(&hash[0..2])
-            .join(&hash[2..4])
-            .join(format!("{hash}.jpg")))
+        Ok(preview_root.join(&hash[0..2]).join(&hash[2..4]).join(format!("{hash}.jpg")))
     }
 
-    async fn get_preview_root_by_storage(
-        &self,
-        storage_id: Uuid,
-    ) -> Result<PathBuf, PipelineError> {
+    async fn get_preview_root_by_storage(&self, storage_id: Uuid) -> Result<PathBuf, PipelineError> {
         let storage_repo = self.service::<Repository<StorageLocation>>()?;
         let storage = storage_repo
             .get(&storage_id)
@@ -481,31 +398,19 @@ impl HttpContextExtensions for HttpContext {
         Ok(storage.normalized_path().join(".previews"))
     }
 
-    async fn get_preview_path_by_storage(
-        &self,
-        storage_id: Uuid,
-        hash: &str,
-    ) -> Result<PathBuf, PipelineError> {
+    async fn get_preview_path_by_storage(&self, storage_id: Uuid, hash: &str) -> Result<PathBuf, PipelineError> {
         let preview_root = self.get_preview_root_by_storage(storage_id).await?;
-        Ok(preview_root
-            .join(&hash[0..2])
-            .join(&hash[2..4])
-            .join(format!("{hash}.jpg")))
+        Ok(preview_root.join(&hash[0..2]).join(&hash[2..4]).join(format!("{hash}.jpg")))
     }
 
-    async fn get_thumbnail_root_by_storage(
-        &self,
-        storage_id: Uuid,
-    ) -> Result<PathBuf, PipelineError> {
+    async fn get_thumbnail_root_by_storage(&self, storage_id: Uuid) -> Result<PathBuf, PipelineError> {
         let storage_repo = self.service::<Repository<StorageLocation>>()?;
         let storage = storage_repo
             .get(&storage_id)
             .await
             .map_err(|_| PipelineError::message("failed to load storage location"))?
             .ok_or_else(|| PipelineError::message("storage location not found"))?;
-        Ok(storage
-            .normalized_path()
-            .join(SettingConsts::THUMBNAIL_FOLDER))
+        Ok(storage.normalized_path().join(SettingConsts::THUMBNAIL_FOLDER))
     }
 
     async fn get_thumbnail_roots(&self) -> Result<Vec<PathBuf>, PipelineError> {
@@ -513,9 +418,7 @@ impl HttpContextExtensions for HttpContext {
         if let Ok(storage_repo) = self.service::<Repository<StorageLocation>>() {
             if let Ok(page) = storage_repo.query(Query::<StorageLocation>::new()).await {
                 for location in page.items {
-                    let path = location
-                        .normalized_path()
-                        .join(SettingConsts::THUMBNAIL_FOLDER);
+                    let path = location.normalized_path().join(SettingConsts::THUMBNAIL_FOLDER);
                     if !roots.contains(&path) {
                         roots.push(path);
                     }

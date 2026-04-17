@@ -35,10 +35,7 @@ impl SettingService {
     const ACTION_COMMENTS_CREATE: &'static str = "comments.create";
 
     pub fn new(repository: Arc<Repository<Setting>>) -> Self {
-        Self {
-            repository,
-            definitions: Self::build_definitions(),
-        }
+        Self { repository, definitions: Self::build_definitions() }
     }
 
     pub async fn list(&self) -> Result<Vec<SettingDto>, PipelineError> {
@@ -57,10 +54,7 @@ impl SettingService {
                 .and_then(|entry| Self::parse_value(&entry.value))
                 .unwrap_or_else(|| def.default_value.clone());
 
-            let updated_at = entity
-                .as_ref()
-                .map(|entry| entry.updated_at)
-                .unwrap_or_else(Utc::now);
+            let updated_at = entity.as_ref().map(|entry| entry.updated_at).unwrap_or_else(Utc::now);
 
             results.push(def.to_dto(current_value, updated_at));
         }
@@ -71,11 +65,8 @@ impl SettingService {
     pub async fn get(&self, key: &str) -> Result<SettingDto, PipelineError> {
         self.ensure_defaults().await?;
 
-        let def = self
-            .definitions
-            .iter()
-            .find(|d| d.key == key)
-            .ok_or_else(|| PipelineError::message("Unknown setting"))?;
+        let def =
+            self.definitions.iter().find(|d| d.key == key).ok_or_else(|| PipelineError::message("Unknown setting"))?;
 
         let key_owned = def.key.to_string();
         let entity = self.repository.get(&key_owned).await.map_err(|e| {
@@ -88,20 +79,14 @@ impl SettingService {
             .and_then(|entry| Self::parse_value(&entry.value))
             .unwrap_or_else(|| def.default_value.clone());
 
-        let updated_at = entity
-            .as_ref()
-            .map(|entry| entry.updated_at)
-            .unwrap_or_else(Utc::now);
+        let updated_at = entity.as_ref().map(|entry| entry.updated_at).unwrap_or_else(Utc::now);
 
         Ok(def.to_dto(current_value, updated_at))
     }
 
     pub async fn update(&self, key: &str, value: JsonValue) -> Result<SettingDto, PipelineError> {
-        let def = self
-            .definitions
-            .iter()
-            .find(|d| d.key == key)
-            .ok_or_else(|| PipelineError::message("Unknown setting"))?;
+        let def =
+            self.definitions.iter().find(|d| d.key == key).ok_or_else(|| PipelineError::message("Unknown setting"))?;
 
         if !def.value_type.matches(&value) {
             return Err(PipelineError::message("Invalid value type for setting"));
@@ -119,10 +104,7 @@ impl SettingService {
             PipelineError::message(&msg)
         })?;
 
-        let created_at = existing
-            .as_ref()
-            .map(|entry| entry.created_at)
-            .unwrap_or(now);
+        let created_at = existing.as_ref().map(|entry| entry.created_at).unwrap_or(now);
 
         let entity = Setting {
             key: def.key.to_string(),
@@ -145,8 +127,7 @@ impl SettingService {
             })?
         };
 
-        let parsed_value =
-            Self::parse_value(&saved.value).unwrap_or_else(|| def.default_value.clone());
+        let parsed_value = Self::parse_value(&saved.value).unwrap_or_else(|| def.default_value.clone());
 
         Ok(def.to_dto(parsed_value, saved.updated_at))
     }
@@ -156,8 +137,7 @@ impl SettingService {
     }
 
     pub async fn is_registration_allowed(&self) -> Result<bool, PipelineError> {
-        self.get_bool_setting(SettingKeys::SITE_ALLOW_REGISTRATION)
-            .await
+        self.get_bool_setting(SettingKeys::SITE_ALLOW_REGISTRATION).await
     }
 
     pub async fn is_site_initialized(&self) -> Result<bool, PipelineError> {
@@ -165,43 +145,27 @@ impl SettingService {
     }
 
     pub async fn is_photo_upload_enabled(&self) -> Result<bool, PipelineError> {
-        self.get_bool_setting(SettingKeys::PHOTO_MANAGE_UPLOADS_ENABLED)
-            .await
+        self.get_bool_setting(SettingKeys::PHOTO_MANAGE_UPLOADS_ENABLED).await
     }
 
     pub async fn viewer_hidden_tags(&self) -> Result<HashSet<String>, PipelineError> {
-        let tags = self
-            .get_string_array_setting(SettingKeys::PHOTO_MANAGE_VIEWER_HIDDEN_TAGS)
-            .await?;
+        let tags = self.get_string_array_setting(SettingKeys::PHOTO_MANAGE_VIEWER_HIDDEN_TAGS).await?;
         Ok(tags.into_iter().map(|tag| tag.to_lowercase()).collect())
     }
 
-    pub async fn can_access_dashboard(
-        &self,
-        roles: &HashSet<String>,
-    ) -> Result<bool, PipelineError> {
-        self.is_action_allowed(roles, Self::ACTION_DASHBOARD_ACCESS)
-            .await
+    pub async fn can_access_dashboard(&self, roles: &HashSet<String>) -> Result<bool, PipelineError> {
+        self.is_action_allowed(roles, Self::ACTION_DASHBOARD_ACCESS).await
     }
 
     pub async fn can_upload_photos(&self, roles: &HashSet<String>) -> Result<bool, PipelineError> {
-        self.is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD)
-            .await
+        self.is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD).await
     }
 
-    pub async fn can_create_comments(
-        &self,
-        roles: &HashSet<String>,
-    ) -> Result<bool, PipelineError> {
-        self.is_action_allowed(roles, Self::ACTION_COMMENTS_CREATE)
-            .await
+    pub async fn can_create_comments(&self, roles: &HashSet<String>) -> Result<bool, PipelineError> {
+        self.is_action_allowed(roles, Self::ACTION_COMMENTS_CREATE).await
     }
 
-    pub async fn can_update_setting(
-        &self,
-        roles: &HashSet<String>,
-        key: &str,
-    ) -> Result<bool, PipelineError> {
+    pub async fn can_update_setting(&self, roles: &HashSet<String>, key: &str) -> Result<bool, PipelineError> {
         if roles.contains("admin") {
             return Ok(true);
         }
@@ -212,14 +176,10 @@ impl SettingService {
         };
 
         if roles.contains("contributor") && definition.section == SettingSection::General {
-            return self
-                .is_action_allowed(roles, Self::ACTION_SETTINGS_GENERAL_UPDATE)
-                .await;
+            return self.is_action_allowed(roles, Self::ACTION_SETTINGS_GENERAL_UPDATE).await;
         }
         if roles.contains("contributor") && definition.section == SettingSection::PhotoManage {
-            return self
-                .is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD)
-                .await;
+            return self.is_action_allowed(roles, Self::ACTION_PHOTOS_UPLOAD).await;
         }
 
         Ok(false)
@@ -227,12 +187,7 @@ impl SettingService {
 
     pub async fn client_approval_policy(&self) -> Result<String, PipelineError> {
         let setting = self.get(SettingKeys::CLIENT_APPROVAL_POLICY).await?;
-        let policy = setting
-            .value
-            .as_str()
-            .unwrap_or("auto")
-            .trim()
-            .to_ascii_lowercase();
+        let policy = setting.value.as_str().unwrap_or("auto").trim().to_ascii_lowercase();
 
         Ok(policy.to_string())
     }
@@ -254,11 +209,7 @@ impl SettingService {
     }
 
     fn definition_default_bool(&self, key: &str) -> bool {
-        self.definitions
-            .iter()
-            .find(|def| def.key == key)
-            .and_then(|def| def.default_value.as_bool())
-            .unwrap_or(false)
+        self.definitions.iter().find(|def| def.key == key).and_then(|def| def.default_value.as_bool()).unwrap_or(false)
     }
 
     async fn get_string_array_setting(&self, key: &str) -> Result<Vec<String>, PipelineError> {
@@ -307,18 +258,10 @@ impl SettingService {
     }
 
     async fn role_permissions_config(&self) -> Result<JsonValue, PipelineError> {
-        let entry = self
-            .repository
-            .get(&SettingKeys::SECURITY_ROLE_PERMISSIONS.to_string())
-            .await
-            .map_err(|e| {
-                let msg = format!(
-                    "Failed to load setting {}: {:?}",
-                    SettingKeys::SECURITY_ROLE_PERMISSIONS,
-                    e
-                );
-                PipelineError::message(&msg)
-            })?;
+        let entry = self.repository.get(&SettingKeys::SECURITY_ROLE_PERMISSIONS.to_string()).await.map_err(|e| {
+            let msg = format!("Failed to load setting {}: {:?}", SettingKeys::SECURITY_ROLE_PERMISSIONS, e);
+            PipelineError::message(&msg)
+        })?;
 
         if let Some(stored) = entry {
             if let Some(parsed) = Self::parse_value(&stored.value) {
@@ -334,11 +277,7 @@ impl SettingService {
             .unwrap_or_else(|| json!({})))
     }
 
-    async fn is_action_allowed(
-        &self,
-        roles: &HashSet<String>,
-        action: &str,
-    ) -> Result<bool, PipelineError> {
+    async fn is_action_allowed(&self, roles: &HashSet<String>, action: &str) -> Result<bool, PipelineError> {
         if roles.contains("admin") {
             return Ok(true);
         }
@@ -358,18 +297,11 @@ impl SettingService {
             return false;
         };
 
-        if role_config
-            .get("*")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false)
-        {
+        if role_config.get("*").and_then(|v| v.as_bool()).unwrap_or(false) {
             return true;
         }
 
-        role_config
-            .get(action)
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false)
+        role_config.get(action).and_then(|v| v.as_bool()).unwrap_or(false)
     }
 
     async fn ensure_defaults(&self) -> Result<(), PipelineError> {
@@ -547,14 +479,8 @@ impl SettingService {
                 value_type: SettingValueType::String,
                 default_value: json!("auto"),
                 options: Some(vec![
-                    SettingOption {
-                        label: "Auto",
-                        value: json!("auto"),
-                    },
-                    SettingOption {
-                        label: "Manual",
-                        value: json!("manual"),
-                    },
+                    SettingOption { label: "Auto", value: json!("auto") },
+                    SettingOption { label: "Manual", value: json!("manual") },
                 ]),
             },
             SettingDefinition {
@@ -576,18 +502,9 @@ impl SettingService {
                 value_type: SettingValueType::String,
                 default_value: json!("timeline"),
                 options: Some(vec![
-                    SettingOption {
-                        label: "Timeline",
-                        value: json!("timeline"),
-                    },
-                    SettingOption {
-                        label: "Gallery",
-                        value: json!("gallery"),
-                    },
-                    SettingOption {
-                        label: "Map",
-                        value: json!("map"),
-                    },
+                    SettingOption { label: "Timeline", value: json!("timeline") },
+                    SettingOption { label: "Gallery", value: json!("gallery") },
+                    SettingOption { label: "Map", value: json!("map") },
                 ]),
             },
             SettingDefinition {
@@ -653,10 +570,7 @@ impl SettingDefinition {
             value: current_value,
             default_value: self.default_value.clone(),
             updated_at,
-            options: self
-                .options
-                .as_ref()
-                .map(|opts| opts.iter().map(|option| option.to_dto()).collect()),
+            options: self.options.as_ref().map(|opts| opts.iter().map(|option| option.to_dto()).collect()),
         }
     }
 }
@@ -669,9 +583,6 @@ struct SettingOption {
 
 impl SettingOption {
     fn to_dto(&self) -> SettingOptionDto {
-        SettingOptionDto {
-            label: self.label.to_string(),
-            value: self.value.clone(),
-        }
+        SettingOptionDto { label: self.label.to_string(), value: self.value.clone() }
     }
 }

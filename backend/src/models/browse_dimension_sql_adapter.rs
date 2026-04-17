@@ -20,10 +20,9 @@ impl BrowseDimensionSqlAdapter {
     pub fn group_select(&self) -> (&'static str, &'static str) {
         match self.dimension {
             BrowseDimension::Year => ("p.year AS folder", "p.year"),
-            BrowseDimension::Date => (
-                "concat(p.year::text, '-', p.month_day) AS folder",
-                "concat(p.year::text, '-', p.month_day)",
-            ),
+            BrowseDimension::Date => {
+                ("concat(p.year::text, '-', p.month_day) AS folder", "concat(p.year::text, '-', p.month_day)")
+            }
             BrowseDimension::Month => (
                 "concat(p.year::text, '-', split_part(p.month_day, '-', 1)) AS folder",
                 "concat(p.year::text, '-', split_part(p.month_day, '-', 1))",
@@ -40,10 +39,7 @@ impl BrowseDimensionSqlAdapter {
                 format!("concat(p.year::text, '-', p.month_day) = ${}", param_index)
             }
             BrowseDimension::Month => {
-                format!(
-                    "concat(p.year::text, '-', split_part(p.month_day, '-', 1)) = ${}",
-                    param_index
-                )
+                format!("concat(p.year::text, '-', split_part(p.month_day, '-', 1)) = ${}", param_index)
             }
             BrowseDimension::Camera => format!("COALESCE(p.model, p.make) = ${}", param_index),
             BrowseDimension::Rating => format!("p.rating = ${}", param_index),

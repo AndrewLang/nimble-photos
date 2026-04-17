@@ -4,15 +4,8 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn unique_temp_dir() -> PathBuf {
-    let suffix = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "nimble_photos_photo_upload_service_{}_{}",
-        std::process::id(),
-        suffix
-    ))
+    let suffix = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    std::env::temp_dir().join(format!("nimble_photos_photo_upload_service_{}_{}", std::process::id(), suffix))
 }
 
 fn multipart_content_type(boundary: &str) -> String {
@@ -33,10 +26,7 @@ async fn parse_multipart_files_reads_files_field_entries() {
     let content_type = multipart_content_type(boundary);
     let body = multipart_body(boundary);
 
-    let files = service
-        .parse_multipart_files(&content_type, body)
-        .await
-        .expect("failed to parse multipart files");
+    let files = service.parse_multipart_files(&content_type, body).await.expect("failed to parse multipart files");
 
     assert_eq!(files.len(), 2);
     assert_eq!(files[0].file_name, "a.jpg");
@@ -51,17 +41,11 @@ async fn persist_to_storage_temp_writes_uploaded_files() {
     let boundary = "boundary-456";
     let content_type = multipart_content_type(boundary);
     let body = multipart_body(boundary);
-    let files = service
-        .parse_multipart_files(&content_type, body)
-        .await
-        .expect("failed to parse multipart files");
+    let files = service.parse_multipart_files(&content_type, body).await.expect("failed to parse multipart files");
     let temp_root = unique_temp_dir();
     fs::create_dir_all(&temp_root).expect("failed to create test temp root");
 
-    let saved = service
-        .persist_to_storage_temp(&temp_root, files)
-        .await
-        .expect("failed to persist files");
+    let saved = service.persist_to_storage_temp(&temp_root, files).await.expect("failed to persist files");
 
     assert_eq!(saved.len(), 2);
     for saved_file in saved {

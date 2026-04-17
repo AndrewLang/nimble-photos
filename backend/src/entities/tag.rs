@@ -58,22 +58,15 @@ impl PostgresEntity for Tag {
     }
 
     fn update_values(&self) -> Vec<Value> {
-        vec![
-            Value::String(self.name.clone()),
-            Value::Int(self.visibility as i64),
-        ]
+        vec![Value::String(self.name.clone()), Value::Int(self.visibility as i64)]
     }
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
             ColumnDef::new("id", ColumnType::Uuid).primary_key(),
             ColumnDef::new("name", ColumnType::Text).not_null(),
-            ColumnDef::new("visibility", ColumnType::Integer)
-                .not_null()
-                .default("0"),
-            ColumnDef::new("created_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
+            ColumnDef::new("visibility", ColumnType::Integer).not_null().default("0"),
+            ColumnDef::new("created_at", ColumnType::Timestamp).not_null().default("NOW()"),
         ]
     }
 }

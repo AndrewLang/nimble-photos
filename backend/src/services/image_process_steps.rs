@@ -5,9 +5,7 @@ use crate::models::setting_consts::SettingConsts;
 use crate::repositories::photo_repo::PhotoRepositoryExtensions;
 use crate::services::exif_service::ExifService;
 use crate::services::hash_service::HashService;
-use crate::services::image_categorizer::{
-    CategorizeRequest, ImageCategorizer, TemplateCategorizer,
-};
+use crate::services::image_categorizer::{CategorizeRequest, ImageCategorizer, TemplateCategorizer};
 use crate::services::image_process_constants::ImageProcessKeys;
 use crate::services::{PreviewExtractor, ThumbnailExtractor};
 
@@ -30,18 +28,12 @@ pub(super) struct ExtractExifStep {
 impl ExtractExifStep {
     pub(super) fn new(services: Arc<ServiceProvider>) -> Self {
         let exif_service = services.get::<ExifService>();
-        Self {
-            services,
-            exif_service,
-        }
+        Self { services, exif_service }
     }
 
     fn parse_exif_datetime(model: &ExifModel) -> Option<DateTime<Utc>> {
-        let candidates = [
-            model.datetime_original.as_deref(),
-            model.datetime.as_deref(),
-            model.datetime_digitized.as_deref(),
-        ];
+        let candidates =
+            [model.datetime_original.as_deref(), model.datetime.as_deref(), model.datetime_digitized.as_deref()];
 
         for candidate in candidates.into_iter().flatten() {
             if let Some(parsed) = Self::parse_exif_timestamp(candidate) {
@@ -65,19 +57,14 @@ impl ExtractExifStep {
             }
         }
 
-        DateTime::parse_from_rfc3339(trimmed)
-            .map(|dt| dt.with_timezone(&Utc))
-            .ok()
+        DateTime::parse_from_rfc3339(trimmed).map(|dt| dt.with_timezone(&Utc)).ok()
     }
 }
 
 #[async_trait]
 impl ImageProcessStep for ExtractExifStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        log::debug!(
-            "Extracting EXIF metadata for {}",
-            context.source_path().display()
-        );
+        log::debug!("Extracting EXIF metadata for {}", context.source_path().display());
         let service = Arc::clone(&self.exif_service);
         let source = context.source_path().to_path_buf();
         let exif = task::spawn_blocking(move || service.extract_from_path(source))
@@ -89,20 +76,14 @@ impl ImageProcessStep for ExtractExifStep {
         let height = exif.get_height();
         context.insert::<ExifModel>(ImageProcessKeys::EXIF_METADATA, exif);
         context.insert::<Option<DateTime<Utc>>>(ImageProcessKeys::EXIF_DATE_TAKEN, date_taken);
-        context.insert::<PathBuf>(
-            ImageProcessKeys::WORKING_DIRECTORY,
-            context.payload().working_directory(),
-        );
+        context.insert::<PathBuf>(ImageProcessKeys::WORKING_DIRECTORY, context.payload().working_directory());
         log::debug!(
             "EXIF extraction complete, date taken: {:?}, width: {}, height: {}",
             date_taken,
             width.unwrap_or(0),
             height.unwrap_or(0)
         );
-        log::debug!(
-            "Working directory: {}",
-            context.payload().working_directory().display()
-        );
+        log::debug!("Working directory: {}", context.payload().working_directory().display());
         Ok(())
     }
 }
@@ -117,11 +98,7 @@ impl ComputeHashStep {
     pub(super) fn new(services: Arc<ServiceProvider>) -> Self {
         let hash_service = services.get::<HashService>();
         let photo_repo = services.get::<Repository<Photo>>();
-        Self {
-            services,
-            hash_service,
-            photo_repo,
-        }
+        Self { services, hash_service, photo_repo }
     }
 }
 
@@ -130,11 +107,8 @@ impl ImageProcessStep for ComputeHashStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
         log::debug!("Computing hash for {}", context.source_path().display());
         let service = Arc::clone(&self.hash_service);
-        let source = context
-            .source_path()
-            .to_str()
-            .ok_or_else(|| anyhow!("source path is not valid UTF-8"))?
-            .to_string();
+        let source =
+            context.source_path().to_str().ok_or_else(|| anyhow!("source path is not valid UTF-8"))?.to_string();
         let hash = task::spawn_blocking(move || service.compute_file(&source))
             .await
             .context("hash compute join error")?
@@ -164,10 +138,7 @@ pub(super) struct GenerateThumbnailStep {
 impl GenerateThumbnailStep {
     pub(super) fn new(services: Arc<ServiceProvider>) -> Self {
         let extractor = services.get::<ThumbnailExtractor>();
-        Self {
-            services,
-            extractor,
-        }
+        Self { services, extractor }
     }
 
     fn output_file(&self, root: &Path, hash: &str) -> PathBuf {
@@ -182,14 +153,8 @@ impl GenerateThumbnailStep {
 #[async_trait]
 impl ImageProcessStep for GenerateThumbnailStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        let thumbnail_root = context
-            .payload()
-            .storage
-            .normalized_path()
-            .join(SettingConsts::THUMBNAIL_FOLDER);
-        let hash = context
-            .get_by_alias::<String>(ImageProcessKeys::HASH)
-            .ok_or_else(|| anyhow!("hash not found"))?;
+        let thumbnail_root = context.payload().storage.normalized_path().join(SettingConsts::THUMBNAIL_FOLDER);
+        let hash = context.get_by_alias::<String>(ImageProcessKeys::HASH).ok_or_else(|| anyhow!("hash not found"))?;
 
         let output_path = self.output_file(&thumbnail_root, hash);
 
@@ -204,10 +169,7 @@ impl ImageProcessStep for GenerateThumbnailStep {
         .context("thumbnail generation join error")??;
 
         context.insert::<PathBuf>(ImageProcessKeys::THUMBNAIL_PATH, output_path.clone());
-        log::debug!(
-            "Thumbnail generation complete, output path: {}",
-            output_path.display()
-        );
+        log::debug!("Thumbnail generation complete, output path: {}", output_path.display());
 
         Ok(())
     }
@@ -221,10 +183,7 @@ pub(super) struct GeneratePreviewStep {
 impl GeneratePreviewStep {
     pub(super) fn new(services: Arc<ServiceProvider>) -> Self {
         let extractor = services.get::<PreviewExtractor>();
-        Self {
-            services,
-            extractor,
-        }
+        Self { services, extractor }
     }
 
     fn output_file(&self, root: &Path, hash: &str) -> PathBuf {
@@ -239,14 +198,8 @@ impl GeneratePreviewStep {
 #[async_trait]
 impl ImageProcessStep for GeneratePreviewStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        let preview_root = context
-            .payload()
-            .storage
-            .normalized_path()
-            .join(".previews");
-        let hash = context
-            .get_by_alias::<String>(ImageProcessKeys::HASH)
-            .ok_or_else(|| anyhow!("hash not found"))?;
+        let preview_root = context.payload().storage.normalized_path().join(".previews");
+        let hash = context.get_by_alias::<String>(ImageProcessKeys::HASH).ok_or_else(|| anyhow!("hash not found"))?;
 
         let output_path = self.output_file(&preview_root, hash);
 
@@ -261,10 +214,7 @@ impl ImageProcessStep for GeneratePreviewStep {
         .context("preview generation join error")??;
 
         context.insert::<PathBuf>(ImageProcessKeys::PREVIEW_PATH, output_path.clone());
-        log::debug!(
-            "Preview generation complete, output path: {}",
-            output_path.display()
-        );
+        log::debug!("Preview generation complete, output path: {}", output_path.display());
 
         Ok(())
     }
@@ -282,21 +232,14 @@ impl CategorizeImageStep {
 impl ImageProcessStep for CategorizeImageStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
         let configured_template = context.payload().storage.category_template.trim();
-        let category_template = if configured_template.is_empty() {
-            "{year}/{date:%Y-%m-%d}/{fileName}"
-        } else {
-            configured_template
-        };
+        let category_template =
+            if configured_template.is_empty() { "{year}/{date:%Y-%m-%d}/{fileName}" } else { configured_template };
         log::debug!("Categorizing image using template: {}", category_template);
 
-        let working_directory = context
-            .properties()
-            .get_by_alias::<PathBuf>(ImageProcessKeys::WORKING_DIRECTORY);
+        let working_directory = context.properties().get_by_alias::<PathBuf>(ImageProcessKeys::WORKING_DIRECTORY);
         log::debug!(
             "Working directory for categorization: {}",
-            working_directory
-                .map(|dir| dir.display().to_string())
-                .unwrap_or_else(|| "none".to_string())
+            working_directory.map(|dir| dir.display().to_string()).unwrap_or_else(|| "none".to_string())
         );
 
         let categorizer = TemplateCategorizer::new(category_template);
@@ -305,10 +248,7 @@ impl ImageProcessStep for CategorizeImageStep {
 
         context.insert::<PathBuf>(ImageProcessKeys::FINAL_PATH, final_path.clone());
 
-        log::debug!(
-            "Image categorization complete, final path: {}",
-            final_path.display()
-        );
+        log::debug!("Image categorization complete, final path: {}", final_path.display());
 
         Ok(())
     }
@@ -324,21 +264,14 @@ impl PersistMetadataStep {
     pub(super) fn new(services: Arc<ServiceProvider>) -> Self {
         let photo_repo = services.get::<Repository<Photo>>();
         let exif_repo = services.get::<Repository<ExifModel>>();
-        Self {
-            services,
-            photo_repo,
-            exif_repo,
-        }
+        Self { services, photo_repo, exif_repo }
     }
 }
 
 #[async_trait]
 impl ImageProcessStep for PersistMetadataStep {
     async fn execute(&self, context: &mut ImageProcessContext) -> Result<()> {
-        log::debug!(
-            "Persisting metadata to database for {}",
-            context.source_path().display()
-        );
+        log::debug!("Persisting metadata to database for {}", context.source_path().display());
         let final_path = context
             .get_by_alias::<PathBuf>(ImageProcessKeys::FINAL_PATH)
             .ok_or_else(|| anyhow!("final path not found in context"))?;
@@ -349,11 +282,7 @@ impl ImageProcessStep for PersistMetadataStep {
             .get_by_alias::<String>(ImageProcessKeys::HASH)
             .cloned()
             .ok_or_else(|| anyhow!("hash not found in context"))?;
-        let extension = final_path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("")
-            .to_string();
+        let extension = final_path.extension().and_then(|ext| ext.to_str()).unwrap_or("").to_string();
         let now = Utc::now();
         let date_taken = context
             .get_by_alias::<Option<DateTime<Utc>>>(ImageProcessKeys::EXIF_DATE_TAKEN)
@@ -396,9 +325,7 @@ impl ImageProcessStep for PersistMetadataStep {
             rating: exif.rating,
             flagged: exif.flagged,
             is_raw: Some(
-                ImageProcessKeys::RAW_EXTENSIONS
-                    .iter()
-                    .any(|candidate| candidate.eq_ignore_ascii_case(&extension)),
+                ImageProcessKeys::RAW_EXTENSIONS.iter().any(|candidate| candidate.eq_ignore_ascii_case(&extension)),
             ),
             width: exif.get_width(),
             height: exif.get_height(),
@@ -407,11 +334,8 @@ impl ImageProcessStep for PersistMetadataStep {
             sort_date,
         };
 
-        let saved_photo = self
-            .photo_repo
-            .insert(photo)
-            .await
-            .map_err(|err| anyhow!("failed to insert photo: {:?}", err))?;
+        let saved_photo =
+            self.photo_repo.insert(photo).await.map_err(|err| anyhow!("failed to insert photo: {:?}", err))?;
         log::debug!("Photo metadata persisted with ID: {:?}", saved_photo.id);
 
         let mut metadata = exif.clone();
@@ -425,11 +349,7 @@ impl ImageProcessStep for PersistMetadataStep {
             .await
             .map_err(|err| anyhow!("failed to insert exif metadata: {:?}", err))?;
 
-        log::debug!(
-            "Processed image {} into storage {}",
-            saved_photo.name,
-            saved_photo.path
-        );
+        log::debug!("Processed image {} into storage {}", saved_photo.name, saved_photo.path);
 
         Ok(())
     }

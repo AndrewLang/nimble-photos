@@ -14,10 +14,7 @@ pub struct PreviewExtractor {
 
 impl PreviewExtractor {
     pub fn new() -> Self {
-        Self {
-            max_border: PREVIEW_MAX_BORDER,
-            output_path: None,
-        }
+        Self { max_border: PREVIEW_MAX_BORDER, output_path: None }
     }
 
     pub fn with_max_border(mut self, max_border: u32) -> Self {
@@ -31,19 +28,12 @@ impl PreviewExtractor {
     }
 
     pub fn extract<P: AsRef<Path>>(&self, input_path: P) -> Result<PathBuf> {
-        let destination = self
-            .output_path
-            .as_ref()
-            .ok_or_else(|| anyhow!("preview output path is not configured"))?
-            .to_path_buf();
+        let destination =
+            self.output_path.as_ref().ok_or_else(|| anyhow!("preview output path is not configured"))?.to_path_buf();
         self.extract_to(input_path, destination)
     }
 
-    pub fn extract_to<P: AsRef<Path>, Q: AsRef<Path>>(
-        &self,
-        input_path: P,
-        output_path: Q,
-    ) -> Result<PathBuf> {
+    pub fn extract_to<P: AsRef<Path>, Q: AsRef<Path>>(&self, input_path: P, output_path: Q) -> Result<PathBuf> {
         let destination = output_path.as_ref().to_path_buf();
         self.generate_to_file(input_path.as_ref(), &destination)?;
         Ok(destination)
@@ -68,32 +58,21 @@ impl PreviewExtractor {
     }
 
     fn ensure_parent_directory(output_path: &Path) -> Result<()> {
-        let parent_directory = output_path
-            .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("."));
+        let parent_directory = output_path.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."));
         fs::create_dir_all(parent_directory)?;
         Ok(())
     }
 
     fn is_raw_file(input_path: &Path) -> bool {
-        input_path
-            .extension()
-            .and_then(|value| value.to_str())
-            .map(Self::is_raw_extension)
-            .unwrap_or(false)
+        input_path.extension().and_then(|value| value.to_str()).map(Self::is_raw_extension).unwrap_or(false)
     }
 
     fn is_raw_extension(extension: &str) -> bool {
-        RAW_EXTENSIONS
-            .iter()
-            .any(|candidate| candidate.eq_ignore_ascii_case(extension))
+        RAW_EXTENSIONS.iter().any(|candidate| candidate.eq_ignore_ascii_case(extension))
     }
 
     fn generate_raw_image(&self, input_path: &Path, output_path: &Path) -> Result<()> {
-        let exporter_config = ExportConfig::default()
-            .with_auto_rotate(true)
-            .with_max_border(Some(self.max_border));
+        let exporter_config = ExportConfig::default().with_auto_rotate(true).with_max_border(Some(self.max_border));
         let exporter = ThumbnailExporter::new_with_config(exporter_config);
         let thumbnail = exporter.export(input_path.to_string_lossy().as_ref())?;
         fs::write(output_path, thumbnail.jpeg.as_ref())?;
@@ -101,9 +80,7 @@ impl PreviewExtractor {
     }
 
     fn generate_standard_image(&self, input_path: &Path, output_path: &Path) -> Result<()> {
-        let image = ImageReader::open(input_path)?
-            .with_guessed_format()?
-            .decode()?;
+        let image = ImageReader::open(input_path)?.with_guessed_format()?.decode()?;
         let resized = image.resize(self.max_border, self.max_border, FilterType::Lanczos3);
         resized.save_with_format(output_path, ImageFormat::Jpeg)?;
         Ok(())

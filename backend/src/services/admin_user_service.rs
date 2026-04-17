@@ -10,11 +10,7 @@ impl AdminUserService {
     }
 
     pub async fn list_users(&self) -> Result<Vec<AdminUserDto>, PipelineError> {
-        let page = self
-            .repo
-            .query(Query::<User>::new())
-            .await
-            .map_err(|_| PipelineError::message("data error"))?;
+        let page = self.repo.query(Query::<User>::new()).await.map_err(|_| PipelineError::message("data error"))?;
 
         let mut users = page.items;
         users.sort_by(|a, b| b.created_at.cmp(&a.created_at));
@@ -39,37 +35,25 @@ impl AdminUserService {
         }
 
         let existing_roles = Self::parse_roles(user.roles.as_deref());
-        let removing_admin = existing_roles.iter().any(|role| role == "admin")
-            && !normalized.iter().any(|role| role == "admin");
+        let removing_admin =
+            existing_roles.iter().any(|role| role == "admin") && !normalized.iter().any(|role| role == "admin");
         if removing_admin && !self.has_other_admin(user_id).await? {
-            return Err(PipelineError::message(
-                "Cannot remove admin from the last admin user",
-            ));
+            return Err(PipelineError::message("Cannot remove admin from the last admin user"));
         }
 
         user.roles = Some(normalized.join(","));
 
-        let updated = self
-            .repo
-            .update(user)
-            .await
-            .map_err(|_| PipelineError::message("failed to update user roles"))?;
+        let updated =
+            self.repo.update(user).await.map_err(|_| PipelineError::message("failed to update user roles"))?;
 
         Ok(AdminUserDto::from(updated))
     }
 
     async fn has_other_admin(&self, user_id: Uuid) -> Result<bool, PipelineError> {
-        let page = self
-            .repo
-            .query(Query::<User>::new())
-            .await
-            .map_err(|_| PipelineError::message("data error"))?;
+        let page = self.repo.query(Query::<User>::new()).await.map_err(|_| PipelineError::message("data error"))?;
 
         Ok(page.items.iter().any(|user| {
-            user.id != user_id
-                && Self::parse_roles(user.roles.as_deref())
-                    .iter()
-                    .any(|role| role == "admin")
+            user.id != user_id && Self::parse_roles(user.roles.as_deref()).iter().any(|role| role == "admin")
         }))
     }
 
@@ -89,10 +73,7 @@ impl AdminUserService {
             if value.is_empty() {
                 continue;
             }
-            if !value
-                .chars()
-                .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-' || ch == '_')
-            {
+            if !value.chars().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-' || ch == '_') {
                 continue;
             }
             if !normalized.contains(&value) {

@@ -30,34 +30,18 @@ enum TemplateToken {
 impl TemplateToken {
     fn resolve<C: TemplateContext>(&self, context: &C) -> Result<String> {
         match self {
-            TemplateToken::FileName => Ok(context
-                .get_property::<String>("file_name")
-                .map(|v| v.as_str())
-                .unwrap_or("")
-                .to_string()),
+            TemplateToken::FileName => {
+                Ok(context.get_property::<String>("file_name").map(|v| v.as_str()).unwrap_or("").to_string())
+            }
 
             TemplateToken::FileStem => {
-                let name = context
-                    .get_property::<String>("file_name")
-                    .map(|v| v.as_str())
-                    .unwrap_or("");
-                Ok(Path::new(name)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("")
-                    .to_string())
+                let name = context.get_property::<String>("file_name").map(|v| v.as_str()).unwrap_or("");
+                Ok(Path::new(name).file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string())
             }
 
             TemplateToken::Extension => {
-                let name = context
-                    .get_property::<String>("file_name")
-                    .map(|v| v.as_str())
-                    .unwrap_or("");
-                Ok(Path::new(name)
-                    .extension()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("")
-                    .to_string())
+                let name = context.get_property::<String>("file_name").map(|v| v.as_str()).unwrap_or("");
+                Ok(Path::new(name).extension().and_then(|s| s.to_str()).unwrap_or("").to_string())
             }
 
             TemplateToken::Year => {
@@ -106,16 +90,11 @@ impl TemplateToken {
                 Ok(h.chars().skip(*start).take(*len).collect())
             }
 
-            TemplateToken::Camera => Ok(context
-                .get_property::<String>("camera")
-                .map(|v| v.as_str())
-                .unwrap_or("")
-                .to_string()),
+            TemplateToken::Camera => {
+                Ok(context.get_property::<String>("camera").map(|v| v.as_str()).unwrap_or("").to_string())
+            }
 
-            TemplateToken::Rating => Ok(context
-                .get_property::<i32>("rating")
-                .unwrap_or(&0)
-                .to_string()),
+            TemplateToken::Rating => Ok(context.get_property::<i32>("rating").unwrap_or(&0).to_string()),
         }
     }
 }
@@ -151,10 +130,7 @@ pub struct CompiledTemplate {
 
 impl CompiledTemplate {
     fn new(template: String) -> Result<Self> {
-        let mut instance = Self {
-            template,
-            parts: Vec::new(),
-        };
+        let mut instance = Self { template, parts: Vec::new() };
 
         instance.parse()?;
         Ok(instance)
@@ -177,12 +153,9 @@ impl CompiledTemplate {
     }
 
     pub fn requires_hash(&self) -> bool {
-        self.parts.iter().any(|p| {
-            matches!(
-                p,
-                TemplatePart::Token(TemplateToken::HashFull | TemplateToken::HashSlice { .. })
-            )
-        })
+        self.parts
+            .iter()
+            .any(|p| matches!(p, TemplatePart::Token(TemplateToken::HashFull | TemplateToken::HashSlice { .. })))
     }
 }
 
@@ -253,19 +226,11 @@ impl CompiledTemplate {
     }
 
     fn sanitize(&self, input: &str) -> String {
-        input
-            .replace("/", "_")
-            .replace("\\", "_")
-            .replace("..", "_")
-            .trim()
-            .to_string()
+        input.replace("/", "_").replace("\\", "_").replace("..", "_").trim().to_string()
     }
 
     fn normalize(&self, path: &str) -> String {
-        path.split('/')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-            .join("/")
+        path.split('/').filter(|s| !s.is_empty()).collect::<Vec<_>>().join("/")
     }
 }
 

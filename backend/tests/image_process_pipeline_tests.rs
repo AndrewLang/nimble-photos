@@ -6,9 +6,7 @@ use nimble_photos::services::background_task_runner::BackgroundTaskRunner;
 use nimble_photos::services::exif_service::ExifService;
 use nimble_photos::services::file_service::FileService;
 use nimble_photos::services::hash_service::HashService;
-use nimble_photos::services::image_pipeline::{
-    ImageProcessPayload, ImageProcessPipeline, ImageProcessPipelineContext,
-};
+use nimble_photos::services::image_pipeline::{ImageProcessPayload, ImageProcessPipeline, ImageProcessPipelineContext};
 use nimble_photos::services::photo_upload_service::StoredUploadFile;
 use nimble_photos::services::{PreviewExtractor, ThumbnailExtractor};
 use nimble_web::Configuration;
@@ -24,16 +22,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 fn unique_temp_dir(name: &str) -> PathBuf {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "nimble_photos_image_pipeline_tests_{}_{}_{}",
-        std::process::id(),
-        name,
-        nanos
-    ))
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos();
+    std::env::temp_dir().join(format!("nimble_photos_image_pipeline_tests_{}_{}_{}", std::process::id(), name, nanos))
 }
 
 fn write_test_image(path: &Path) {
@@ -46,21 +36,13 @@ fn write_test_image(path: &Path) {
         let b = ((x + y) % 255) as u8;
         Rgb([r, g, b])
     });
-    image
-        .save_with_format(path, image::ImageFormat::Jpeg)
-        .expect("failed to save test image");
+    image.save_with_format(path, image::ImageFormat::Jpeg).expect("failed to save test image");
 }
 
 fn test_configuration(thumbnail_root: &Path, preview_root: &Path) -> Configuration {
     let mut values = HashMap::new();
-    values.insert(
-        "thumbnail.base.path".to_string(),
-        thumbnail_root.to_string_lossy().to_string(),
-    );
-    values.insert(
-        "preview.base.path".to_string(),
-        preview_root.to_string_lossy().to_string(),
-    );
+    values.insert("thumbnail.base.path".to_string(), thumbnail_root.to_string_lossy().to_string());
+    values.insert("preview.base.path".to_string(), preview_root.to_string_lossy().to_string());
     Configuration::from_values(values)
 }
 
@@ -76,17 +58,11 @@ fn create_storage(id: Uuid, label: &str, root: &Path) -> StorageLocation {
 }
 
 async fn query_photos(repo: &Repository<Photo>) -> Vec<Photo> {
-    repo.query(QueryBuilder::<Photo>::new().page(1, 10).build())
-        .await
-        .expect("photo query failed")
-        .items
+    repo.query(QueryBuilder::<Photo>::new().page(1, 10).build()).await.expect("photo query failed").items
 }
 
 async fn query_exif(repo: &Repository<ExifModel>) -> Vec<ExifModel> {
-    repo.query(QueryBuilder::<ExifModel>::new().page(1, 10).build())
-        .await
-        .expect("exif query failed")
-        .items
+    repo.query(QueryBuilder::<ExifModel>::new().page(1, 10).build()).await.expect("exif query failed").items
 }
 
 #[tokio::test]
@@ -118,9 +94,8 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
     container.register_singleton::<ExifService, _>(|_| ExifService::new());
     container.register_singleton::<ThumbnailExtractor, _>(|_| ThumbnailExtractor::new());
     container.register_singleton::<PreviewExtractor, _>(|_| PreviewExtractor::new());
-    container.register_singleton::<Repository<Photo>, _>(|_| {
-        Repository::new(Box::new(MemoryRepository::<Photo>::new()))
-    });
+    container
+        .register_singleton::<Repository<Photo>, _>(|_| Repository::new(Box::new(MemoryRepository::<Photo>::new())));
     container.register_singleton::<Repository<ExifModel>, _>(|_| {
         Repository::new(Box::new(MemoryRepository::<ExifModel>::new()))
     });
@@ -133,15 +108,9 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
     ));
 
     let request = ImageProcessPayload::from_upload(storage.clone(), stored_file.clone());
-    pipeline
-        .process(request)
-        .await
-        .expect("pipeline processing failed");
+    pipeline.process(request).await.expect("pipeline processing failed");
 
-    assert!(
-        !temp_file.exists(),
-        "source file should be moved out of temp directory"
-    );
+    assert!(!temp_file.exists(), "source file should be moved out of temp directory");
 
     let photo_repo = provider.get::<Repository<Photo>>();
     let photos = query_photos(&photo_repo).await;
@@ -154,21 +123,14 @@ async fn pipeline_processes_uploaded_file_and_persists_metadata() {
     let final_path = PathBuf::from(&photo.path);
     assert!(final_path.exists(), "final categorized file should exist");
     assert!(
-        final_path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .map(|value| value == file_name)
-            .unwrap_or(false),
+        final_path.file_name().and_then(|value| value.to_str()).map(|value| value == file_name).unwrap_or(false),
         "categorized file should keep original file name"
     );
 
     let exif_repo = provider.get::<Repository<ExifModel>>();
     let exif_models = query_exif(&exif_repo).await;
     assert_eq!(exif_models.len(), 1, "exif metadata should be persisted");
-    assert_eq!(
-        exif_models[0].image_id, photo.id,
-        "exif metadata must reference the photo"
-    );
+    assert_eq!(exif_models[0].image_id, photo.id, "exif metadata must reference the photo");
 }
 
 #[test]
@@ -183,9 +145,8 @@ fn enqueue_uploaded_files_schedules_task_for_each_file() {
     container.register_singleton::<ExifService, _>(|_| ExifService::new());
     container.register_singleton::<ThumbnailExtractor, _>(|_| ThumbnailExtractor::new());
     container.register_singleton::<PreviewExtractor, _>(|_| PreviewExtractor::new());
-    container.register_singleton::<Repository<Photo>, _>(|_| {
-        Repository::new(Box::new(MemoryRepository::<Photo>::new()))
-    });
+    container
+        .register_singleton::<Repository<Photo>, _>(|_| Repository::new(Box::new(MemoryRepository::<Photo>::new())));
     container.register_singleton::<Repository<ExifModel>, _>(|_| {
         Repository::new(Box::new(MemoryRepository::<ExifModel>::new()))
     });
@@ -214,9 +175,7 @@ fn enqueue_uploaded_files_schedules_task_for_each_file() {
     ];
     let file_count = files.len();
 
-    pipeline
-        .enqueue_files(storage, files)
-        .expect("enqueue should succeed");
+    pipeline.enqueue_files(storage, files).expect("enqueue should succeed");
 
     let runner = provider.get::<BackgroundTaskRunner>();
     assert_eq!(runner.queued_count(), file_count);

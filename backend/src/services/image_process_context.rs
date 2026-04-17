@@ -14,13 +14,7 @@ impl ImageProcessContext {
     pub(super) fn new(payload: ImageProcessPayload, services: Arc<ServiceProvider>) -> Self {
         let source_path = payload.source_path();
 
-        Self {
-            payload,
-            source_path,
-            properties: PropertyMap::new(),
-            services,
-            can_continue: true,
-        }
+        Self { payload, source_path, properties: PropertyMap::new(), services, can_continue: true }
     }
 
     pub fn insert<T: Any + Send + Sync>(&mut self, name: impl Into<String>, value: T) {

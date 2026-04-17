@@ -25,9 +25,7 @@ struct InMemoryUserProvider {
 
 impl InMemoryUserProvider {
     fn new() -> Self {
-        Self {
-            store: Arc::new(Mutex::new(HashMap::new())),
-        }
+        Self { store: Arc::new(Mutex::new(HashMap::new())) }
     }
 }
 
@@ -100,12 +98,7 @@ fn create_auth_service() -> AuthService {
     let settings_repo = MemoryRepository::<UserSettings>::new();
     let settings_repository = Repository::new(Box::new(settings_repo));
 
-    AuthService::new(
-        Arc::new(repo),
-        Arc::new(settings_repository),
-        encrypt,
-        tokens,
-    )
+    AuthService::new(Arc::new(repo), Arc::new(settings_repository), encrypt, tokens)
 }
 
 #[test]
@@ -134,15 +127,10 @@ async fn register_assigns_admin_role_to_first_user() {
     let email = "first@example.com";
     let password = "password123";
 
-    let response = service
-        .register(email, password, "First User")
-        .await
-        .unwrap();
+    let response = service.register(email, password, "First User").await.unwrap();
 
     let token_service = JwtTokenService::new("test-secret".to_string(), "test-issuer".to_string());
-    let claims = token_service
-        .validate_access_token(&response.access_token)
-        .unwrap();
+    let claims = token_service.validate_access_token(&response.access_token).unwrap();
 
     assert!(claims.roles().contains("admin"));
 }
@@ -152,20 +140,12 @@ async fn register_assigns_viewer_role_to_second_user() {
     let service = create_auth_service();
     let password = "password123";
 
-    service
-        .register("first@example.com", password, "First User")
-        .await
-        .unwrap();
+    service.register("first@example.com", password, "First User").await.unwrap();
 
-    let response = service
-        .register("second@example.com", password, "Second User")
-        .await
-        .unwrap();
+    let response = service.register("second@example.com", password, "Second User").await.unwrap();
 
     let token_service = JwtTokenService::new("test-secret".to_string(), "test-issuer".to_string());
-    let claims = token_service
-        .validate_access_token(&response.access_token)
-        .unwrap();
+    let claims = token_service.validate_access_token(&response.access_token).unwrap();
 
     assert!(!claims.roles().contains("admin"));
     assert!(claims.roles().contains("viewer"));
@@ -177,10 +157,7 @@ async fn login_with_valid_credentials_returns_tokens() {
     let email = "test@example.com";
     let password = "password123";
 
-    service
-        .register(email, password, "Test User")
-        .await
-        .unwrap();
+    service.register(email, password, "Test User").await.unwrap();
 
     let result = service.login(email, password).await;
     assert!(result.is_ok());
@@ -195,10 +172,7 @@ async fn login_with_invalid_email_returns_error() {
     let email = "test@example.com";
     let password = "password123";
 
-    service
-        .register(email, password, "Test User")
-        .await
-        .unwrap();
+    service.register(email, password, "Test User").await.unwrap();
 
     let result = service.login("wrong@example.com", password).await;
 
@@ -211,10 +185,7 @@ async fn login_with_invalid_password_returns_error() {
     let email = "test@example.com";
     let password = "password123";
 
-    service
-        .register(email, password, "Test User")
-        .await
-        .unwrap();
+    service.register(email, password, "Test User").await.unwrap();
 
     let result = service.login(email, "wrongpassword").await;
 
@@ -227,10 +198,7 @@ async fn refresh_with_valid_token_returns_new_tokens() {
     let email = "test@example.com";
     let password = "password123";
 
-    let register_response = service
-        .register(email, password, "Test User")
-        .await
-        .unwrap();
+    let register_response = service.register(email, password, "Test User").await.unwrap();
 
     let result = service.refresh(&register_response.refresh_token).await;
 
@@ -255,10 +223,7 @@ async fn me_returns_user_for_valid_user_id() {
     let email = "test@example.com";
     let password = "password123";
 
-    service
-        .register(email, password, "Test User")
-        .await
-        .unwrap();
+    service.register(email, password, "Test User").await.unwrap();
 
     let config = create_test_config();
     let token_service = JwtTokenService::new("test-secret".to_string(), "test-issuer".to_string());
@@ -286,12 +251,7 @@ async fn me_returns_user_for_valid_user_id() {
     let encrypt = EncryptService::new(&config).unwrap();
     let settings_repo = MemoryRepository::<UserSettings>::new();
     let settings_repository = Repository::new(Box::new(settings_repo));
-    let service = AuthService::new(
-        Arc::new(repo),
-        Arc::new(settings_repository),
-        encrypt,
-        tokens,
-    );
+    let service = AuthService::new(Arc::new(repo), Arc::new(settings_repository), encrypt, tokens);
 
     let result = service.me(&user.id.to_string()).await;
 
@@ -316,10 +276,7 @@ async fn logout_succeeds() {
     let email = "test@example.com";
     let password = "password123";
 
-    let register_response = service
-        .register(email, password, "Test User")
-        .await
-        .unwrap();
+    let register_response = service.register(email, password, "Test User").await.unwrap();
 
     let result = service.logout(&register_response.refresh_token);
 

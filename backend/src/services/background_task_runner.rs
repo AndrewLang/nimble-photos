@@ -40,10 +40,7 @@ impl BackgroundTaskRunner {
             return Err(anyhow!("BackgroundTaskRunner is not accepting new tasks"));
         }
 
-        let mut queue = self
-            .queue
-            .lock()
-            .map_err(|_| anyhow!("Failed to lock task queue"))?;
+        let mut queue = self.queue.lock().map_err(|_| anyhow!("Failed to lock task queue"))?;
         queue.push_back(task);
         self.queued_task_count.fetch_add(1, Ordering::SeqCst);
         Ok(())
@@ -57,10 +54,7 @@ impl BackgroundTaskRunner {
         self.shutting_down.store(false, Ordering::SeqCst);
         self.accepting_tasks.store(true, Ordering::SeqCst);
 
-        let mut handles = self
-            .worker_handles
-            .lock()
-            .map_err(|_| anyhow!("Failed to lock worker handle pool"))?;
+        let mut handles = self.worker_handles.lock().map_err(|_| anyhow!("Failed to lock worker handle pool"))?;
 
         for _ in 0..self.parallelism {
             let worker = WorkerRuntime {
@@ -83,10 +77,7 @@ impl BackgroundTaskRunner {
         self.shutting_down.store(true, Ordering::SeqCst);
 
         let handles = {
-            let mut guard = self
-                .worker_handles
-                .lock()
-                .map_err(|_| anyhow!("Failed to lock worker handle pool"))?;
+            let mut guard = self.worker_handles.lock().map_err(|_| anyhow!("Failed to lock worker handle pool"))?;
             std::mem::take(&mut *guard)
         };
 
@@ -122,16 +113,11 @@ impl WorkerRuntime {
                 continue;
             }
 
-            if self.shutting_down.load(Ordering::SeqCst)
-                && self.queued_task_count.load(Ordering::SeqCst) == 0
-            {
+            if self.shutting_down.load(Ordering::SeqCst) && self.queued_task_count.load(Ordering::SeqCst) == 0 {
                 break;
             }
 
-            sleep(Duration::from_millis(
-                BackgroundTaskRunner::EMPTY_QUEUE_SLEEP_MILLISECONDS,
-            ))
-            .await;
+            sleep(Duration::from_millis(BackgroundTaskRunner::EMPTY_QUEUE_SLEEP_MILLISECONDS)).await;
         }
     }
 

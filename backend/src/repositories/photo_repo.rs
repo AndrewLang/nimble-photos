@@ -10,45 +10,23 @@ use crate::prelude::*;
 pub trait PhotoRepositoryExtensions {
     async fn find_by_hash(&self, hash: &str) -> Result<Option<Photo>, PipelineError>;
 
-    async fn photos_in_album(
-        &self,
-        album_id: Uuid,
-        page: u32,
-        page_size: u32,
-    ) -> Result<Page<Photo>, PipelineError>;
+    async fn photos_in_album(&self, album_id: Uuid, page: u32, page_size: u32) -> Result<Page<Photo>, PipelineError>;
 
-    async fn delete_photo(
-        &self,
-        context: &HttpContext,
-        photo: &Photo,
-    ) -> Result<u32, PipelineError>;
+    async fn delete_photo(&self, context: &HttpContext, photo: &Photo) -> Result<u32, PipelineError>;
 
     async fn delete_file(&self, photo: &Photo, context: &HttpContext) -> Result<(), PipelineError>;
 
-    async fn delete_records(
-        &self,
-        photo: &Photo,
-        context: &HttpContext,
-    ) -> Result<(), PipelineError>;
+    async fn delete_records(&self, photo: &Photo, context: &HttpContext) -> Result<(), PipelineError>;
 
     async fn get_years(&self) -> Result<Vec<String>, PipelineError>;
 
     async fn get_year_offset(&self, year: &str) -> Result<u32, PipelineError>;
 
-    async fn photos_with_gps(
-        &self,
-        limit: u32,
-        offset: u32,
-    ) -> Result<Vec<PhotoLoc>, PipelineError>;
+    async fn photos_with_gps(&self, limit: u32, offset: u32) -> Result<Vec<PhotoLoc>, PipelineError>;
 
-    async fn photos_for_days(&self, days: Vec<String>)
-    -> Result<Vec<TimelineGroup>, PipelineError>;
+    async fn photos_for_days(&self, days: Vec<String>) -> Result<Vec<TimelineGroup>, PipelineError>;
 
-    async fn build_timeline(
-        &self,
-        limit: u32,
-        offset: u32,
-    ) -> Result<Vec<TimelineGroup>, PipelineError>;
+    async fn build_timeline(&self, limit: u32, offset: u32) -> Result<Vec<TimelineGroup>, PipelineError>;
 }
 
 #[async_trait]
@@ -59,65 +37,45 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
             .map_err(|_| PipelineError::message("failed to load photo by hash"))
     }
 
-    async fn photos_in_album(
-        &self,
-        album_id: Uuid,
-        page: u32,
-        page_size: u32,
-    ) -> Result<Page<Photo>, PipelineError> {
+    async fn photos_in_album(&self, album_id: Uuid, page: u32, page_size: u32) -> Result<Page<Photo>, PipelineError> {
         let query = QueryBuilder::<Photo>::new()
             .join::<AlbumPhoto>("photo_id", "id")
             .filter("album_id", FilterOperator::Eq, Value::Uuid(album_id))
             .page(page, page_size)
             .build();
 
-        self.query(query)
-            .await
-            .map_err(|_| PipelineError::message("failed to load photos in album"))
+        self.query(query).await.map_err(|_| PipelineError::message("failed to load photos in album"))
     }
 
-    async fn delete_photo(
-        &self,
-        context: &HttpContext,
-        photo: &Photo,
-    ) -> Result<u32, PipelineError> {
+    async fn delete_photo(&self, context: &HttpContext, photo: &Photo) -> Result<u32, PipelineError> {
         self.delete_file(photo, context).await?;
         self.delete_records(photo, context).await?;
 
         Ok(1)
     }
 
-    async fn delete_records(
-        &self,
-        photo: &Photo,
-        context: &HttpContext,
-    ) -> Result<(), PipelineError> {
+    async fn delete_records(&self, photo: &Photo, context: &HttpContext) -> Result<(), PipelineError> {
         let photo_repo = context.service::<Repository<Photo>>()?;
         let album_photo_repo = context.service::<Repository<AlbumPhoto>>()?;
         let exif_repo = context.service::<Repository<ExifModel>>()?;
         let photo_comment_repo = context.service::<Repository<PhotoComment>>()?;
 
-        photo_repo.delete(&photo.id).await.map_err(|e| {
-            PipelineError::message(&format!("failed to delete photo record: {:?}", e))
-        })?;
+        photo_repo
+            .delete(&photo.id)
+            .await
+            .map_err(|e| PipelineError::message(&format!("failed to delete photo record: {:?}", e)))?;
         exif_repo
             .delete_by("image_id", Value::Uuid(photo.id))
             .await
-            .map_err(|e| {
-                PipelineError::message(&format!("failed to delete exif record: {:?}", e))
-            })?;
+            .map_err(|e| PipelineError::message(&format!("failed to delete exif record: {:?}", e)))?;
         photo_comment_repo
             .delete_by("photo_id", Value::Uuid(photo.id))
             .await
-            .map_err(|e| {
-                PipelineError::message(&format!("failed to delete photo comments: {:?}", e))
-            })?;
+            .map_err(|e| PipelineError::message(&format!("failed to delete photo comments: {:?}", e)))?;
         album_photo_repo
             .delete_by("photo_id", Value::Uuid(photo.id))
             .await
-            .map_err(|e| {
-                PipelineError::message(&format!("failed to delete album_photo records: {:?}", e))
-            })?;
+            .map_err(|e| PipelineError::message(&format!("failed to delete album_photo records: {:?}", e)))?;
 
         Ok(())
     }
@@ -125,10 +83,7 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
     async fn delete_file(&self, photo: &Photo, context: &HttpContext) -> Result<(), PipelineError> {
         let file_service = context.service::<FileService>()?;
         let storage_repo = context.service::<Repository<StorageLocation>>()?;
-        let hash = photo
-            .hash
-            .as_ref()
-            .ok_or_else(|| PipelineError::message("Photo hash is missing"))?;
+        let hash = photo.hash.as_ref().ok_or_else(|| PipelineError::message("Photo hash is missing"))?;
 
         let storage = storage_repo
             .get(&photo.storage_id)
@@ -145,11 +100,8 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         );
         let _ = file_service.remove_file(&thumbnail_path);
 
-        let preview_path = file_service.path_for_hash(
-            root.join(SettingConsts::PREVIEW_FOLDER),
-            &hash,
-            SettingConsts::PREVIEW_FORMAT,
-        );
+        let preview_path =
+            file_service.path_for_hash(root.join(SettingConsts::PREVIEW_FOLDER), &hash, SettingConsts::PREVIEW_FORMAT);
         let _ = file_service.remove_file(&preview_path);
 
         Ok(())
@@ -196,9 +148,8 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         "#
         );
 
-        let search_year = year
-            .parse::<i32>()
-            .map_err(|e| PipelineError::message(&format!("invalid year '{}': {}", year, e)))?;
+        let search_year =
+            year.parse::<i32>().map_err(|e| PipelineError::message(&format!("invalid year '{}': {}", year, e)))?;
         let rows = self
             .raw_query::<OffsetRow>(&sql, &[Value::Int(search_year as i64)])
             .await
@@ -207,11 +158,7 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         Ok(offset.max(0) as u32)
     }
 
-    async fn photos_with_gps(
-        &self,
-        limit: u32,
-        offset: u32,
-    ) -> Result<Vec<PhotoLoc>, PipelineError> {
+    async fn photos_with_gps(&self, limit: u32, offset: u32) -> Result<Vec<PhotoLoc>, PipelineError> {
         let sql = format!(
             r#"
             SELECT
@@ -233,18 +180,12 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         let rows = self
             .raw_query::<PhotoLoc>(&sql, &[Value::Int(limit as i64), Value::Int(offset as i64)])
             .await
-            .map_err(|e| {
-                PipelineError::message(&format!("failed to load photos with GPS: {:?}", e))
-            })?;
+            .map_err(|e| PipelineError::message(&format!("failed to load photos with GPS: {:?}", e)))?;
 
         Ok(rows)
     }
 
-    async fn build_timeline(
-        &self,
-        limit: u32,
-        offset: u32,
-    ) -> Result<Vec<TimelineGroup>, PipelineError> {
+    async fn build_timeline(&self, limit: u32, offset: u32) -> Result<Vec<TimelineGroup>, PipelineError> {
         let sql = format!(
             r#"
             WITH target_days AS (
@@ -291,22 +232,14 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
         for group in groups {
             timeline.push(TimelineGroup {
                 title: group.day,
-                photos: Page::new(
-                    group.photos_payload,
-                    group.total_count as u64,
-                    1,
-                    group.total_count as u32,
-                ),
+                photos: Page::new(group.photos_payload, group.total_count as u64, 1, group.total_count as u32),
             });
         }
 
         Ok(timeline)
     }
 
-    async fn photos_for_days(
-        &self,
-        days: Vec<String>,
-    ) -> Result<Vec<TimelineGroup>, PipelineError> {
+    async fn photos_for_days(&self, days: Vec<String>) -> Result<Vec<TimelineGroup>, PipelineError> {
         log::info!("Loading photos for days: {:?}", days.clone());
         if days.is_empty() {
             return Ok(Vec::new());
@@ -321,27 +254,21 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
             .collect::<Result<Vec<_>, _>>()?;
 
         let query = QueryBuilder::<Photo>::new()
-            .filter(
-                "day_date",
-                FilterOperator::In,
-                Value::List(day_dates.into_iter().map(Value::Date).collect()),
-            )
+            .filter("day_date", FilterOperator::In, Value::List(day_dates.into_iter().map(Value::Date).collect()))
             .sort_desc("sort_date")
             .build();
         log::info!("Query: {:?}", query);
 
-        let photos = self.all(query).await.map_err(|e| {
-            PipelineError::message(&format!("failed to load photos for days: {:?}", e))
-        })?;
+        let photos = self
+            .all(query)
+            .await
+            .map_err(|e| PipelineError::message(&format!("failed to load photos for days: {:?}", e)))?;
 
         let mut groups: Vec<TimelineGroup> = Vec::new();
 
         for day in days {
-            let day_photos: Vec<Photo> = photos
-                .iter()
-                .filter(|p| p.day_date.format("%Y-%m-%d").to_string() == day)
-                .cloned()
-                .collect();
+            let day_photos: Vec<Photo> =
+                photos.iter().filter(|p| p.day_date.format("%Y-%m-%d").to_string() == day).cloned().collect();
             let length = day_photos.len();
 
             let group = TimelineGroup {

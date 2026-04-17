@@ -13,12 +13,7 @@ pub struct AppEvent {
 
 impl AppEvent {
     pub fn new(topic: impl Into<String>, payload: JsonValue) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            topic: topic.into(),
-            payload,
-            occurred_at: Utc::now(),
-        }
+        Self { id: Uuid::new_v4(), topic: topic.into(), payload, occurred_at: Utc::now() }
     }
 }
 

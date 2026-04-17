@@ -3,17 +3,9 @@ use std::collections::BTreeMap;
 
 #[async_trait]
 pub trait TagRepositoryExtensions {
-    async fn set_photo_tags(
-        &self,
-        photo_id: Uuid,
-        tag_refs: &[TagRef],
-    ) -> Result<(), PipelineError>;
+    async fn set_photo_tags(&self, photo_id: Uuid, tag_refs: &[TagRef]) -> Result<(), PipelineError>;
 
-    async fn resolve_tag_ids(
-        &self,
-        refs: &[TagRef],
-        default_visibility: i16,
-    ) -> Result<Vec<Uuid>, PipelineError>;
+    async fn resolve_tag_ids(&self, refs: &[TagRef], default_visibility: i16) -> Result<Vec<Uuid>, PipelineError>;
 
     fn normalize_tag_name(&self, raw: &str) -> Option<(String, String)>;
 
@@ -22,20 +14,13 @@ pub trait TagRepositoryExtensions {
 
 #[async_trait]
 impl TagRepositoryExtensions for Repository<Tag> {
-    async fn set_photo_tags(
-        &self,
-        photo_id: Uuid,
-        tag_refs: &[TagRef],
-    ) -> Result<(), PipelineError> {
+    async fn set_photo_tags(&self, photo_id: Uuid, tag_refs: &[TagRef]) -> Result<(), PipelineError> {
         let ids = self.resolve_tag_ids(tag_refs, 0).await?;
 
         if ids.is_empty() {
-            self.raw_query::<serde_json::Value>(
-                "DELETE FROM photo_tags WHERE photo_id = $1",
-                &[Value::Uuid(photo_id)],
-            )
-            .await
-            .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
+            self.raw_query::<serde_json::Value>("DELETE FROM photo_tags WHERE photo_id = $1", &[Value::Uuid(photo_id)])
+                .await
+                .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;
             return Ok(());
         }
 
@@ -45,10 +30,7 @@ impl TagRepositoryExtensions for Repository<Tag> {
             params.push(Value::Uuid(*id));
         }
 
-        let values = (0..ids.len())
-            .map(|idx| format!("(${})", idx + 2))
-            .collect::<Vec<_>>()
-            .join(", ");
+        let values = (0..ids.len()).map(|idx| format!("(${})", idx + 2)).collect::<Vec<_>>().join(", ");
 
         let sql = format!(
             r#"
@@ -69,11 +51,7 @@ impl TagRepositoryExtensions for Repository<Tag> {
         Ok(())
     }
 
-    async fn resolve_tag_ids(
-        &self,
-        refs: &[TagRef],
-        default_visibility: i16,
-    ) -> Result<Vec<Uuid>, PipelineError> {
+    async fn resolve_tag_ids(&self, refs: &[TagRef], default_visibility: i16) -> Result<Vec<Uuid>, PipelineError> {
         #[derive(Deserialize)]
         struct TagIdRow {
             id: Uuid,
@@ -102,11 +80,7 @@ impl TagRepositoryExtensions for Repository<Tag> {
             let rows = self
                 .raw_query::<TagIdRow>(
                     sql,
-                    &[
-                        Value::String(name),
-                        Value::String(name_norm),
-                        Value::I16(default_visibility),
-                    ],
+                    &[Value::String(name), Value::String(name_norm), Value::I16(default_visibility)],
                 )
                 .await
                 .map_err(|e| PipelineError::message(&format!("{:?}", e)))?;

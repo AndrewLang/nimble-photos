@@ -30,9 +30,7 @@ async fn main() -> std::result::Result<(), AppError> {
     app.log_routes();
 
     log::info!("Migrating database...");
-    migrate_entities(&app)
-        .await
-        .map_err(|err| AppError::Runtime(format!("migrate entities: {err}")))?;
+    migrate_entities(&app).await.map_err(|err| AppError::Runtime(format!("migrate entities: {err}")))?;
 
     app.start().await?;
 
@@ -55,9 +53,7 @@ fn init_logging() {
     let mut builder = env_logger::Builder::from_env(env);
 
     if std::env::var("RUST_LOG").is_err() {
-        builder
-            .filter_level(log::LevelFilter::Debug)
-            .filter_module("sqlx", log::LevelFilter::Info);
+        builder.filter_level(log::LevelFilter::Debug).filter_module("sqlx", log::LevelFilter::Info);
     }
 
     let _ = builder.try_init();

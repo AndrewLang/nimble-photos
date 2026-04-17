@@ -53,11 +53,7 @@ impl Entity for AlbumComment {
 
 impl HasOptionalUuidId for AlbumComment {
     fn current_id(&self) -> Option<Uuid> {
-        if self.id.is_nil() {
-            None
-        } else {
-            Some(self.id)
-        }
+        if self.id.is_nil() { None } else { Some(self.id) }
     }
 
     fn set_id(&mut self, id: Uuid) {
@@ -91,15 +87,7 @@ impl PostgresEntity for AlbumComment {
     }
 
     fn insert_columns() -> &'static [&'static str] {
-        &[
-            "id",
-            "album_id",
-            "user_id",
-            "user_display_name",
-            "body",
-            "created_at",
-            "hidden",
-        ]
+        &["id", "album_id", "user_id", "user_display_name", "body", "created_at", "hidden"]
     }
 
     fn insert_values(&self) -> Vec<nimble_web::data::query::Value> {
@@ -128,19 +116,13 @@ impl PostgresEntity for AlbumComment {
 
     fn table_columns() -> Vec<ColumnDef> {
         vec![
-            ColumnDef::new("id", ColumnType::Uuid)
-                .primary_key()
-                .default("gen_random_uuid()"),
+            ColumnDef::new("id", ColumnType::Uuid).primary_key().default("gen_random_uuid()"),
             ColumnDef::new("album_id", ColumnType::Uuid).not_null(),
             ColumnDef::new("user_id", ColumnType::Uuid).not_null(),
             ColumnDef::new("user_display_name", ColumnType::Text),
             ColumnDef::new("body", ColumnType::Text).not_null(),
-            ColumnDef::new("created_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
-            ColumnDef::new("hidden", ColumnType::Boolean)
-                .not_null()
-                .default("false"),
+            ColumnDef::new("created_at", ColumnType::Timestamp).not_null().default("NOW()"),
+            ColumnDef::new("hidden", ColumnType::Boolean).not_null().default("false"),
         ]
     }
 }

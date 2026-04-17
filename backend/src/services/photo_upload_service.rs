@@ -24,13 +24,7 @@ impl PhotoUploadService {
     const DEFAULT_MAX_FILE_SIZE: u64 = 64 * 1024 * 1024;
 
     pub fn new(max_file_size: u64) -> Self {
-        Self {
-            max_file_size: if max_file_size == 0 {
-                Self::DEFAULT_MAX_FILE_SIZE
-            } else {
-                max_file_size
-            },
-        }
+        Self { max_file_size: if max_file_size == 0 { Self::DEFAULT_MAX_FILE_SIZE } else { max_file_size } }
     }
 
     pub async fn persist_multipart_to_storage_temp(
@@ -40,8 +34,7 @@ impl PhotoUploadService {
         storage_path: &Path,
     ) -> Result<Vec<StoredUploadFile>> {
         let boundary = multer::parse_boundary(content_type)?;
-        let body_stream =
-            stream::once(async move { Ok::<Bytes, std::io::Error>(Bytes::from(body_bytes)) });
+        let body_stream = stream::once(async move { Ok::<Bytes, std::io::Error>(Bytes::from(body_bytes)) });
         let mut multipart = multer::Multipart::new(body_stream, boundary);
 
         let temp_folder = storage_path.join(Self::TEMP_FOLDER_NAME);
@@ -53,10 +46,8 @@ impl PhotoUploadService {
                 continue;
             }
 
-            let incoming_name = field
-                .file_name()
-                .map(ToString::to_string)
-                .unwrap_or_else(|| Self::UNKNOWN_FILE_BASENAME.to_string());
+            let incoming_name =
+                field.file_name().map(ToString::to_string).unwrap_or_else(|| Self::UNKNOWN_FILE_BASENAME.to_string());
             let content_type = field.content_type().map(|value| value.to_string());
             let sanitized_name = Self::sanitize_file_name(&incoming_name);
             let (final_file_name, absolute_file_path) =
@@ -66,20 +57,14 @@ impl PhotoUploadService {
             let bytes_written = self
                 .write_stream_to_file(field.into_stream(), &absolute_file_path)
                 .await
-                .with_context(|| {
-                    format!("failed to persist upload '{}'", absolute_file_path.display())
-                })?;
+                .with_context(|| format!("failed to persist upload '{}'", absolute_file_path.display()))?;
 
             if bytes_written == 0 {
                 let _ = fs::remove_file(&absolute_file_path).await;
                 continue;
             }
 
-            log::debug!(
-                "Stored upload '{}' ({} bytes)",
-                final_file_name,
-                bytes_written
-            );
+            log::debug!("Stored upload '{}' ({} bytes)", final_file_name, bytes_written);
 
             saved_files.push(StoredUploadFile {
                 file_name: final_file_name.clone(),
@@ -101,17 +86,13 @@ impl PhotoUploadService {
 
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
-            bytes_written = bytes_written
-                .checked_add(chunk.len() as u64)
-                .ok_or_else(|| anyhow!("uploaded file size overflow"))?;
+            bytes_written =
+                bytes_written.checked_add(chunk.len() as u64).ok_or_else(|| anyhow!("uploaded file size overflow"))?;
 
             if bytes_written > self.max_file_size {
                 drop(file);
                 let _ = fs::remove_file(path).await;
-                return Err(anyhow!(
-                    "uploaded file exceeds max allowed size of {} bytes",
-                    self.max_file_size
-                ));
+                return Err(anyhow!("uploaded file exceeds max allowed size of {} bytes", self.max_file_size));
             }
 
             file.write_all(&chunk).await?;
@@ -121,21 +102,14 @@ impl PhotoUploadService {
         Ok(bytes_written)
     }
 
-    async fn allocate_unique_path(
-        &self,
-        temp_folder: &Path,
-        sanitized_name: &str,
-    ) -> Result<(String, PathBuf)> {
+    async fn allocate_unique_path(&self, temp_folder: &Path, sanitized_name: &str) -> Result<(String, PathBuf)> {
         let candidate_name = Path::new(sanitized_name);
         let stem = candidate_name
             .file_stem()
             .and_then(|value| value.to_str())
             .filter(|value| !value.is_empty())
             .unwrap_or(Self::UNKNOWN_FILE_BASENAME);
-        let ext = candidate_name
-            .extension()
-            .and_then(|value| value.to_str())
-            .filter(|value| !value.is_empty());
+        let ext = candidate_name.extension().and_then(|value| value.to_str()).filter(|value| !value.is_empty());
 
         for _ in 0..8 {
             let suffix = Uuid::new_v4().simple().to_string();
@@ -161,22 +135,14 @@ impl PhotoUploadService {
         let sanitized = base_name
             .chars()
             .map(|character| {
-                if character.is_ascii_alphanumeric()
-                    || character == '.'
-                    || character == '-'
-                    || character == '_'
-                {
+                if character.is_ascii_alphanumeric() || character == '.' || character == '-' || character == '_' {
                     character
                 } else {
                     '_'
                 }
             })
             .collect::<String>();
-        if sanitized.is_empty() {
-            Self::UNKNOWN_FILE_BASENAME.to_string()
-        } else {
-            sanitized
-        }
+        if sanitized.is_empty() { Self::UNKNOWN_FILE_BASENAME.to_string() } else { sanitized }
     }
 
     pub fn require_content_type<'a>(&self, content_type: Option<&'a str>) -> Result<&'a str> {

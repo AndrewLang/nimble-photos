@@ -4,15 +4,8 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn unique_temp_file_path() -> PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "nimble_photos_hash_service_{}_{}.bin",
-        std::process::id(),
-        nanos
-    ))
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    std::env::temp_dir().join(format!("nimble_photos_hash_service_{}_{}.bin", std::process::id(), nanos))
 }
 
 #[test]
@@ -39,9 +32,7 @@ fn compute_file_matches_compute_for_same_file_metadata() {
     let metadata = fs::metadata(&path).expect("failed to load temp file metadata");
     let expected = service.compute(&data, metadata.len() as usize, metadata.modified().unwrap());
 
-    let actual = service
-        .compute_file(path.to_str().expect("invalid temp file path"))
-        .expect("compute_file failed");
+    let actual = service.compute_file(path.to_str().expect("invalid temp file path")).expect("compute_file failed");
 
     assert_eq!(actual, expected);
 

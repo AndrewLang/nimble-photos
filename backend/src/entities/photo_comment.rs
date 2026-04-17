@@ -22,20 +22,8 @@ pub struct PhotoComment {
 }
 
 impl PhotoComment {
-    pub fn new(
-        photo_id: Uuid,
-        user_id: Uuid,
-        user_display_name: Option<String>,
-        body: Option<String>,
-    ) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            photo_id,
-            user_id,
-            user_display_name,
-            body,
-            created_at: Some(Utc::now()),
-        }
+    pub fn new(photo_id: Uuid, user_id: Uuid, user_display_name: Option<String>, body: Option<String>) -> Self {
+        Self { id: Uuid::new_v4(), photo_id, user_id, user_display_name, body, created_at: Some(Utc::now()) }
     }
 }
 
@@ -66,11 +54,7 @@ impl Entity for PhotoComment {
 
 impl HasOptionalUuidId for PhotoComment {
     fn current_id(&self) -> Option<Uuid> {
-        if self.id == Uuid::nil() {
-            None
-        } else {
-            Some(self.id)
-        }
+        if self.id == Uuid::nil() { None } else { Some(self.id) }
     }
 
     fn set_id(&mut self, id: Uuid) {
@@ -103,14 +87,7 @@ impl PostgresEntity for PhotoComment {
     }
 
     fn insert_columns() -> &'static [&'static str] {
-        &[
-            "id",
-            "photo_id",
-            "user_id",
-            "user_display_name",
-            "body",
-            "created_at",
-        ]
+        &["id", "photo_id", "user_id", "user_display_name", "body", "created_at"]
     }
 
     fn insert_values(&self) -> Vec<nimble_web::data::query::Value> {
@@ -142,9 +119,7 @@ impl PostgresEntity for PhotoComment {
             ColumnDef::new("user_id", ColumnType::Uuid).not_null(),
             ColumnDef::new("user_display_name", ColumnType::Text),
             ColumnDef::new("body", ColumnType::Text).not_null(),
-            ColumnDef::new("created_at", ColumnType::Timestamp)
-                .not_null()
-                .default("NOW()"),
+            ColumnDef::new("created_at", ColumnType::Timestamp).not_null().default("NOW()"),
         ]
     }
 }
