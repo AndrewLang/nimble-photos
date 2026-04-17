@@ -23,6 +23,7 @@ Copy `.env.example` to `.env` and update values as needed:
 
 - `POSTGRES_DATA_DIR`: host folder for PostgreSQL data
 - `APP_DATA_DIR`: host folder for app data used by Nimble Photos
+- `APP_HOST`: backend bind host. Use `0.0.0.0` to allow access from other computers on your LAN
 - `APP_PORT`: host port for Nimble Photos (default `5151`)
 - `POSTGRES_PORT`: host port for PostgreSQL (default `5438`)
 - `APP_IMAGE`: deploy image tag (default `nimble-photos:latest`)
@@ -47,6 +48,11 @@ Open:
 `http://localhost:5151`
 
 If you changed `APP_PORT`, use that port instead.
+To open it from another computer on the same network, use:
+
+`http://<server-lan-ip>:5151`
+
+If you changed `APP_PORT`, use that port instead. You may also need to allow the port through the host firewall.
 
 ### Local Build (builds Dockerfile)
 

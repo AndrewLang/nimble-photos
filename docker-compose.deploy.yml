@@ -27,12 +27,13 @@ services:
         condition: service_healthy
     restart: unless-stopped
     environment:
-      Nimble_Photo_Url: 0.0.0.0:5151
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-5151}
       NIMBLE_POSTGRES_URL: postgres://${POSTGRES_USER:-nimble_photos_admin}:${POSTGRES_PASSWORD:-nimble_photos_password}@postgres:5432/${POSTGRES_DB:-nimble_photos}
       NIMBLE_POSTGRES_POOLSIZE: ${APP_DB_POOL_SIZE:-20}
       NIMBLE_POSTGRES_TIMEOUT: ${APP_DB_TIMEOUT_SECONDS:-15}
       RUST_LOG: ${RUST_LOG:-info}
     ports:
-      - "${APP_PORT:-5151}:5151"
+      - "${APP_PORT:-5151}:${APP_PORT:-5151}"
     volumes:
       - "${APP_DATA_DIR}:/app/data"
