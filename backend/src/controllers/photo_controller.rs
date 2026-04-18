@@ -96,6 +96,7 @@ impl HttpHandler for DeletePhotosHandler {
         }
 
         let photo_repo = context.service::<Repository<Photo>>()?;
+        let timeline_repo = context.service::<Repository<TimelineDay>>()?;
 
         let mut deleted = 0u32;
 
@@ -110,11 +111,16 @@ impl HttpHandler for DeletePhotosHandler {
             };
 
             deleted += photo_repo
-                .delete_file(&photo, context)
+                .delete_photo(context, &photo)
                 .await
-                .map_err(|e| PipelineError::message(&format!("failed to delete photo files: {:?}", e)))
-                .map(|_| 1u32)
-                .unwrap_or(0u32);
+                .map_err(|e| PipelineError::message(&format!("failed to delete photo: {:?}", e)))?;
+        }
+
+        if deleted > 0 {
+            timeline_repo
+                .sync()
+                .await
+                .map_err(|e| PipelineError::message(&format!("failed to sync timeline days: {:?}", e)))?;
         }
 
         Ok(ResponseValue::new(Json(serde_json::json!({ "deleted": deleted }))))

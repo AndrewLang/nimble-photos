@@ -83,7 +83,6 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
     async fn delete_file(&self, photo: &Photo, context: &HttpContext) -> Result<(), PipelineError> {
         let file_service = context.service::<FileService>()?;
         let storage_repo = context.service::<Repository<StorageLocation>>()?;
-        let hash = photo.hash.as_ref().ok_or_else(|| PipelineError::message("Photo hash is missing"))?;
 
         let storage = storage_repo
             .get(&photo.storage_id)
@@ -91,18 +90,26 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
             .map_err(|_| PipelineError::message("Storage location not found"))?
             .ok_or_else(|| PipelineError::message("Storage is not found"))?;
 
-        let root = Path::new(&storage.path);
+        let root = storage.normalized_path();
 
-        let thumbnail_path = file_service.path_for_hash(
-            root.join(SettingConsts::THUMBNAIL_FOLDER),
-            &hash,
-            SettingConsts::THUMBNAIL_FORMAT,
-        );
-        let _ = file_service.remove_file(&thumbnail_path);
+        let source_path = {
+            let path = PathBuf::from(&photo.path);
+            if path.is_absolute() { path } else { root.join(path) }
+        };
+        let _ = file_service.remove_file(&source_path);
 
-        let preview_path =
-            file_service.path_for_hash(root.join(SettingConsts::PREVIEW_FOLDER), &hash, SettingConsts::PREVIEW_FORMAT);
-        let _ = file_service.remove_file(&preview_path);
+        if let Some(hash) = photo.hash.as_ref() {
+            let thumbnail_path = file_service.path_for_hash(
+                root.join(SettingConsts::THUMBNAIL_FOLDER),
+                hash,
+                SettingConsts::THUMBNAIL_FORMAT,
+            );
+            let _ = file_service.remove_file(&thumbnail_path);
+
+            let preview_path =
+                file_service.path_for_hash(root.join(SettingConsts::PREVIEW_FOLDER), hash, SettingConsts::PREVIEW_FORMAT);
+            let _ = file_service.remove_file(&preview_path);
+        }
 
         Ok(())
     }
@@ -240,7 +247,6 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
     }
 
     async fn photos_for_days(&self, days: Vec<String>) -> Result<Vec<TimelineGroup>, PipelineError> {
-        log::info!("Loading photos for days: {:?}", days.clone());
         if days.is_empty() {
             return Ok(Vec::new());
         }
