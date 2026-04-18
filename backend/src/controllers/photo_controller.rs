@@ -511,3 +511,20 @@ impl HttpHandler for GetMetadataHandler {
         Ok(ResponseValue::json(metadata))
     }
 }
+
+struct GetMetadataByHashHandler;
+
+#[async_trait]
+#[get("/api/photos/metadata/hash/{hash}")]
+impl HttpHandler for GetMetadataByHashHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let hash = context.param("hash")?;
+        let exif_repo = context.service::<Repository<ExifModel>>()?;
+        let metadata = exif_repo
+            .get_by("hash", Value::String(hash))
+            .await
+            .map_err(|e| PipelineError::message(&format!("failed to get exif record: {:?}", e)))?;
+
+        Ok(ResponseValue::json(metadata))
+    }
+}

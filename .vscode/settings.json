@@ -3,5 +3,8 @@
         "cargo test": true,
         "Push-Location": true,
         "cargo build": true
-    }
+    },
+    "rust-analyzer.linkedProjects": [
+        "backend/Cargo.toml"
+    ]
 }
