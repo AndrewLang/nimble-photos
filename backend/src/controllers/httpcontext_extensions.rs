@@ -345,7 +345,7 @@ impl HttpContextExtensions for HttpContext {
                         label: "Preview Cache".to_string(),
                         path: preview_root.to_string_lossy().to_string(),
                         is_default: false,
-                        readonly: preview_storage_id == SettingConsts::DEFAULT_STORAGE_ID,
+                        is_readonly: preview_storage_id == SettingConsts::DEFAULT_STORAGE_ID,
                         created_at: Utc::now().to_rfc3339(),
                         category_template: "{year}/{date:%Y-%m-%d}/{fileName}".to_string(),
                     };

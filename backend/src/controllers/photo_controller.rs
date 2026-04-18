@@ -46,6 +46,10 @@ impl HttpHandler for UploadPhotosHandler {
             .await
             .map_err(|_| PipelineError::message("Storage location not found"))?
             .ok_or_else(|| PipelineError::message("Storage is not found"))?;
+        if storage.is_readonly {
+            context.response_mut().set_status(403);
+            return Err(PipelineError::message("Storage is readonly"));
+        }
 
         let saved_files = upload_service
             .persist_multipart_to_storage_temp(content_type_header, request_body, Path::new(&storage.path))

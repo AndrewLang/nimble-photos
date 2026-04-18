@@ -17,7 +17,9 @@ pub struct StorageLocation {
     pub path: String,
     pub is_default: bool,
     #[serde(default)]
-    pub readonly: bool,
+    #[serde(alias = "readonly")]
+    #[cfg_attr(feature = "postgres", sqlx(rename = "readonly"))]
+    pub is_readonly: bool,
     pub created_at: String,
     #[serde(default = "StorageLocation::default_category_template")]
     pub category_template: String,
@@ -70,7 +72,7 @@ impl PostgresEntity for StorageLocation {
             Value::String(self.label.clone()),
             Value::String(self.path.clone()),
             Value::Bool(self.is_default),
-            Value::Bool(self.readonly),
+            Value::Bool(self.is_readonly),
             Value::String(self.created_at.clone()),
             Value::String(self.category_template.clone()),
         ]
@@ -85,7 +87,7 @@ impl PostgresEntity for StorageLocation {
             Value::String(self.label.clone()),
             Value::String(self.path.clone()),
             Value::Bool(self.is_default),
-            Value::Bool(self.readonly),
+            Value::Bool(self.is_readonly),
             Value::String(self.created_at.clone()),
             Value::String(self.category_template.clone()),
         ]
@@ -111,6 +113,7 @@ pub struct StorageLocationResponse {
     pub label: String,
     pub path: String,
     pub is_default: bool,
+    pub is_readonly: bool,
     pub created_at: String,
     pub category_template: String,
     pub disk: Option<DiskInfo>,

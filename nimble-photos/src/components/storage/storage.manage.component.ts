@@ -53,6 +53,7 @@ export class StorageManageComponent {
             label: '',
             path: 'Nimble',
             isDefault: false,
+            isReadonly: false,
             createdAt: new Date().toISOString(),
             categoryTemplate: 'date',
         }

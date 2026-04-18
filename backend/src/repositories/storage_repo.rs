@@ -76,6 +76,7 @@ impl StorageRepositoryExtensions for Repository<StorageLocation> {
                     label: location.label,
                     path: location.path,
                     is_default: location.is_default,
+                    is_readonly: location.is_readonly,
                     created_at: location.created_at,
                     category_template: location.category_template,
                     disk,

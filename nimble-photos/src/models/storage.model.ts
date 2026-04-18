@@ -10,6 +10,7 @@ export interface StorageLocation {
     label: string;
     path: string;
     isDefault: boolean;
+    isReadonly: boolean;
     createdAt: string;
     categoryTemplate: string;
     disk?: StorageDiskInfo | null;

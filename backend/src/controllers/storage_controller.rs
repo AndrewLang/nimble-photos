@@ -95,7 +95,7 @@ impl HttpHandler for CreateStorageHandler {
             label: label_value.to_string(),
             path: full_path_value,
             is_default,
-            readonly: false,
+            is_readonly: false,
             created_at: Utc::now().to_rfc3339(),
             category_template: payload
                 .category_template
@@ -118,6 +118,7 @@ impl HttpHandler for CreateStorageHandler {
             label: new_location.label,
             path: new_location.path,
             is_default: new_location.is_default,
+            is_readonly: new_location.is_readonly,
             created_at: new_location.created_at,
             category_template: new_location.category_template,
             disk,

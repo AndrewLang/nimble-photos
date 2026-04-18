@@ -402,11 +402,16 @@ impl SyncService {
     async fn load_storage(&self, storage_id: &str) -> Result<StorageLocation, PipelineError> {
         let parsed_storage_id =
             Uuid::parse_str(storage_id.trim()).map_err(|_| PipelineError::message("invalid storageId"))?;
-        self.storage_repo
+        let storage = self
+            .storage_repo
             .get(&parsed_storage_id)
             .await
             .map_err(|_| PipelineError::message("failed to load storage settings"))?
-            .ok_or_else(|| PipelineError::message("storage not found"))
+            .ok_or_else(|| PipelineError::message("storage not found"))?;
+        if storage.is_readonly {
+            return Err(PipelineError::message("storage is readonly"));
+        }
+        Ok(storage)
     }
 
     fn image_output_path(&self, storage: &StorageLocation, photo: &Photo, item: &SyncFileItem) -> Result<PathBuf> {
