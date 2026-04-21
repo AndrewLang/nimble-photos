@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use serde::Deserialize;
-use std::path::Path;
 use uuid::Uuid;
 
 use crate::prelude::*;
@@ -106,8 +105,11 @@ impl PhotoRepositoryExtensions for Repository<Photo> {
             );
             let _ = file_service.remove_file(&thumbnail_path);
 
-            let preview_path =
-                file_service.path_for_hash(root.join(SettingConsts::PREVIEW_FOLDER), hash, SettingConsts::PREVIEW_FORMAT);
+            let preview_path = file_service.path_for_hash(
+                root.join(SettingConsts::PREVIEW_FOLDER),
+                hash,
+                SettingConsts::PREVIEW_FORMAT,
+            );
             let _ = file_service.remove_file(&preview_path);
         }
 

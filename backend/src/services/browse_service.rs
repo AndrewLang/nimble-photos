@@ -5,6 +5,8 @@ use sqlx::{PgPool, Row};
 use crate::entities::photo_browse::{BrowseNodeType, BrowseOptions, BrowsePhoto, BrowseResponse, StorageFolder};
 use crate::entities::photo_cursor::PhotoCursor;
 use crate::models::browse_dimension_sql_adapter::{BrowseDimensionSqlAdapter, SqlParam};
+#[cfg(feature = "postgres")]
+use crate::repositories::postgres_extensions::PostgresExtensions;
 
 pub struct BrowseService {
     pool: Arc<PgPool>,
@@ -166,7 +168,10 @@ impl BrowseService {
 
         let normalized_size = page_size.clamp(1, 200);
         let sql = format!(
-            "SELECT p.id, p.storage_id, p.name AS file_name, COALESCE(p.hash, '') AS hash, p.date_taken, p.width, p.height, p.sort_date
+            "SELECT p.id, p.storage_id, p.name AS file_name, p.name, p.format, p.hash, p.size, p.created_at,
+                    p.updated_at, p.date_imported, p.date_taken, p.year, p.month_day, p.metadata_extracted,
+                    p.artist, p.make, p.model, p.lens_make, p.lens_model, p.exposure_time, p.iso, p.focal_length,
+                    p.label, p.rating, p.flagged, p.is_raw, p.width, p.height, p.orientation, p.day_date, p.sort_date
              FROM photos p
              WHERE {}
              ORDER BY p.sort_date {order_dir}, p.id {order_dir}
@@ -208,10 +213,34 @@ impl BrowseService {
                 id: row.try_get("id")?,
                 storage_id: row.try_get("storage_id")?,
                 file_name: row.try_get("file_name")?,
+                name: row.try_get("name")?,
+                format: row.try_get("format")?,
                 hash: row.try_get("hash")?,
+                size: row.try_get("size")?,
+                created_at: row.try_get("created_at")?,
+                updated_at: row.try_get("updated_at")?,
+                date_imported: row.try_get("date_imported")?,
                 date_taken: row.try_get("date_taken")?,
-                width: row.try_get("width")?,
-                height: row.try_get("height")?,
+                year: row.try_get("year")?,
+                month_day: row.try_get("month_day")?,
+                metadata_extracted: row.try_get("metadata_extracted")?,
+                artist: row.try_get("artist")?,
+                make: row.try_get("make")?,
+                model: row.try_get("model")?,
+                lens_make: row.try_get("lens_make")?,
+                lens_model: row.try_get("lens_model")?,
+                exposure_time: row.try_get("exposure_time")?,
+                iso: PostgresExtensions::optional_i32_as_u32(&row, "iso")?,
+                focal_length: row.try_get("focal_length")?,
+                label: row.try_get("label")?,
+                rating: PostgresExtensions::optional_i32_as_u8(&row, "rating")?,
+                flagged: PostgresExtensions::optional_i32_as_i8(&row, "flagged")?,
+                is_raw: row.try_get("is_raw")?,
+                width: PostgresExtensions::optional_i32_as_u32(&row, "width")?,
+                height: PostgresExtensions::optional_i32_as_u32(&row, "height")?,
+                orientation: PostgresExtensions::optional_i32_as_u16(&row, "orientation")?,
+                day_date: row.try_get("day_date")?,
+                sort_date: sort_date.clone(),
             };
             entries.push((photo, sort_date));
         }

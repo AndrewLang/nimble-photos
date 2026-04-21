@@ -1,2 +1,5 @@
 [build]
 rustflags = ["-A", "dead_code"]
+
+[env]
+"CMAKE_GENERATOR_x86_64-pc-windows-msvc" = "Visual Studio 17 2022"
