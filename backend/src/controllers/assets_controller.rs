@@ -28,3 +28,17 @@ impl HttpHandler for LogoHandler {
         Ok(ResponseValue::new(FileResponse::from_path(path)))
     }
 }
+
+
+struct UpdateHandler;
+
+#[async_trait]
+#[put("/api/{product}/current")]
+impl HttpHandler for UpdateHandler {
+    async fn invoke(&self, context: &mut HttpContext) -> Result<ResponseValue, PipelineError> {
+        let product = context.param("product")?;
+
+
+        Ok(ResponseValue::new(product))
+    }
+}
